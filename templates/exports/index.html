@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Exports - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-download me-2"></i>Exports et Rapports</h1>
+</div>
+
+<div class="row">
+    <!-- Excel Export -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-excel me-2"></i>Export Excel
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Exportez vos données de chèques au format Excel pour l'analyse et le suivi.</p>
+                
+                <form method="POST" action="{{ url_for('exports.export_excel') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Période</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="date" class="form-control" name="date_from" placeholder="Date début">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="date" class="form-control" name="date_to" placeholder="Date fin">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Banque</label>
+                        <select class="form-select" name="bank_id">
+                            <option value="">Toutes les banques</option>
+                            {% for bank in banks %}
+                            <option value="{{ bank.id }}">{{ bank.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Statut</label>
+                        <select class="form-select" name="status">
+                            <option value="">Tous les statuts</option>
+                            <option value="en_attente">EN ATTENTE</option>
+                            <option value="encaisse">ENCAISSÉ</option>
+                            <option value="rejete">REJETÉ</option>
+                            <option value="impaye">IMPAYÉ</option>
+                            <option value="depose">DÉPOSÉ</option>
+                            <option value="annule">ANNULÉ</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel me-2"></i>Exporter en Excel
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PDF Export -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-pdf me-2"></i>Export PDF
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Générez des rapports PDF professionnels pour vos présentations et archives.</p>
+                
+                <form method="POST" action="{{ url_for('exports.export_pdf') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Type de rapport</label>
+                        <select class="form-select" name="report_type">
+                            <option value="summary">Résumé avec statistiques</option>
+                            <option value="detailed">Liste détaillée</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Période</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="date" class="form-control" name="date_from" placeholder="Date début">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="date" class="form-control" name="date_to" placeholder="Date fin">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Banque</label>
+                        <select class="form-select" name="bank_id">
+                            <option value="">Toutes les banques</option>
+                            {% for bank in banks %}
+                            <option value="{{ bank.id }}">{{ bank.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Statut</label>
+                        <select class="form-select" name="status">
+                            <option value="">Tous les statuts</option>
+                            <option value="en_attente">EN ATTENTE</option>
+                            <option value="encaisse">ENCAISSÉ</option>
+                            <option value="rejete">REJETÉ</option>
+                            <option value="impaye">IMPAYÉ</option>
+                            <option value="depose">DÉPOSÉ</option>
+                            <option value="annule">ANNULÉ</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-danger w-100">
+                        <i class="fas fa-file-pdf me-2"></i>Générer Rapport PDF
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bordereaux de Remise -->
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-receipt me-2"></i>Bordereaux de Remise
+        </h5>
+    </div>
+    <div class="card-body">
+        <p class="card-text">Générez des bordereaux de remise pour vos dépôts bancaires.</p>
+        
+        {% if banks %}
+        <div class="row">
+            {% for bank in banks %}
+            <div class="col-md-4 mb-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">{{ bank.name }}</h6>
+                        <a href="{{ url_for('exports.bordereau', bank_id=bank.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-receipt me-1"></i>Bordereau
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted">
+            <p>Aucune banque disponible pour générer des bordereaux.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Export Tips -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-info-circle me-2"></i>Conseils d'Export
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6><i class="fas fa-file-excel text-success me-2"></i>Excel</h6>
+                <ul class="list-unstyled small">
+                    <li>• Idéal pour l'analyse de données</li>
+                    <li>• Compatible avec tous les logiciels de tableur</li>
+                    <li>• Données structurées par mois</li>
+                    <li>• Calculs automatiques inclus</li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <h6><i class="fas fa-file-pdf text-danger me-2"></i>PDF</h6>
+                <ul class="list-unstyled small">
+                    <li>• Parfait pour les présentations</li>
+                    <li>• Format professionnel et imprimable</li>
+                    <li>• Statistiques visuelles incluses</li>
+                    <li>• Archivage long terme</li>
+                </ul>
+            </div>
+            <div class="col-md-4">
+                <h6><i class="fas fa-receipt text-primary me-2"></i>Bordereaux</h6>
+                <ul class="list-unstyled small">
+                    <li>• Document officiel de dépôt</li>
+                    <li>• Requis par les banques</li>
+                    <li>• Signature électronique possible</li>
+                    <li>• Traçabilité complète</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

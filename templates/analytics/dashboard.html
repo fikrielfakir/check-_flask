@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3"><i class="fas fa-chart-bar text-primary me-2"></i>Analytics Dashboard</h1>
+        <div class="btn-group">
+            <a href="{{ url_for('analytics.aging_analysis') }}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-clock me-1"></i>Aging Analysis
+            </a>
+            <a href="{{ url_for('analytics.seasonal_trends') }}" class="btn btn-outline-info btn-sm">
+                <i class="fas fa-chart-line me-1"></i>Seasonal Trends
+            </a>
+            <a href="{{ url_for('analytics.client_risk') }}" class="btn btn-outline-warning btn-sm">
+                <i class="fas fa-exclamation-triangle me-1"></i>Risk Assessment
+            </a>
+            <a href="{{ url_for('analytics.export_analytics_report', report_type='complete') }}" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-download me-1"></i>Export Report
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Cards Row -->
+    {% if kpi_data and kpi_data.current_month %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ kpi_data.current_month.total_cheques }}</h4>
+                            <p class="card-text">Total Chèques</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-money-check fa-2x"></i>
+                        </div>
+                    </div>
+                    {% if kpi_data.growth_metrics %}
+                    <small class="d-block mt-2">
+                        <i class="fas fa-{{ 'arrow-up text-success' if kpi_data.growth_metrics.count_growth > 0 else 'arrow-down text-danger' if kpi_data.growth_metrics.count_growth < 0 else 'minus text-warning' }}"></i>
+                        {{ "%.1f"|format(kpi_data.growth_metrics.count_growth) }}% vs mois dernier
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ "%.0f"|format(kpi_data.current_month.total_amount) }} MAD</h4>
+                            <p class="card-text">Montant Total</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-coins fa-2x"></i>
+                        </div>
+                    </div>
+                    {% if kpi_data.growth_metrics %}
+                    <small class="d-block mt-2">
+                        <i class="fas fa-{{ 'arrow-up text-light' if kpi_data.growth_metrics.amount_growth > 0 else 'arrow-down text-light' if kpi_data.growth_metrics.amount_growth < 0 else 'minus text-light' }}"></i>
+                        {{ "%.1f"|format(kpi_data.growth_metrics.amount_growth) }}% vs mois dernier
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ "%.1f"|format(kpi_data.current_month.success_rate) }}%</h4>
+                            <p class="card-text">Taux de Succès</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                    <small class="d-block mt-2">
+                        {{ kpi_data.current_month.successful_cheques }} encaissés / {{ kpi_data.current_month.total_cheques }} total
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ kpi_data.current_month.pending_cheques }}</h4>
+                            <p class="card-text">En Attente</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-hourglass-half fa-2x"></i>
+                        </div>
+                    </div>
+                    <small class="d-block mt-2">
+                        {{ kpi_data.current_month.bounced_cheques }} rejetés ce mois
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Charts and Analytics Row -->
+    <div class="row mb-4">
+        <!-- Performance Metrics -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>Performance Metrics</h5>
+                    <a href="{{ url_for('analytics.performance_metrics') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if performance_metrics %}
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center border-end">
+                                <h4 class="text-primary">{{ "%.1f"|format(performance_metrics.avg_processing_time) }}</h4>
+                                <small class="text-muted">Jours moyens de traitement</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-success">{{ "%.1f"|format(performance_metrics.efficiency_score) }}%</h4>
+                                <small class="text-muted">Score d'efficacité</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="progress mt-3">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ performance_metrics.efficiency_score }}%" 
+                             aria-valuenow="{{ performance_metrics.efficiency_score }}" 
+                             aria-valuemin="0" aria-valuemax="100">
+                            Efficacité: {{ "%.1f"|format(performance_metrics.efficiency_score) }}%
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Basé sur {{ performance_metrics.total_processed }} chèques traités
+                        </small>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-chart-line fa-3x mb-3"></i>
+                        <p>Aucune donnée de performance disponible</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Cash Flow Prediction -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chart-area me-2"></i>Prédiction de Trésorerie</h5>
+                    <a href="{{ url_for('analytics.cash_flow_prediction') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if cash_flow %}
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center border-end">
+                                <h4 class="text-info">{{ "%.0f"|format(cash_flow.total_predicted) }}</h4>
+                                <small class="text-muted">MAD prédits (30j)</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-warning">{{ "%.0f"|format(cash_flow.adjusted_total) }}</h4>
+                                <small class="text-muted">MAD ajustés</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small">Niveau de confiance:</span>
+                            <span class="badge bg-{{ 'success' if cash_flow.confidence_level == 'high' else 'warning' if cash_flow.confidence_level == 'medium' else 'danger' }}">
+                                {{ cash_flow.confidence_level.title() }}
+                            </span>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-percentage me-1"></i>
+                                Taux de succès historique: {{ "%.1f"|format(cash_flow.success_rate) }}%
+                            </small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-crystal-ball fa-3x mb-3"></i>
+                        <p>Aucune prédiction disponible</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Clients and Bank Performance -->
+    <div class="row mb-4">
+        <!-- Top Clients -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Top Clients</h5>
+                    <a href="{{ url_for('analytics.client_performance') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if kpi_data and kpi_data.top_clients %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th class="text-end">Chèques</th>
+                                    <th class="text-end">Montant</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for client in kpi_data.top_clients[:5] %}
+                                <tr>
+                                    <td>{{ client.name }}</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-info">{{ client.cheque_count }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>{{ "%.0f"|format(client.total_amount) }} MAD</strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-user-friends fa-3x mb-3"></i>
+                        <p>Aucun client trouvé</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank Performance -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-university me-2"></i>Performance Bancaire</h5>
+                    <a href="{{ url_for('analytics.bank_performance') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if kpi_data and kpi_data.bank_performance %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Banque</th>
+                                    <th class="text-end">Chèques</th>
+                                    <th class="text-end">Taux Succès</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bank in kpi_data.bank_performance[:5] %}
+                                <tr>
+                                    <td>{{ bank.bank_name }}</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-primary">{{ bank.cheque_count }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-{{ 'success' if bank.success_rate > 80 else 'warning' if bank.success_rate > 60 else 'danger' }}">
+                                            {{ "%.1f"|format(bank.success_rate) }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-building fa-3x mb-3"></i>
+                        <p>Aucune donnée bancaire trouvée</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Clients Alert -->
+    {% if risk_clients %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Clients à Risque Élevé</h5>
+                    <a href="{{ url_for('analytics.client_risk') }}" class="btn btn-outline-light btn-sm">
+                        Voir tous
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th class="text-center">Niveau de Risque</th>
+                                    <th class="text-center">Taux de Rejet</th>
+                                    <th class="text-end">Chèques Rejetés</th>
+                                    <th class="text-end">Score de Risque</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for client in risk_clients[:5] %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ client.client_name }}</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ 'danger' if client.risk_level == 'critical' else 'warning' if client.risk_level == 'high' else 'info' if client.risk_level == 'medium' else 'success' }}">
+                                            {{ client.risk_level.title() }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong class="text-{{ 'danger' if client.bounce_rate > 15 else 'warning' if client.bounce_rate > 8 else 'info' }}">
+                                            {{ "%.1f"|format(client.bounce_rate) }}%
+                                        </strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-danger">{{ client.bounced_cheques }}</span> / {{ client.total_cheques }}
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="progress" style="height: 20px; width: 60px;">
+                                            <div class="progress-bar bg-{{ 'danger' if client.risk_score > 80 else 'warning' if client.risk_score > 60 else 'info' }}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ client.risk_score }}%" 
+                                                 aria-valuenow="{{ client.risk_score }}" 
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                                {{ client.risk_score }}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x text-primary mb-2"></i>
+                    <h6>Analyse de Vieillissement</h6>
+                    <p class="small text-muted">Analyser les jours dans chaque statut</p>
+                    <a href="{{ url_for('analytics.aging_analysis') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-clock me-1"></i>Analyser
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+                    <h6>Tendances Saisonnières</h6>
+                    <p class="small text-muted">Évolution mensuelle des flux</p>
+                    <a href="{{ url_for('analytics.seasonal_trends') }}" class="btn btn-info btn-sm">
+                        <i class="fas fa-chart-line me-1"></i>Tendances
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-search fa-2x text-warning mb-2"></i>
+                    <h6>Détection de Doublons</h6>
+                    <p class="small text-muted">Identifier les chèques dupliqués</p>
+                    <a href="{{ url_for('analytics.duplicate_detection') }}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-search me-1"></i>Détecter
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-download fa-2x text-success mb-2"></i>
+                    <h6>Export Complet</h6>
+                    <p class="small text-muted">Rapport analytique complet</p>
+                    <a href="{{ url_for('analytics.export_analytics_report', report_type='complete') }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-download me-1"></i>Exporter
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Real-time Updates Script -->
+<script>
+// Auto-refresh KPI data every 5 minutes
+setInterval(function() {
+    fetch('{{ url_for("analytics.api_kpi_data") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update KPI cards with new data
+                console.log('KPI data refreshed', data.data.timestamp);
+            }
+        })
+        .catch(error => console.error('Error refreshing KPI data:', error));
+}, 300000); // 5 minutes
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

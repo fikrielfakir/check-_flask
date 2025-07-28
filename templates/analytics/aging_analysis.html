@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Cheque Aging Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3"><i class="fas fa-clock text-warning me-2"></i>Analyse de Vieillissement des Chèques</h1>
+        <div class="btn-group">
+            <a href="{{ url_for('analytics.analytics_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Retour
+            </a>
+            <a href="{{ url_for('analytics.export_analytics_report', report_type='aging') }}" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-download me-1"></i>Exporter
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtres d'Analyse</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="status" class="form-label">Filtrer par statut</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">Tous les statuts</option>
+                                <option value="EN_ATTENTE" {{ 'selected' if status_filter == 'EN_ATTENTE' }}>En attente</option>
+                                <option value="DEPOSE" {{ 'selected' if status_filter == 'DEPOSE' }}>Déposé</option>
+                                <option value="ENCAISSE" {{ 'selected' if status_filter == 'ENCAISSE' }}>Encaissé</option>
+                                <option value="REJETE" {{ 'selected' if status_filter == 'REJETE' }}>Rejeté</option>
+                                <option value="IMPAYE" {{ 'selected' if status_filter == 'IMPAYE' }}>Impayé</option>
+                                <option value="ANNULE" {{ 'selected' if status_filter == 'ANNULE' }}>Annulé</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>Analyser
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aging Analysis Results -->
+    {% if aging_data %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Résultats de l'Analyse de Vieillissement</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Statut</th>
+                                    <th class="text-center">Nombre de Chèques</th>
+                                    <th class="text-center">Pourcentage</th>
+                                    <th class="text-end">Montant Total</th>
+                                    <th class="text-center">Jours Moyens</th>
+                                    <th class="text-center">Min - Max Jours</th>
+                                    <th class="text-center">Indicateur</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for aging in aging_data %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if aging.status == 'ENCAISSE' 
+                                                                else 'primary' if aging.status == 'DEPOSE' 
+                                                                else 'warning' if aging.status == 'EN_ATTENTE' 
+                                                                else 'danger' if aging.status in ['REJETE', 'IMPAYE'] 
+                                                                else 'secondary' }} px-3 py-2">
+                                            {{ aging.status.replace('_', ' ').title() }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong>{{ aging.total_cheques }}</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div class="progress me-2" style="width: 60px; height: 20px;">
+                                                <div class="progress-bar bg-{{ 'success' if aging.percentage > 40 
+                                                                               else 'warning' if aging.percentage > 20 
+                                                                               else 'info' }}" 
+                                                     role="progressbar" 
+                                                     style="width: {{ aging.percentage }}%" 
+                                                     aria-valuenow="{{ aging.percentage }}" 
+                                                     aria-valuemin="0" aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                            <span class="fw-bold">{{ "%.1f"|format(aging.percentage) }}%</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-primary">{{ "%.2f"|format(aging.total_amount) }} MAD</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ 'success' if aging.avg_days <= 7 
+                                                               else 'warning' if aging.avg_days <= 30 
+                                                               else 'danger' }} fs-6">
+                                            {{ "%.1f"|format(aging.avg_days) }} jours
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <small class="text-muted">
+                                            {{ aging.min_days }} - {{ aging.max_days }} jours
+                                        </small>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if aging.avg_days > 60 %}
+                                        <i class="fas fa-exclamation-triangle text-danger" title="Traitement très lent"></i>
+                                        {% elif aging.avg_days > 30 %}
+                                        <i class="fas fa-clock text-warning" title="Traitement lent"></i>
+                                        {% elif aging.avg_days <= 7 %}
+                                        <i class="fas fa-check-circle text-success" title="Traitement rapide"></i>
+                                        {% else %}
+                                        <i class="fas fa-info-circle text-info" title="Traitement normal"></i>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ aging_data|length }}</h4>
+                    <p class="mb-0">Statuts Analysés</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4>{{ aging_data|sum(attribute='total_cheques') }}</h4>
+                    <p class="mb-0">Total Chèques</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "%.0f"|format(aging_data|sum(attribute='total_amount')) }}</h4>
+                    <p class="mb-0">MAD Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "%.1f"|format((aging_data|sum(attribute='avg_days') / aging_data|length) if aging_data|length > 0 else 0) }}</h4>
+                    <p class="mb-0">Moyenne Générale (jours)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Insights and Recommendations -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Insights et Recommandations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">📊 Analyse des Données</h6>
+                            <ul class="list-unstyled">
+                                {% for aging in aging_data %}
+                                {% if aging.avg_days > 45 %}
+                                <li class="mb-2">
+                                    <i class="fas fa-exclamation-circle text-danger me-2"></i>
+                                    <strong>{{ aging.status }}:</strong> Temps de traitement très élevé ({{ "%.1f"|format(aging.avg_days) }} jours)
+                                </li>
+                                {% elif aging.avg_days <= 7 %}
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <strong>{{ aging.status }}:</strong> Excellent temps de traitement ({{ "%.1f"|format(aging.avg_days) }} jours)
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-info">💡 Recommandations</h6>
+                            <ul class="list-unstyled">
+                                {% for aging in aging_data %}
+                                {% if aging.avg_days > 30 %}
+                                <li class="mb-2">
+                                    <i class="fas fa-arrow-right text-primary me-2"></i>
+                                    Optimiser le processus pour les chèques <strong>{{ aging.status }}</strong>
+                                </li>
+                                {% endif %}
+                                {% endfor %}
+                                <li class="mb-2">
+                                    <i class="fas fa-arrow-right text-primary me-2"></i>
+                                    Mettre en place des alertes automatiques pour les chèques anciens
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-arrow-right text-primary me-2"></i>
+                                    Analyser les goulots d'étranglement dans le workflow
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-clock fa-4x text-muted mb-4"></i>
+                    <h4 class="text-muted">Aucune donnée de vieillissement disponible</h4>
+                    <p class="text-muted">Sélectionnez un filtre ou ajoutez des chèques pour voir l'analyse de vieillissement.</p>
+                    <a href="{{ url_for('cheques.index') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Ajouter des Chèques
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Auto-refresh data every 2 minutes
+setInterval(function() {
+    const currentParams = new URLSearchParams(window.location.search);
+    fetch(`{{ url_for('analytics.api_aging_data') }}?${currentParams.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Aging data refreshed');
+                // Could update the table dynamically here
+            }
+        })
+        .catch(error => console.error('Error refreshing aging data:', error));
+}, 120000);
+</script>
+{% endblock %}

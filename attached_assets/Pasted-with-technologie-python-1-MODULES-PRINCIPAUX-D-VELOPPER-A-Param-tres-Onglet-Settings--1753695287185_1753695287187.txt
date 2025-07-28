@@ -1,0 +1,6583 @@
+with technologie python
+
+🧱 1. MODULES PRINCIPAUX À DÉVELOPPER
+
+🏦 A. Paramètres — Onglet Settings
+
+Créer une interface dédiée à la gestion des banques et de leurs agences :
+
+1.1 Gestion des banques
+
+Ajout, modification, suppression de banques.
+
+Base de données :
+
+sql
+
+CopyEdit
+
+banks(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL) 
+
+1.2 Gestion des agences
+
+Chaque banque peut avoir plusieurs agences.
+
+Données de chaque agence :
+
+Nom de l’agence
+
+Adresse complète
+
+Code postal
+
+Téléphone
+
+Email
+
+Base de données :
+
+sql
+
+CopyEdit
+
+branches(   id INTEGER PRIMARY KEY AUTOINCREMENT,   bank_id INTEGER NOT NULL REFERENCES banks(id),   name TEXT NOT NULL,   address TEXT,   postal_code TEXT,   phone TEXT,   email TEXT ) 
+
+1.3 Utilisation dans les formulaires
+
+Dans le formulaire de chèque, afficher la liste des agences sous la forme :
+Nom Banque – Agence
+
+La valeur enregistrée sera l'id de la branche.
+
+👤 B. Gestion des clients (Propriétaires de chèques)
+
+2.1 Types de client :
+
+Personne physique : prénom, nom, CIN
+
+Entreprise : raison sociale, RC (registre de commerce), IF (Identifiant fiscal)
+
+2.2 Interface utilisateur :
+
+Un champ radio toggle "Type de client" :
+
+🔘 Personne
+
+🔘 Entreprise
+
+Les champs du formulaire changent dynamiquement selon le type.
+
+2.3 Base de données :
+
+sql
+
+CopyEdit
+
+clients(   id INTEGER PRIMARY KEY AUTOINCREMENT,   type TEXT CHECK(type IN ('personne', 'entreprise')) NOT NULL,   name TEXT NOT NULL,   id_number TEXT,        -- CIN ou RC   vat_number TEXT        -- IF ou ICE ) 
+
+2.4 Fonctionnalité d’auto-complétion :
+
+Lors de la saisie d’un client, afficher les suggestions.
+
+Si le client n’existe pas, l’ajouter automatiquement.
+
+💳 C. Module Chèques
+
+3.1 Saisie d’un chèque
+
+Données requises :
+
+Montant
+
+Devise (MAD, EUR…)
+
+Date d’émission
+
+Date d’échéance
+
+Propriétaire (lié à clients)
+
+Banque de dépôt (lié à branches)
+
+Statut
+
+Numéro du chèque
+
+Scan du chèque (upload image)
+
+3.2 Statuts des chèques :
+
+en_attente
+
+encaisse
+
+rejete
+
+impaye
+
+depose
+
+annule
+
+Color badges dans l’interface :
+
+StatutCouleurEN ATTENTEGrisENCAISSÉVertREJETÉRougeIMPAYÉOrangeDÉPOSÉBleuANNULÉLight grey
+
+3.3 Base de données :
+
+sql
+
+CopyEdit
+
+cheques(   id INTEGER PRIMARY KEY AUTOINCREMENT,   amount DECIMAL(10,2),   currency TEXT,   issue_date DATE,   due_date DATE,   client_id INTEGER REFERENCES clients(id),   branch_id INTEGER REFERENCES branches(id),   status TEXT CHECK(status IN ('en_attente', 'encaisse', 'rejete', 'impaye', 'depose', 'annule')),   cheque_number TEXT,   scan_path TEXT ) 
+
+🔔 4. Notifications & Rappels
+
+4.1 Rappels automatiques
+
+Script planifié (cron job / background worker) tous les jours à 8h :
+
+Cheques dont la date d’échéance est dans les 3 prochains jours
+
+Cheques rejetés sans traitement
+
+Notification (email ou UI)
+
+📦 5. Exports et Rapports
+
+5.1 Export des chèques
+
+Filtres :
+
+Période
+
+Banque
+
+Agence
+
+Statut
+
+Export formats :
+
+PDF (bordereau, rapports)
+
+Excel (suivi analytique)
+
+5.2 Statistiques et tableaux de bord
+
+Widgets sur le dashboard :
+
+Nombre total de chèques par statut
+
+Montant total encaissé ce mois
+
+Top 5 clients émetteurs de chèques rejetés
+
+Chèques en retard (non encaissés après échéance)
+
+🔐 6. Authentification et rôles
+
+6.1 Utilisateurs :
+
+Admin
+
+Comptable
+
+Agent de recouvrement
+
+Utilisateur simple (lecture seule)
+
+6.2 Fonctionnalités par rôle :
+
+CRUD paramètres → Admin
+
+Enregistrement chèque → Comptable / Agent
+
+Lecture / Export → Tous
+
+
+
+🗂️ 8. Bonus / Améliorations futures
+
+Signature électronique des bordereaux de remise.
+
+Impression de chèques depuis le système.
+
+Scan OCR automatique d’un chèque pour remplir les champs.
+
+Suivi judiciaire des chèques impayés (avec génération de lettres de mise en demeure).
+
+Intégration possible avec un ERP (Sage, Odoo…).
+
+📑 9. Contenu de livraison attendu
+
+🗃️ Schéma base de données (.sql ou diagramme)
+
+📁 Arborescence du projet
+
+🔐 Gestion des rôles utilisateur
+
+🧪 Tests de validation
+
+🧾 Exemples de fichiers exportés
+
+📘 README de documentation
+
+📷 Maquettes UI ou wireframes (optionnel)
+
+import tkinter as tk
+
+from tkinter import ttk, messagebox, filedialog, simpledialog
+
+from tkcalendar import DateEntry
+
+import openpyxl
+
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+import sqlite3
+
+import os
+
+from datetime import datetime, date, timedelta
+
+import locale
+
+from pathlib import Path
+
+import threading
+
+from typing import List, Dict, Optional
+
+import webbrowser
+
+from reportlab.lib.pagesizes import letter, A4
+
+from reportlab.lib import colors
+
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+from reportlab.lib.units import inch
+
+import subprocess
+
+import sys
+
+class ExcelFileManager:
+
+    """Enhanced Excel file manager for automatic yearly files with monthly sheets"""
+
+    def __init__(self, cheques_dir: Path):
+
+        self.cheques_dir = cheques_dir
+
+        self.cheques_dir.mkdir(exist_ok=True)
+
+        # Column headers for Excel sheets - UPDATED
+
+        self.headers = [
+
+            "Date de reception",
+
+            "Reg",
+
+            "N°",
+
+            "Banque",
+
+            "Nom et prénom / Raison sociale",
+
+            "Nom du Déposant", # Changed from "Nom du Bénéficiaire"
+
+            "Le montant",
+
+            "Echeance",
+
+            "N° Facture",
+
+            "Date de Fac",
+
+            "Statut du Chèque" # Changed from "Statut"
+
+        ]
+
+        # Month names for sheets
+
+        self.month_names = [
+
+            "January", "February", "March", "April", "May", "June",
+
+            "July", "August", "September", "October", "November", "December"
+
+        ]
+
+    def get_excel_filename(self, year: int) -> Path:
+
+        """Get the Excel filename for a specific year"""
+
+        return self.cheques_dir / f"cheques_{year}.xlsx"
+
+    def create_yearly_file(self, year: int) -> bool:
+
+        """Create a new yearly Excel file with 12 monthly sheets"""
+
+        try:
+
+            filename = self.get_excel_filename(year)
+
+            # Create new workbook
+
+            workbook = openpyxl.Workbook()
+
+            # Remove default sheet
+
+            workbook.remove(workbook.active)
+
+            # Create 12 monthly sheets
+
+            for month_name in self.month_names:
+
+                sheet = workbook.create_sheet(title=month_name)
+
+                self._setup_sheet_headers(sheet)
+
+            # Save the workbook
+
+            workbook.save(filename)
+
+            print(f"✅ Created yearly file: {filename}")
+
+            return True
+
+        except Exception as e:
+
+            print(f"❌ Error creating yearly file: {str(e)}")
+
+            messagebox.showerror("Erreur", f"Impossible de créer le fichier annuel:\n{str(e)}")
+
+            return False
+
+    def _setup_sheet_headers(self, sheet):
+
+        """Setup headers and formatting for a sheet"""
+
+        # Add headers
+
+        for col, header in enumerate(self.headers, 1):
+
+            cell = sheet.cell(row=1, column=col, value=header)
+
+            # Header formatting
+
+            cell.font = Font(bold=True, color="FFFFFF")
+
+            cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+            cell.border = Border(
+
+                left=Side(style="thin"),
+
+                right=Side(style="thin"),
+
+                top=Side(style="thin"),
+
+                bottom=Side(style="thin")
+
+            )
+
+        # Set column widths - UPDATED for new columns
+
+        column_widths = [15, 8, 15, 15, 30, 30, 12, 15, 15, 15, 15] # Adjusted width for "Statut du Chèque"
+
+        for col, width in enumerate(column_widths, 1):
+
+            sheet.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
+
+        # Freeze header row
+
+        sheet.freeze_panes = "A2"
+
+    def ensure_file_and_sheet_exist(self, year: int, month: int) -> tuple:
+
+        """Ensure the Excel file and sheet exist, create if necessary"""
+
+        filename = self.get_excel_filename(year)
+
+        month_name = self.month_names[month - 1]
+
+        # Check if file exists
+
+        if not filename.exists():
+
+            print(f"📁 File doesn't exist, creating: {filename}")
+
+            if not self.create_yearly_file(year):
+
+                return None, None
+
+        try:
+
+            # Open workbook
+
+            workbook = openpyxl.load_workbook(filename)
+
+            # Check if sheet exists
+
+            if month_name not in workbook.sheetnames:
+
+                print(f"📄 Sheet '{month_name}' doesn't exist, creating...")
+
+                sheet = workbook.create_sheet(title=month_name)
+
+                self._setup_sheet_headers(sheet)
+
+                workbook.save(filename)
+
+            else:
+
+                sheet = workbook[month_name]
+
+            return workbook, sheet
+
+        except Exception as e:
+
+            print(f"❌ Error opening/creating sheet: {str(e)}")
+
+            messagebox.showerror("Erreur", f"Impossible d'ouvrir/créer la feuille:\n{str(e)}")
+
+            return None, None
+
+    def add_or_update_cheque(self, cheque_data: dict) -> bool:
+
+        """Add or update a cheque in the appropriate Excel file and sheet"""
+
+        try:
+
+            # Extract year and month from échéance
+
+            echeance_date = datetime.strptime(cheque_data['echeance'], '%d/%m/%Y')
+
+            year = echeance_date.year
+
+            month = echeance_date.month
+
+            print(f"🔄 Processing cheque for {self.month_names[month-1]} {year}")
+
+            # Ensure file and sheet exist
+
+            workbook, sheet = self.ensure_file_and_sheet_exist(year, month)
+
+            if not workbook or not sheet:
+
+                return False
+
+            # Check if cheque already exists (update scenario)
+
+            existing_row = self._find_existing_cheque(sheet, cheque_data['numero'], cheque_data['banque'])
+
+            if existing_row:
+
+                print(f"📝 Updating existing cheque at row {existing_row}")
+
+                row_num = existing_row
+
+            else:
+
+                print(f"➕ Adding new cheque")
+
+                row_num = self._get_next_empty_row(sheet)
+
+            # Prepare data row - UPDATED for new columns
+
+            montant_value = cheque_data['montant']
+
+            if isinstance(montant_value, str):
+
+                montant_value = float(montant_value.replace(',', '.'))
+
+            data_row = [
+
+                cheque_data['date_reception'],
+
+                cheque_data['reg'],
+
+                cheque_data['numero'],
+
+                cheque_data['banque'],
+
+                cheque_data['nom'],
+
+                cheque_data.get('recipient_name', ''), # Maps to "Nom du Déposant"
+
+                montant_value,
+
+                cheque_data['echeance'],
+
+                cheque_data.get('facture', ''),
+
+                cheque_data.get('date_fac', ''),
+
+                cheque_data.get('status', 'IMPAYE') # Default status
+
+            ]
+
+            # Write data to sheet
+
+            for col, value in enumerate(data_row, 1):
+
+                cell = sheet.cell(row=row_num, column=col, value=value)
+
+                # Format amount column
+
+                if col == self.headers.index("Le montant") + 1: # Montant column
+
+                    cell.number_format = '#,##0.00'
+
+                # Add borders
+
+                cell.border = Border(
+
+                    left=Side(style="thin"),
+
+                    right=Side(style="thin"),
+
+                    top=Side(style="thin"),
+
+                    bottom=Side(style="thin")
+
+                )
+
+                # Alternate row coloring
+
+                if row_num % 2 == 0:
+
+                    cell.fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+
+            # Save workbook
+
+            filename = self.get_excel_filename(year)
+
+            workbook.save(filename)
+
+            workbook.close()
+
+            print(f"✅ Successfully saved cheque to {filename}")
+
+            return True
+
+        except Exception as e:
+
+            print(f"❌ Error adding/updating cheque: {str(e)}")
+
+            messagebox.showerror("Erreur", f"Erreur lors de la mise à jour du fichier Excel:\n{str(e)}")
+
+            return False
+
+    def _find_existing_cheque(self, sheet, numero: str, banque: str) -> Optional[int]:
+
+        """Find existing cheque by number and bank, return row number if found"""
+
+        for row in range(2, sheet.max_row + 1):  # Start from row 2 (skip header)
+
+            if (sheet.cell(row=row, column=self.headers.index("N°") + 1).value == numero and  # N° column
+
+                sheet.cell(row=row, column=self.headers.index("Banque") + 1).value == banque):    # Banque column
+
+                return row
+
+        return None
+
+    def _get_next_empty_row(self, sheet) -> int:
+
+        """Get the next empty row in the sheet"""
+
+        return sheet.max_row + 1
+
+    def remove_cheque(self, cheque_data: dict) -> bool:
+
+        """Remove a cheque from the Excel file"""
+
+        try:
+
+            # Extract year and month from échéance
+
+            echeance_date = datetime.strptime(cheque_data['echeance'], '%d/%m/%Y')
+
+            year = echeance_date.year
+
+            month = echeance_date.month
+
+            filename = self.get_excel_filename(year)
+
+            if not filename.exists():
+
+                return True  # File doesn't exist, nothing to remove
+
+            workbook = openpyxl.load_workbook(filename)
+
+            month_name = self.month_names[month - 1]
+
+            if month_name not in workbook.sheetnames:
+
+                return True  # Sheet doesn't exist, nothing to remove
+
+            sheet = workbook[month_name]
+
+            # Find and remove the cheque
+
+            existing_row = self._find_existing_cheque(sheet, cheque_data['numero'], cheque_data['banque'])
+
+            if existing_row:
+
+                sheet.delete_rows(existing_row)
+
+                workbook.save(filename)
+
+                print(f"🗑️ Removed cheque from row {existing_row}")
+
+            workbook.close()
+
+            return True
+
+        except Exception as e:
+
+            print(f"❌ Error removing cheque: {str(e)}")
+
+            messagebox.showerror("Erreur", f"Erreur lors de la suppression du chèque:\n{str(e)}")
+
+            return False
+
+    def get_file_info(self, year: int) -> dict:
+
+        """Get information about a yearly Excel file"""
+
+        filename = self.get_excel_filename(year)
+
+        if not filename.exists():
+
+            return {
+
+                'exists': False,
+
+                'filename': filename.name,
+
+                'path': str(filename),
+
+                'sheets': [],
+
+                'total_cheques': 0
+
+            }
+
+        try:
+
+            workbook = openpyxl.load_workbook(filename, read_only=True)
+
+            sheets_info = []
+
+            total_cheques = 0
+
+            for sheet_name in workbook.sheetnames:
+
+                sheet = workbook[sheet_name]
+
+                cheque_count = max(0, sheet.max_row - 1)  # Subtract header row
+
+                sheets_info.append({
+
+                    'name': sheet_name,
+
+                    'cheques': cheque_count
+
+                })
+
+                total_cheques += cheque_count
+
+            workbook.close()
+
+            return {
+
+                'exists': True,
+
+                'filename': filename.name,
+
+                'path': str(filename),
+
+                'sheets': sheets_info,
+
+                'total_cheques': total_cheques,
+
+                'size': filename.stat().st_size,
+
+                'modified': datetime.fromtimestamp(filename.stat().st_mtime)
+
+            }
+
+        except Exception as e:
+
+            print(f"❌ Error getting file info: {str(e)}")
+
+            return {
+
+                'exists': False,
+
+                'filename': filename.name,
+
+                'path': str(filename),
+
+                'error': str(e)
+
+            }
+
+    def list_all_files(self) -> List[dict]:
+
+        """List all yearly Excel files with their information"""
+
+        files_info = []
+
+        # Look for all cheques_YYYY.xlsx files
+
+        for file_path in self.cheques_dir.glob("cheques_*.xlsx"):
+
+            try:
+
+                # Extract year from filename
+
+                year_str = file_path.stem.split('_')[1]
+
+                year = int(year_str)
+
+                file_info = self.get_file_info(year)
+
+                file_info['year'] = year
+
+                files_info.append(file_info)
+
+            except (ValueError, IndexError):
+
+                # Skip files that don't match the pattern
+
+                continue
+
+        # Sort by year (newest first)
+
+        files_info.sort(key=lambda x: x.get('year', 0), reverse=True)
+
+        return files_info
+
+    def export_year_summary(self, year: int) -> bool:
+
+        """Export a summary of all cheques for a specific year"""
+
+        try:
+
+            filename = self.get_excel_filename(year)
+
+            if not filename.exists():
+
+                messagebox.showwarning("Fichier introuvable", f"Le fichier pour l'année {year} n'existe pas")
+
+                return False
+
+            # Create summary workbook
+
+            summary_filename = self.cheques_dir / f"resume_{year}.xlsx"
+
+            summary_workbook = openpyxl.Workbook()
+
+            summary_sheet = summary_workbook.active
+
+            summary_sheet.title = f"Résumé {year}"
+
+            # Setup summary headers - UPDATED
+
+            summary_headers = ["Mois", "Nombre de Chèques", "Montant Total", "CHQ", "LCN", "Encaissé", "Impayé"]
+
+            for col, header in enumerate(summary_headers, 1):
+
+                cell = summary_sheet.cell(row=1, column=col, value=header)
+
+                cell.font = Font(bold=True)
+
+                cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+
+                cell.font = Font(bold=True, color="FFFFFF")
+
+            # Load original workbook
+
+            workbook = openpyxl.load_workbook(filename, read_only=True)
+
+            total_cheques = 0
+
+            total_amount = 0
+
+            total_chq = 0
+
+            total_lcn = 0
+
+            total_paid = 0 # For 'ENCAISSE'
+
+            total_unpaid = 0 # For 'IMPAYE'
+
+            # Process each month
+
+            for month_idx, month_name in enumerate(self.month_names, 1):
+
+                if month_name in workbook.sheetnames:
+
+                    sheet = workbook[month_name]
+
+                    month_cheques = 0
+
+                    month_amount = 0
+
+                    month_chq = 0
+
+                    month_lcn = 0
+
+                    month_paid = 0
+
+                    month_unpaid = 0
+
+                    # Count cheques and sum amounts
+
+                    for row in range(2, sheet.max_row + 1):
+
+                        if sheet.cell(row=row, column=1).value:  # If row has data
+
+                            month_cheques += 1
+
+                            # Get amount
+
+                            amount_cell = sheet.cell(row=row, column=self.headers.index("Le montant") + 1)
+
+                            if amount_cell.value:
+
+                                month_amount += float(amount_cell.value)
+
+                            # Count CHQ vs LCN
+
+                            reg_cell = sheet.cell(row=row, column=self.headers.index("Reg") + 1)
+
+                            if reg_cell.value == "CHQ":
+
+                                month_chq += 1
+
+                            elif reg_cell.value == "LCN":
+
+                                month_lcn += 1
+
+                            # Count Status - UPDATED
+
+                            status_cell = sheet.cell(row=row, column=self.headers.index("Statut du Chèque") + 1)
+
+                            if status_cell.value == "ENCAISSE":
+
+                                month_paid += 1
+
+                            elif status_cell.value == "IMPAYE":
+
+                                month_unpaid += 1
+
+                    # Add to summary
+
+                    summary_row = month_idx + 1
+
+                    summary_sheet.cell(row=summary_row, column=1, value=month_name)
+
+                    summary_sheet.cell(row=summary_row, column=2, value=month_cheques)
+
+                    summary_sheet.cell(row=summary_row, column=3, value=month_amount)
+
+                    summary_sheet.cell(row=summary_row, column=4, value=month_chq)
+
+                    summary_sheet.cell(row=summary_row, column=5, value=month_lcn)
+
+                    summary_sheet.cell(row=summary_row, column=6, value=month_paid)
+
+                    summary_sheet.cell(row=summary_row, column=7, value=month_unpaid)
+
+                    # Format amount
+
+                    summary_sheet.cell(row=summary_row, column=3).number_format = '#,##0.00'
+
+                    total_cheques += month_cheques
+
+                    total_amount += month_amount
+
+                    total_chq += month_chq
+
+                    total_lcn += month_lcn
+
+                    total_paid += month_paid
+
+                    total_unpaid += month_unpaid
+
+            # Add totals row
+
+            totals_row = len(self.month_names) + 2
+
+            summary_sheet.cell(row=totals_row, column=1, value="TOTAL")
+
+            summary_sheet.cell(row=totals_row, column=2, value=total_cheques)
+
+            summary_sheet.cell(row=totals_row, column=3, value=total_amount)
+
+            summary_sheet.cell(row=totals_row, column=4, value=total_chq)
+
+            summary_sheet.cell(row=totals_row, column=5, value=total_lcn)
+
+            summary_sheet.cell(row=totals_row, column=6, value=total_paid)
+
+            summary_sheet.cell(row=totals_row, column=7, value=total_unpaid)
+
+            # Format totals row
+
+            for col in range(1, len(summary_headers) + 1): # Adjusted range
+
+                cell = summary_sheet.cell(row=totals_row, column=col)
+
+                cell.font = Font(bold=True)
+
+                cell.fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
+
+            summary_sheet.cell(row=totals_row, column=3).number_format = '#,##0.00'
+
+            # Auto-size columns
+
+            for column in summary_sheet.columns:
+
+                max_length = 0
+
+                column_letter = column[0].column_letter
+
+                for cell in column:
+
+                    try:
+
+                        if len(str(cell.value)) > max_length:
+
+                            max_length = len(str(cell.value))
+
+                    except:
+
+                        pass
+
+                adjusted_width = (max_length + 2) * 1.2
+
+                summary_sheet.column_dimensions[column_letter].width = adjusted_width
+
+            # Save summary
+
+            summary_workbook.save(summary_filename)
+
+            summary_workbook.close()
+
+            workbook.close()
+
+            messagebox.showinfo("Succès", f"Résumé exporté vers:\n{summary_filename}")
+
+            return True
+
+        except Exception as e:
+
+            print(f"❌ Error exporting year summary: {str(e)}")
+
+            messagebox.showerror("Erreur", f"Erreur lors de l'export du résumé:\n{str(e)}")
+
+            return False
+
+class DatabaseManager:
+
+    def __init__(self, db_path: str = "cheques.db"):
+
+        self.db_path = db_path
+
+        self.init_database()
+
+    def init_database(self):
+
+        """Initialize the database with required tables and new columns"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute('''
+
+                CREATE TABLE IF NOT EXISTS cheques (
+
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                    date_reception TEXT NOT NULL,
+
+                    reg TEXT NOT NULL DEFAULT 'CHQ',
+
+                    numero TEXT NOT NULL,
+
+                    banque TEXT NOT NULL,
+
+                    nom TEXT NOT NULL,
+
+                    recipient_name TEXT, -- This column will store "Nom du Déposant"
+
+                    montant REAL NOT NULL,
+
+                    echeance TEXT NOT NULL,
+
+                    facture TEXT,
+
+                    date_fac TEXT,
+
+                    year INTEGER NOT NULL,
+
+                    month INTEGER NOT NULL,
+
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                    exported BOOLEAN DEFAULT FALSE,
+
+                    notes TEXT DEFAULT '',
+
+                    status TEXT DEFAULT 'IMPAYE' -- Default status changed to IMPAYE
+
+                )
+
+            ''')
+
+            # Add new columns if they don't exist (for existing databases)
+
+            self._add_column_if_not_exists(cursor, 'cheques', 'recipient_name', 'TEXT')
+
+            self._add_column_if_not_exists(cursor, 'cheques', 'status', "TEXT DEFAULT 'IMPAYE'") # Default status changed
+
+            # Add indexes for better performance
+
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_numero_banque ON cheques(numero, banque)')
+
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_year_month ON cheques(year, month)')
+
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_nom ON cheques(nom)')
+
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_banque ON cheques(banque)')
+
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_reg ON cheques(reg)')
+
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_status ON cheques(status)') # New index
+
+            cursor.execute('''
+
+                CREATE TABLE IF NOT EXISTS export_history (
+
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                    filename TEXT NOT NULL,
+
+                    export_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                    cheques_count INTEGER NOT NULL,
+
+                    export_type TEXT DEFAULT 'EXCEL'
+
+                )
+
+            ''')
+
+            cursor.execute('''
+
+                CREATE TABLE IF NOT EXISTS settings (
+
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                    key TEXT UNIQUE NOT NULL,
+
+                    value TEXT NOT NULL,
+
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+                )
+
+            ''')
+
+            conn.commit()
+
+    def _add_column_if_not_exists(self, cursor, table_name, column_name, column_type):
+
+        """Helper to add a column to a table if it doesn't exist."""
+
+        cursor.execute(f"PRAGMA table_info({table_name})")
+
+        columns = [info[1] for info in cursor.fetchall()]
+
+        if column_name not in columns:
+
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+
+            print(f"Added column '{column_name}' to table '{table_name}'")
+
+    def insert_cheque(self, cheque_data):
+
+        """Insert a new cheque into the database - UPDATED"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute('''
+
+                INSERT INTO cheques (date_reception, reg, numero, banque, nom, recipient_name, montant,
+
+                                   echeance, facture, date_fac, year, month, notes, status)
+
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+            ''', (
+
+                cheque_data['date_reception'],
+
+                cheque_data['reg'],
+
+                cheque_data['numero'],
+
+                cheque_data['banque'],
+
+                cheque_data['nom'],
+
+                cheque_data.get('depositor_name', ''), # Uses 'depositor_name' from input, maps to 'recipient_name' DB column
+
+                cheque_data['montant'],
+
+                cheque_data['echeance'],
+
+                cheque_data.get('facture', ''),
+
+                cheque_data.get('date_fac', ''),
+
+                cheque_data['year'],
+
+                cheque_data['month'],
+
+                cheque_data.get('notes', ''),
+
+                cheque_data.get('status', 'IMPAYE') # Default status changed
+
+            ))
+
+            return cursor.lastrowid
+
+    def get_cheques(self, exported=None, year=None, month=None, reg=None, nom_filter=None, banque_filter=None, status_filter=None):
+
+        """Get cheques with optional filters - UPDATED"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            query = "SELECT * FROM cheques WHERE 1=1"
+
+            params = []
+
+            if exported is not None:
+
+                query += " AND exported = ?"
+
+                params.append(exported)
+
+            if year is not None:
+
+                query += " AND year = ?"
+
+                params.append(year)
+
+            if month is not None:
+
+                query += " AND month = ?"
+
+                params.append(month)
+
+            if reg is not None:
+
+                query += " AND reg = ?"
+
+                params.append(reg)
+
+            if nom_filter is not None:
+
+                query += " AND (nom LIKE ? OR recipient_name LIKE ?)" # Search in both owner and depositor name fields
+
+                params.append(f"%{nom_filter}%")
+
+                params.append(f"%{nom_filter}%")
+
+            if banque_filter is not None:
+
+                query += " AND banque = ?"
+
+                params.append(banque_filter)
+
+            if status_filter is not None and status_filter != "Tous": # New filter
+
+                query += " AND status = ?"
+
+                params.append(status_filter)
+
+            query += " ORDER BY created_at DESC"
+
+            cursor.execute(query, params)
+
+            columns = [description[0] for description in cursor.description]
+
+            cheques = []
+
+            for row in cursor.fetchall():
+
+                cheque = dict(zip(columns, row))
+
+                cheques.append(cheque)
+
+            return cheques
+
+    def check_duplicate(self, numero, banque):
+
+        """Check if a cheque with the same number and bank exists - UPDATED"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute(
+
+                "SELECT nom, montant, echeance, recipient_name FROM cheques WHERE numero = ? AND banque = ?", # Added recipient_name
+
+                (numero, banque)
+
+            )
+
+            result = cursor.fetchone()
+
+            if result:
+
+                return {
+
+                    'exists': True,
+
+                    'nom': result[0],
+
+                    'montant': result[1],
+
+                    'echeance': result[2],
+
+                    'depositor_name': result[3] # Maps to 'recipient_name' DB column
+
+                }
+
+            else:
+
+                return {'exists': False}
+
+    def delete_cheque(self, cheque_id):
+
+        """Delete a cheque from the database"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute("DELETE FROM cheques WHERE id = ?", (cheque_id,))
+
+            conn.commit()
+
+    def update_cheque(self, cheque_id, cheque_data):
+
+        """Update a cheque in the database - UPDATED"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute('''
+
+                UPDATE cheques
+
+                SET date_reception=?, reg=?, numero=?, banque=?, nom=?, recipient_name=?, montant=?,
+
+                  echeance=?, facture=?, date_fac=?, year=?, month=?, notes=?, status=?
+
+                WHERE id=?
+
+            ''', (
+
+                cheque_data['date_reception'],
+
+                cheque_data['reg'],
+
+                cheque_data['numero'],
+
+                cheque_data['banque'],
+
+                cheque_data['nom'],
+
+                cheque_data.get('depositor_name', ''), # Uses 'depositor_name' from input, maps to 'recipient_name' DB column
+
+                cheque_data['montant'],
+
+                cheque_data['echeance'],
+
+                cheque_data.get('facture', ''),
+
+                cheque_data.get('date_fac', ''),
+
+                cheque_data['year'],
+
+                cheque_data['month'],
+
+                cheque_data.get('notes', ''),
+
+                cheque_data.get('status', 'IMPAYE'), # Default status changed
+
+                cheque_id
+
+            ))
+
+            conn.commit()
+
+    def update_cheque_status(self, cheque_id, new_status):
+
+        """Update only the status of a cheque"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute("UPDATE cheques SET status = ? WHERE id = ?", (new_status, cheque_id))
+
+            conn.commit()
+
+    def mark_exported(self, cheque_ids):
+
+        """Mark cheques as exported"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            placeholders = ','.join(['?' for _ in cheque_ids])
+
+            cursor.execute(f"UPDATE cheques SET exported = TRUE WHERE id IN ({placeholders})", cheque_ids)
+
+            conn.commit()
+
+    def get_statistics(self):
+
+        """Get database statistics - UPDATED"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            # Total cheques
+
+            cursor.execute("SELECT COUNT(*) FROM cheques")
+
+            total_cheques = cursor.fetchone()[0]
+
+            # Total amount
+
+            cursor.execute("SELECT COALESCE(SUM(montant), 0) FROM cheques")
+
+            total_amount = cursor.fetchone()[0]
+
+            # Average amount
+
+            cursor.execute("SELECT COALESCE(AVG(montant), 0) FROM cheques")
+
+            avg_amount = cursor.fetchone()[0]
+
+            # Max and min amounts
+
+            cursor.execute("SELECT COALESCE(MAX(montant), 0), COALESCE(MIN(montant), 0) FROM cheques")
+
+            max_amount, min_amount = cursor.fetchone()
+
+            # CHQ vs LCN count
+
+            cursor.execute("SELECT COUNT(*) FROM cheques WHERE reg = 'CHQ'")
+
+            chq_count = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM cheques WHERE reg = 'LCN'")
+
+            lcn_count = cursor.fetchone()[0]
+
+            # Status counts - UPDATED
+
+            cursor.execute("SELECT COUNT(*) FROM cheques WHERE status = 'IMPAYE'")
+
+            unpaid_status_count = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM cheques WHERE status = 'ENCAISSE'")
+
+            paid_status_count = cursor.fetchone()[0]
+
+            # No 'REJECTED' status anymore, so remove its count or set to 0
+
+            rejected_status_count = 0 # Or query for it if it might exist from old data: cursor.execute("SELECT COUNT(*) FROM cheques WHERE status = 'REJECTED'"); rejected_status_count = cursor.fetchone()[0]
+
+            # Pending export count (already exists)
+
+            cursor.execute("SELECT COUNT(*) FROM cheques WHERE exported = FALSE")
+
+            pending_export = cursor.fetchone()[0]
+
+            # Years count
+
+            cursor.execute("SELECT COUNT(DISTINCT year) FROM cheques")
+
+            years_count = cursor.fetchone()[0]
+
+            return {
+
+                'total_cheques': total_cheques,
+
+                'total_amount': total_amount,
+
+                'avg_amount': avg_amount,
+
+                'max_amount': max_amount,
+
+                'min_amount': min_amount,
+
+                'chq_count': chq_count,
+
+                'lcn_count': lcn_count,
+
+                'pending_export': pending_export,
+
+                'years_count': years_count,
+
+                'unpaid_status_count': unpaid_status_count, # Changed from pending_status_count
+
+                'paid_status_count': paid_status_count,
+
+                'rejected_status_count': rejected_status_count # Kept for compatibility, but will be 0 if no 'REJECTED' status is used
+
+            }
+
+    def get_years(self):
+
+        """Get list of years with cheques"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT DISTINCT year FROM cheques ORDER BY year DESC")
+
+            return [str(row[0]) for row in cursor.fetchall()]
+
+    def get_banks(self):
+
+        """Get list of banks with cheques"""
+
+        with sqlite3.connect(self.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT DISTINCT banque FROM cheques ORDER BY banque")
+
+            return [row[0] for row in cursor.fetchall()]
+
+class EditChequeDialog:
+
+    def __init__(self, parent, cheque_data, banks, db_manager):
+
+        self.parent = parent
+
+        self.cheque_data = cheque_data
+
+        self.banks = banks
+
+        self.db = db_manager
+
+        self.result = None
+
+        self.create_dialog()
+
+    def create_dialog(self):
+
+        """Create edit dialog window - UPDATED"""
+
+        self.dialog = tk.Toplevel(self.parent)
+
+        self.dialog.title("Modifier Chèque")
+
+        self.dialog.geometry("600x550") # Adjusted height
+
+        self.dialog.resizable(False, False)
+
+        # Center the dialog
+
+        self.dialog.transient(self.parent)
+
+        self.dialog.grab_set()
+
+        # Main frame
+
+        main_frame = ttk.Frame(self.dialog, padding=20)
+
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Form fields
+
+        row = 0
+
+        # Date reception
+
+        ttk.Label(main_frame, text="Date de réception:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.date_reception = DateEntry(main_frame, width=15, background='darkblue',
+
+                                      foreground='white', borderwidth=2, date_pattern='dd/mm/yyyy')
+
+        self.date_reception.grid(row=row, column=1, sticky=tk.W, pady=5)
+
+        # Set current value
+
+        try:
+
+            current_date = datetime.strptime(self.cheque_data['date_reception'], '%d/%m/%Y').date()
+
+            self.date_reception.set_date(current_date)
+
+        except:
+
+            self.date_reception.set_date(date.today())
+
+        row += 1
+
+        # Type (reg)
+
+        ttk.Label(main_frame, text="Type:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.reg_var = tk.StringVar(value=self.cheque_data['reg'])
+
+        reg_frame = ttk.Frame(main_frame)
+
+        reg_frame.grid(row=row, column=1, sticky=tk.W, pady=5)
+
+        ttk.Radiobutton(reg_frame, text="CHQ", variable=self.reg_var, value="CHQ").pack(side=tk.LEFT)
+
+        ttk.Radiobutton(reg_frame, text="LCN", variable=self.reg_var, value="LCN").pack(side=tk.LEFT, padx=(10, 0))
+
+        row += 1
+
+        # Numero
+
+        ttk.Label(main_frame, text="N° Chèque:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.numero_var = tk.StringVar(value=self.cheque_data['numero'])
+
+        ttk.Entry(main_frame, textvariable=self.numero_var).grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        row += 1
+
+        # Banque
+
+        ttk.Label(main_frame, text="Banque:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.banque_var = tk.StringVar(value=self.cheque_data['banque'])
+
+        ttk.Combobox(main_frame, textvariable=self.banque_var, values=self.banks, state="readonly").grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        row += 1
+
+        # Nom (Owner)
+
+        ttk.Label(main_frame, text="Nom et prénom / Raison sociale (Propriétaire):").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.nom_var = tk.StringVar(value=self.cheque_data['nom'])
+
+        ttk.Entry(main_frame, textvariable=self.nom_var).grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        row += 1
+
+        # Depositor Name - New Field (was Recipient Name)
+
+        ttk.Label(main_frame, text="Nom du Déposant:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.depositor_name_var = tk.StringVar(value=self.cheque_data.get('recipient_name', '')) # Still uses 'recipient_name' from DB
+
+        ttk.Entry(main_frame, textvariable=self.depositor_name_var).grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        row += 1
+
+        # Montant
+
+        ttk.Label(main_frame, text="Montant:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.montant_var = tk.StringVar(value=str(self.cheque_data['montant']).replace('.', ','))
+
+        ttk.Entry(main_frame, textvariable=self.montant_var).grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        row += 1
+
+        # Echeance
+
+        ttk.Label(main_frame, text="Échéance:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.echeance = DateEntry(main_frame, width=15, background='darkblue',
+
+                                foreground='white', borderwidth=2, date_pattern='dd/mm/yyyy')
+
+        self.echeance.grid(row=row, column=1, sticky=tk.W, pady=5)
+
+        # Set current value
+
+        try:
+
+            current_date = datetime.strptime(self.cheque_data['echeance'], '%d/%m/%Y').date()
+
+            self.echeance.set_date(current_date)
+
+        except:
+
+            self.echeance.set_date(date.today())
+
+        row += 1
+
+        # Facture
+
+        ttk.Label(main_frame, text="N° Facture:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.facture_var = tk.StringVar(value=self.cheque_data.get('facture', ''))
+
+        ttk.Entry(main_frame, textvariable=self.facture_var).grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        row += 1
+
+        # Date facture
+
+        ttk.Label(main_frame, text="Date Facture:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.date_fac = DateEntry(main_frame, width=15, background='darkblue',
+
+                                foreground='white', borderwidth=2, date_pattern='dd/mm/yyyy')
+
+        self.date_fac.grid(row=row, column=1, sticky=tk.W, pady=5)
+
+        # Set current value
+
+        if self.cheque_data.get('date_fac'):
+
+            try:
+
+                current_date = datetime.strptime(self.cheque_data['date_fac'], '%d/%m/%Y').date()
+
+                self.date_fac.set_date(current_date)
+
+            except:
+
+                pass
+
+        row += 1
+
+        # Notes
+
+        ttk.Label(main_frame, text="Notes:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.notes_var = tk.StringVar(value=self.cheque_data.get('notes', ''))
+
+        ttk.Entry(main_frame, textvariable=self.notes_var).grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        row += 1
+
+        # Status - UPDATED Field
+
+        ttk.Label(main_frame, text="Statut:").grid(row=row, column=0, sticky=tk.W, pady=5)
+
+        self.status_var = tk.StringVar(value=self.cheque_data.get('status', 'IMPAYE')) # Default status changed
+
+        ttk.Combobox(main_frame, textvariable=self.status_var,
+
+                     values=["IMPAYE", "ENCAISSE"], state="readonly").grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        row += 1
+
+        # Configure column weight
+
+        main_frame.columnconfigure(1, weight=1)
+
+        # Buttons
+
+        button_frame = ttk.Frame(main_frame)
+
+        button_frame.grid(row=row, column=0, columnspan=2, pady=20)
+
+        ttk.Button(button_frame, text="Sauvegarder", command=self.save_changes).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(button_frame, text="Annuler", command=self.cancel).pack(side=tk.LEFT)
+
+    def save_changes(self):
+
+        """Save changes to database - UPDATED"""
+
+        try:
+
+            # Validate required fields
+
+            if not all([self.numero_var.get().strip(), self.banque_var.get(),
+
+                       self.nom_var.get().strip(), self.montant_var.get().strip()]):
+
+                messagebox.showerror("Erreur", "Veuillez remplir tous les champs obligatoires")
+
+                return
+
+            # Parse dates
+
+            echeance_date = self.echeance.get_date()
+
+            # Properly handle amount with comma
+
+            montant_str = self.montant_var.get().strip()
+
+            try:
+
+                montant_value = float(montant_str.replace(',', '.'))
+
+                if montant_value < 0:
+
+                    raise ValueError("Le montant ne peut pas être négatif")
+
+            except ValueError:
+
+                messagebox.showerror("Erreur", "Le montant doit être un nombre valide")
+
+                return
+
+            # Prepare updated data
+
+            updated_data = {
+
+                'date_reception': self.date_reception.get_date().strftime('%d/%m/%Y'),
+
+                'reg': self.reg_var.get(),
+
+                'numero': self.numero_var.get().strip(),
+
+                'banque': self.banque_var.get(),
+
+                'nom': self.nom_var.get().strip(),
+
+                'depositor_name': self.depositor_name_var.get().strip(), # Uses 'depositor_name'
+
+                'montant': montant_value,
+
+                'echeance': echeance_date.strftime('%d/%m/%Y'),
+
+                'facture': self.facture_var.get().strip(),
+
+                'date_fac': self.date_fac.get_date().strftime('%d/%m/%Y') if self.date_fac.get() else '',
+
+                'year': echeance_date.year,
+
+                'month': echeance_date.month,
+
+                'notes': self.notes_var.get().strip(),
+
+                'status': self.status_var.get() # New field
+
+            }
+
+            # Update in database
+
+            self.db.update_cheque(self.cheque_data['id'], updated_data)
+
+            self.result = True
+
+            self.dialog.destroy()
+
+            messagebox.showinfo("Succès", "Chèque modifié avec succès")
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur", f"Erreur lors de la modification:\n{str(e)}")
+
+    def cancel(self):
+
+        """Cancel editing"""
+
+        self.result = False
+
+        self.dialog.destroy()
+
+class PDFExporter:
+
+    def __init__(self, cheques_data, title="Liste des Chèques"):
+
+        self.cheques_data = cheques_data
+
+        self.title = title
+
+    def export_to_pdf(self, filename):
+
+        """Export cheques to PDF file - UPDATED"""
+
+        try:
+
+            doc = SimpleDocTemplate(filename, pagesize=A4)
+
+            story = []
+
+            # Styles
+
+            styles = getSampleStyleSheet()
+
+            title_style = ParagraphStyle(
+
+                'CustomTitle',
+
+                parent=styles['Heading1'],
+
+                fontSize=18,
+
+                spaceAfter=30,
+
+                alignment=1  # Center
+
+            )
+
+            # Title
+
+            title = Paragraph(self.title, title_style)
+
+            story.append(title)
+
+            story.append(Spacer(1, 12))
+
+            # Table data - UPDATED for new columns
+
+            data = [['Date', 'Type', 'N°', 'Banque', 'Propriétaire', 'Déposant', 'Montant', 'Échéance', 'Statut']]
+
+            for cheque in self.cheques_data:
+
+                row = [
+
+                    cheque['date_reception'],
+
+                    cheque['reg'],
+
+                    cheque['numero'],
+
+                    cheque['banque'],
+
+                    cheque['nom'][:20] + '...' if len(cheque['nom']) > 20 else cheque['nom'], # Truncate for display
+
+                    cheque.get('recipient_name', '')[:20] + '...' if len(cheque.get('recipient_name', '')) > 20 else cheque.get('recipient_name', ''), # Uses 'recipient_name' DB column
+
+                    f"{cheque['montant']:,.2f} DH",
+
+                    cheque['echeance'],
+
+                    cheque.get('status', 'IMPAYE') # Default status changed
+
+                ]
+
+                data.append(row)
+
+            # Calculate column widths dynamically based on A4 page width
+
+            # A4 width is 595.27 points. Margins are 1 inch (72 points) on each side.
+
+            # Usable width = 595.27 - 2*72 = 451.27 points
+
+            # Number of columns = 9
+
+            # Approximate widths (adjust as needed)
+
+            col_widths = [
+
+                0.10 * A4[0], # Date
+
+                0.05 * A4[0], # Type
+
+                0.10 * A4[0], # N°
+
+                0.10 * A4[0], # Banque
+
+                0.15 * A4[0], # Propriétaire
+
+                0.15 * A4[0], # Déposant
+
+                0.10 * A4[0], # Montant
+
+                0.10 * A4[0], # Échéance
+
+                0.08 * A4[0]  # Statut
+
+            ]
+
+            # Normalize widths to fit page if sum exceeds usable width
+
+            total_width = sum(col_widths)
+
+            if total_width > A4[0] - 2*inch: # A4[0] is width, 2*inch for margins
+
+                scale_factor = (A4[0] - 2*inch) / total_width
+
+                col_widths = [w * scale_factor for w in col_widths]
+
+            # Create table
+
+            table = Table(data, colWidths=col_widths) # Apply calculated widths
+
+            # Table style
+
+            table.setStyle(TableStyle([
+
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#366092")), # Dark blue header
+
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+
+                ('FONTSIZE', (0, 0), (-1, 0), 9), # Smaller font for more columns
+
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor("#F2F2F2")), # Light grey for rows
+
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+
+                ('FONTSIZE', (0, 1), (-1, -1), 8), # Smaller font for more columns
+
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black), # Thinner grid
+
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+
+                ('LEFTPADDING', (0,0), (-1,-1), 2),
+
+                ('RIGHTPADDING', (0,0), (-1,-1), 2),
+
+            ]))
+
+            story.append(table)
+
+            # Build PDF
+
+            doc.build(story)
+
+            return True
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur PDF", f"Erreur lors de la création du PDF:\n{str(e)}")
+
+            return False
+
+class EnhancedChequeManager:
+
+    def __init__(self, root):
+
+        self.root = root
+
+        self.setup_window()
+
+        # Initialize components
+
+        self.db = DatabaseManager()
+
+        self.cheques_dir = Path("cheques")
+
+        self.cheques_dir.mkdir(exist_ok=True)
+
+        # Initialize Excel file manager
+
+        self.excel_manager = ExcelFileManager(self.cheques_dir)
+
+        # Data
+
+        self.current_cheques = []
+
+        self.banks = ["CAM", "ATTAWAFA", "BP", "CIH", "BMCE", "SGMB", "CDM", "Al Barid Bank", "BMCI", "Crédit Agricole"]
+
+        self.month_names = [
+
+            "January", "February", "March", "April", "May", "June",
+
+            "July", "August", "September", "October", "November", "December"
+
+        ]
+
+        self.cheque_statuses = ["IMPAYE", "ENCAISSE"] # UPDATED: Define statuses
+
+        # Filters
+
+        self.current_filters = {}
+
+        self.setup_styles()
+
+        self.setup_ui()
+
+        self.load_statistics()
+
+        self.scan_existing_files()
+
+        self.load_pending_cheques()
+
+    def setup_window(self):
+
+        """Configure main window with modern design"""
+
+        self.root.title("💳 Gestionnaire de Chèques Pro - Auto Excel Update")
+
+        self.root.geometry("1600x1000")
+
+        self.root.minsize(1400, 900)
+
+        # Center window
+
+        self.root.update_idletasks()
+
+        x = (self.root.winfo_screenwidth() // 2) - (1600 // 2)
+
+        y = (self.root.winfo_screenheight() // 2) - (1000 // 2)
+
+        self.root.geometry(f"1600x1000+{x}+{y}")
+
+        # Configure style with modern colors
+
+        self.root.configure(bg='#f1f5f9')
+
+        # Set window icon (if available)
+
+        try:
+
+            self.root.iconbitmap('icon.ico')
+
+        except:
+
+            pass
+
+    def setup_styles(self):
+
+        """Configure modern UI styles with enhanced colors"""
+
+        self.style = ttk.Style()
+
+        self.style.theme_use('clam')
+
+        # Enhanced color palette
+
+        self.colors = {
+
+            'primary': '#3b82f6',      # Blue
+
+            'secondary': '#64748b',    # Slate
+
+            'success': '#10b981',      # Emerald
+
+            'danger': '#ef4444',       # Red
+
+            'warning': '#f59e0b',      # Amber
+
+            'info': '#06b6d4',         # Cyan
+
+            'light': '#f8fafc',        # Very light gray
+
+            'dark': '#1e293b',         # Dark slate
+
+            'white': '#ffffff',
+
+            'accent': '#8b5cf6',       # Purple
+
+            'muted': '#94a3b8'         # Muted slate
+
+        }
+
+        # Enhanced styles
+
+        self.style.configure('Title.TLabel',
+
+                           font=('Segoe UI', 22, 'bold'),
+
+                          foreground=self.colors['dark'])
+
+        self.style.configure('Subtitle.TLabel',
+
+                           font=('Segoe UI', 12),
+
+                          foreground=self.colors['secondary'])
+
+        self.style.configure('Primary.TButton',
+
+                          font=('Segoe UI', 10, 'bold'))
+
+        self.style.configure('Success.TButton',
+
+                          font=('Segoe UI', 10, 'bold'))
+
+        self.style.configure('Danger.TButton',
+
+                          font=('Segoe UI', 10, 'bold'))
+
+        self.style.configure('Card.TFrame',
+
+                          relief='flat',
+
+                          borderwidth=1,
+
+                          background='white')
+
+        self.style.configure('Filter.TFrame',
+
+                          relief='solid',
+
+                          borderwidth=1,
+
+                          background='#f8fafc')
+
+    def setup_ui(self):
+
+        """Setup the enhanced user interface"""
+
+        # Main container with enhanced padding
+
+        main_container = ttk.Frame(self.root)
+
+        main_container.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
+
+        # Enhanced header section
+
+        self.create_enhanced_header(main_container)
+
+        # Content area with enhanced notebook
+
+        self.create_enhanced_content_area(main_container)
+
+        # Enhanced status bar
+
+        self.create_enhanced_status_bar(main_container)
+
+    def create_enhanced_header(self, parent):
+
+        """Create enhanced header with title and comprehensive statistics"""
+
+        header_frame = ttk.Frame(parent)
+
+        header_frame.pack(fill=tk.X, pady=(0, 25))
+
+        # Left side - Enhanced title with gradient effect
+
+        title_frame = ttk.Frame(header_frame)
+
+        title_frame.pack(side=tk.LEFT)
+
+        title_label = ttk.Label(title_frame, text="💳 Gestionnaire de Chèques Pro",
+
+                               style='Title.TLabel')
+
+        title_label.pack(anchor=tk.W)
+
+        subtitle_label = ttk.Label(title_frame, text="🚀 Auto Excel Update - Fichiers annuels avec feuilles mensuelles",
+
+                                  style='Subtitle.TLabel')
+
+        subtitle_label.pack(anchor=tk.W)
+
+        # Version info
+
+        version_label = ttk.Label(title_frame, text="v2.3 - Edition Auto Excel", # Updated version
+
+                                 font=('Segoe UI', 9), foreground=self.colors['muted'])
+
+        version_label.pack(anchor=tk.W)
+
+        # Right side - Enhanced statistics cards
+
+        self.stats_frame = ttk.Frame(header_frame)
+
+        self.stats_frame.pack(side=tk.RIGHT)
+
+    def create_enhanced_stats_cards(self, stats):
+
+        """Create enhanced statistics cards with more details - UPDATED"""
+
+        # Clear existing stats
+
+        for widget in self.stats_frame.winfo_children():
+
+            widget.destroy()
+
+        stats_data = [
+
+            ("Total Chèques", stats['total_cheques'], "📊", self.colors['primary'], "Tous types confondus"),
+
+            ("Montant Total", f"{stats['total_amount']:,.2f} DH", "💰", self.colors['success'], f"Moyenne: {stats['avg_amount']:,.2f} DH"),
+
+            ("CHQ vs LCN", f"{stats['chq_count']}/{stats['lcn_count']}", "🏦", self.colors['info'], "Chèques/Lettres de change"),
+
+            ("Statut Chèques", f"E:{stats['paid_status_count']} I:{stats['unpaid_status_count']}", "✅", self.colors['accent'], "Encaissé/Impayé"), # Updated for new statuses
+
+            ("En Attente Export", stats['pending_export'], "⏳", self.colors['warning'], "Non exportés vers Excel"),
+
+            ("Années Actives", stats['years_count'], "📅", self.colors['accent'], "Fichiers Excel créés")
+
+        ]
+
+        for i, (label, value, icon, color, subtitle) in enumerate(stats_data):
+
+            card = ttk.Frame(self.stats_frame, style='Card.TFrame')
+
+            card.pack(side=tk.LEFT, padx=(15 if i > 0 else 0, 0))
+
+            # Enhanced card content
+
+            card_inner = ttk.Frame(card)
+
+            card_inner.pack(padx=20, pady=15)
+
+            # Icon and value header
+
+            header_frame = ttk.Frame(card_inner)
+
+            header_frame.pack(fill=tk.X)
+
+            icon_label = ttk.Label(header_frame, text=icon, font=('Segoe UI', 18))
+
+            icon_label.pack(side=tk.LEFT)
+
+            value_label = ttk.Label(header_frame, text=str(value),
+
+                                   font=('Segoe UI', 16, 'bold'),
+
+                                  foreground=color)
+
+            value_label.pack(side=tk.RIGHT)
+
+            # Main label
+
+            label_label = ttk.Label(card_inner, text=label,
+
+                                   font=('Segoe UI', 10, 'bold'),
+
+                                  foreground=self.colors['dark'])
+
+            label_label.pack(fill=tk.X, pady=(5, 0))
+
+            # Subtitle
+
+            subtitle_label = ttk.Label(card_inner, text=subtitle,
+
+                                      font=('Segoe UI', 8),
+
+                                     foreground=self.colors['muted'])
+
+            subtitle_label.pack(fill=tk.X)
+
+    def create_enhanced_content_area(self, parent):
+
+        """Create enhanced content area with modern notebook"""
+
+        # Enhanced notebook for tabs
+
+        self.notebook = ttk.Notebook(parent)
+
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Tab 1: Add Cheques (Enhanced with Auto Excel)
+
+        self.add_tab = ttk.Frame(self.notebook)
+
+        self.notebook.add(self.add_tab, text="➕ Nouveau Chèque (Auto Excel)")
+
+        self.create_enhanced_add_tab()
+
+        # Tab 2: Excel Files Manager
+
+        self.excel_tab = ttk.Frame(self.notebook)
+
+        self.notebook.add(self.excel_tab, text="📊 Gestionnaire Excel")
+
+        self.create_excel_manager_tab()
+
+        # Tab 3: Advanced Filters & Management
+
+        self.manage_tab = ttk.Frame(self.notebook)
+
+        self.notebook.add(self.manage_tab, text="🔍 Recherche & Gestion")
+
+        self.create_enhanced_manage_tab()
+
+        # Tab 4: Export & Reports
+
+        self.export_tab = ttk.Frame(self.notebook)
+
+        self.notebook.add(self.export_tab, text="📤 Export & Rapports")
+
+        self.create_enhanced_export_tab()
+
+        # Tab 5: Files Manager
+
+        self.files_tab = ttk.Frame(self.notebook)
+
+        self.notebook.add(self.files_tab, text="📁 Gestionnaire de Fichiers")
+
+        self.create_enhanced_files_tab()
+
+        # Tab 6: Analytics Dashboard
+
+        self.analytics_tab = ttk.Frame(self.notebook)
+
+        self.notebook.add(self.analytics_tab, text="📈 Tableau de Bord")
+
+        self.create_analytics_tab()
+
+    def create_enhanced_add_tab(self):
+
+        """Create the enhanced add cheque tab with auto Excel update - UPDATED"""
+
+        # Main container with enhanced layout
+
+        container = ttk.Frame(self.add_tab)
+
+        container.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
+
+        # Enhanced form section with better organization
+
+        form_frame = ttk.LabelFrame(container, text="📝 Informations du Chèque", padding=25)
+
+        form_frame.pack(fill=tk.X, pady=(0, 25))
+
+        # Configure enhanced grid
+
+        form_frame.columnconfigure(1, weight=1)
+
+        form_frame.columnconfigure(3, weight=1)
+
+        form_frame.columnconfigure(5, weight=1)
+
+        # Enhanced form fields layout
+
+        row = 0
+
+        # Row 1: Date réception, Reg, Quick actions
+
+        ttk.Label(form_frame, text="📅 Date de réception:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        self.date_reception = DateEntry(form_frame, width=15, background='darkblue',
+
+                                      foreground='white', borderwidth=2,
+
+                                       date_pattern='dd/mm/yyyy', font=('Segoe UI', 10))
+
+        self.date_reception.grid(row=row, column=1, sticky=tk.W, pady=8)
+
+        ttk.Label(form_frame, text="🏷️ Type:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=row, column=2, sticky=tk.W, padx=(20, 10), pady=8)
+
+        reg_frame = ttk.Frame(form_frame)
+
+        reg_frame.grid(row=row, column=3, sticky=tk.W, pady=8)
+
+        self.reg_var = tk.StringVar(value="CHQ")
+
+        ttk.Radiobutton(reg_frame, text="CHQ", variable=self.reg_var, value="CHQ").pack(side=tk.LEFT)
+
+        ttk.Radiobutton(reg_frame, text="LCN", variable=self.reg_var, value="LCN").pack(side=tk.LEFT, padx=(10, 0))
+
+        # Excel preview button
+
+        excel_preview_btn = ttk.Button(form_frame, text="📊 Aperçu Excel",
+
+                                      command=self.preview_excel_destination, style='Primary.TButton')
+
+        excel_preview_btn.grid(row=row, column=4, columnspan=2, sticky=tk.E, padx=(20, 0), pady=8)
+
+        row += 1
+
+        # Row 2: N° Chèque with duplicate check, Banque
+
+        ttk.Label(form_frame, text="🔢 N° Chèque:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        numero_frame = ttk.Frame(form_frame)
+
+        numero_frame.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(0, 20), pady=8)
+
+        self.numero_var = tk.StringVar()
+
+        numero_entry = ttk.Entry(numero_frame, textvariable=self.numero_var, font=('Segoe UI', 10))
+
+        numero_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        numero_entry.bind('<FocusOut>', self.check_duplicate)
+
+        # Duplicate warning indicator
+
+        self.duplicate_indicator = ttk.Label(numero_frame, text="", foreground=self.colors['danger'])
+
+        self.duplicate_indicator.pack(side=tk.RIGHT, padx=(5, 0))
+
+        ttk.Label(form_frame, text="🏦 Banque:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=row, column=2, sticky=tk.W, padx=(20, 10), pady=8)
+
+        self.banque_var = tk.StringVar()
+
+        banque_combo = ttk.Combobox(form_frame, textvariable=self.banque_var,
+
+                                   values=self.banks, state="readonly", font=('Segoe UI', 10))
+
+        banque_combo.grid(row=row, column=3, columnspan=3, sticky=(tk.W, tk.E), pady=8)
+
+        banque_combo.bind('<<ComboboxSelected>>', self.check_duplicate)
+
+        row += 1
+
+        # Row 3: Nom (Owner)
+
+        ttk.Label(form_frame, text="👤 Nom et prénom / Raison sociale (Propriétaire):", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        nom_frame = ttk.Frame(form_frame)
+
+        nom_frame.grid(row=row, column=1, columnspan=5, sticky=(tk.W, tk.E), pady=8)
+
+        self.nom_var = tk.StringVar()
+
+        nom_entry = ttk.Entry(nom_frame, textvariable=self.nom_var, font=('Segoe UI', 10))
+
+        nom_entry.pack(fill=tk.X)
+
+        nom_entry.bind('<KeyRelease>', self.suggest_names)
+
+        row += 1
+
+        # Row 4: Depositor Name - UPDATED Field
+
+        ttk.Label(form_frame, text="👥 Nom du Déposant:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        depositor_name_frame = ttk.Frame(form_frame)
+
+        depositor_name_frame.grid(row=row, column=1, columnspan=5, sticky=(tk.W, tk.E), pady=8)
+
+        self.depositor_name_var = tk.StringVar() # Renamed from recipient_name_var
+
+        depositor_name_entry = ttk.Entry(depositor_name_frame, textvariable=self.depositor_name_var, font=('Segoe UI', 10))
+
+        depositor_name_entry.pack(fill=tk.X)
+
+        row += 1
+
+        # Row 5: Montant with formatting, Échéance
+
+        ttk.Label(form_frame, text="💰 Montant (DH):", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        montant_frame = ttk.Frame(form_frame)
+
+        montant_frame.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(0, 20), pady=8)
+
+        self.montant_var = tk.StringVar()
+
+        montant_entry = ttk.Entry(montant_frame, textvariable=self.montant_var, font=('Segoe UI', 10))
+
+        montant_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        montant_entry.bind('<FocusOut>', self.format_montant)
+
+        montant_entry.bind('<KeyRelease>', self.validate_amount)
+
+        # Amount validation indicator
+
+        self.amount_indicator = ttk.Label(montant_frame, text="", foreground=self.colors['success'])
+
+        self.amount_indicator.pack(side=tk.RIGHT, padx=(5, 0))
+
+        ttk.Label(form_frame, text="📆 Échéance:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=row, column=2, sticky=tk.W, padx=(20, 10), pady=8)
+
+        self.echeance = DateEntry(form_frame, width=15, background='darkblue',
+
+                                 foreground='white', borderwidth=2,
+
+                                  date_pattern='dd/mm/yyyy', font=('Segoe UI', 10))
+
+        self.echeance.grid(row=row, column=3, sticky=tk.W, pady=8)
+
+        # Excel destination info
+
+        self.excel_destination = ttk.Label(form_frame, text="", font=('Segoe UI', 9),
+
+                                          foreground=self.colors['info'])
+
+        self.excel_destination.grid(row=row, column=4, columnspan=2, sticky=tk.W, padx=(10, 0), pady=8)
+
+        self.echeance.bind('<FocusOut>', self.update_excel_destination)
+
+        self.echeance.bind('<<DateEntrySelected>>', self.update_excel_destination)
+
+        row += 1
+
+        # Row 6: N° Facture, Date Facture, Notes
+
+        ttk.Label(form_frame, text="📄 N° Facture:", font=('Segoe UI', 10)).grid(
+
+            row=row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        self.facture_var = tk.StringVar()
+
+        facture_entry = ttk.Entry(form_frame, textvariable=self.facture_var, font=('Segoe UI', 10))
+
+        facture_entry.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(0, 20), pady=8)
+
+        ttk.Label(form_frame, text="📅 Date Facture:", font=('Segoe UI', 10)).grid(
+
+            row=row, column=2, sticky=tk.W, padx=(20, 10), pady=8)
+
+        self.date_fac = DateEntry(form_frame, width=15, background='darkblue',
+
+                                 foreground='white', borderwidth=2,
+
+                                  date_pattern='dd/mm/yyyy', font=('Segoe UI', 10))
+
+        self.date_fac.grid(row=row, column=3, sticky=tk.W, pady=8)
+
+        ttk.Label(form_frame, text="📝 Notes:", font=('Segoe UI', 10)).grid(
+
+            row=row, column=4, sticky=tk.W, padx=(20, 10), pady=8)
+
+        self.notes_var = tk.StringVar()
+
+        notes_entry = ttk.Entry(form_frame, textvariable=self.notes_var, font=('Segoe UI', 9))
+
+        notes_entry.grid(row=row, column=5, sticky=(tk.W, tk.E), pady=8)
+
+        row += 1
+
+        # Row 7: Status - UPDATED Field
+
+        ttk.Label(form_frame, text="✅ Statut du Chèque:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        self.status_var = tk.StringVar(value="IMPAYE") # Default status changed
+
+        status_combo = ttk.Combobox(form_frame, textvariable=self.status_var,
+
+                                    values=self.cheque_statuses, state="readonly", font=('Segoe UI', 10))
+
+        status_combo.grid(row=row, column=1, sticky=tk.W, pady=8)
+
+        # Enhanced buttons section
+
+        buttons_frame = ttk.Frame(container)
+
+        buttons_frame.pack(fill=tk.X, pady=15)
+
+        # Left side buttons
+
+        left_buttons = ttk.Frame(buttons_frame)
+
+        left_buttons.pack(side=tk.LEFT)
+
+        add_btn = ttk.Button(left_buttons, text="➕ Ajouter & Mettre à jour Excel",
+
+                            command=self.add_cheque_with_excel_update, style='Success.TButton')
+
+        add_btn.pack(side=tk.LEFT, padx=(0, 10))
+
+        clear_btn = ttk.Button(left_buttons, text="🗑️ Effacer Formulaire", command=self.clear_form)
+
+        clear_btn.pack(side=tk.LEFT, padx=(0, 10))
+
+        validate_btn = ttk.Button(left_buttons, text="✅ Valider Données",
+
+                                 command=self.validate_form_visual)
+
+        validate_btn.pack(side=tk.LEFT)
+
+        # Right side buttons
+
+        right_buttons = ttk.Frame(buttons_frame)
+
+        right_buttons.pack(side=tk.RIGHT)
+
+        test_excel_btn = ttk.Button(right_buttons, text="🧪 Test Excel",
+
+                                   command=self.test_excel_creation)
+
+        test_excel_btn.pack(side=tk.RIGHT, padx=(10, 0))
+
+        quick_fill_btn = ttk.Button(right_buttons, text="⚡ Remplissage Rapide",
+
+                                   command=self.quick_fill_form)
+
+        quick_fill_btn.pack(side=tk.RIGHT, padx=(10, 0))
+
+        # Enhanced pending cheques table with more features
+
+        table_frame = ttk.LabelFrame(container, text="📋 Chèques en Attente d'Export Excel", padding=15)
+
+        table_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.create_enhanced_pending_table(table_frame)
+
+    def create_excel_manager_tab(self):
+
+        """Create Excel files manager tab"""
+
+        container = ttk.Frame(self.excel_tab)
+
+        container.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
+
+        # Excel files overview
+
+        overview_frame = ttk.LabelFrame(container, text="📊 Vue d'ensemble des Fichiers Excel", padding=15)
+
+        overview_frame.pack(fill=tk.X, pady=(0, 15))
+
+        # Control buttons
+
+        control_frame = ttk.Frame(overview_frame)
+
+        control_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Button(control_frame, text="🔄 Actualiser",
+
+                  command=self.refresh_excel_files).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(control_frame, text="📁 Ouvrir Dossier",
+
+                  command=self.open_cheques_folder).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(control_frame, text="📊 Créer Fichier Année",
+
+                  command=self.create_year_file_dialog).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(control_frame, text="📈 Résumé Annuel",
+
+                  command=self.export_year_summary_dialog).pack(side=tk.LEFT)
+
+        # Files table
+
+        self.create_excel_files_table(overview_frame)
+
+        # File details frame
+
+        details_frame = ttk.LabelFrame(container, text="📄 Détails du Fichier Sélectionné", padding=15)
+
+        details_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.create_file_details_panel(details_frame)
+
+        # Load Excel files
+
+        self.refresh_excel_files()
+
+    def create_excel_files_table(self, parent):
+
+        """Create Excel files table"""
+
+        # Table container
+
+        table_container = ttk.Frame(parent)
+
+        table_container.pack(fill=tk.BOTH, expand=True)
+
+        table_container.columnconfigure(0, weight=1)
+
+        table_container.rowconfigure(0, weight=1)
+
+        # Treeview
+
+        columns = ('Année', 'Fichier', 'Taille', 'Chèques', 'Dernière Modif', 'Statut')
+
+        self.excel_files_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=8)
+
+        # Configure columns
+
+        self.excel_files_tree.heading('Année', text='Année')
+
+        self.excel_files_tree.heading('Fichier', text='Nom Fichier')
+
+        self.excel_files_tree.heading('Taille', text='Taille')
+
+        self.excel_files_tree.heading('Chèques', text='Total Chèques')
+
+        self.excel_files_tree.heading('Dernière Modif', text='Dernière Modification')
+
+        self.excel_files_tree.heading('Statut', text='Statut')
+
+        # Column widths
+
+        self.excel_files_tree.column('Année', width=80)
+
+        self.excel_files_tree.column('Fichier', width=200)
+
+        self.excel_files_tree.column('Taille', width=100)
+
+        self.excel_files_tree.column('Chèques', width=100)
+
+        self.excel_files_tree.column('Dernière Modif', width=150)
+
+        self.excel_files_tree.column('Statut', width=100)
+
+        self.excel_files_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Scrollbars
+
+        v_scroll = ttk.Scrollbar(table_container, orient=tk.VERTICAL, command=self.excel_files_tree.yview)
+
+        v_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        self.excel_files_tree.configure(yscrollcommand=v_scroll.set)
+
+        # Event bindings
+
+        self.excel_files_tree.bind('<<TreeviewSelect>>', self.on_excel_file_select)
+
+        self.excel_files_tree.bind('<Double-1>', self.open_selected_excel_file)
+
+    def create_file_details_panel(self, parent):
+
+        """Create file details panel"""
+
+        # Details text widget
+
+        self.details_text = tk.Text(parent, height=10, wrap=tk.WORD, font=('Consolas', 10))
+
+        self.details_text.pack(fill=tk.BOTH, expand=True)
+
+        # Scrollbar for details
+
+        details_scroll = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=self.details_text.yview)
+
+        details_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.details_text.configure(yscrollcommand=details_scroll.set)
+
+    def refresh_excel_files(self):
+
+        """Refresh Excel files list"""
+
+        # Clear existing items
+
+        for item in self.excel_files_tree.get_children():
+
+            self.excel_files_tree.delete(item)
+
+        # Get all Excel files
+
+        files_info = self.excel_manager.list_all_files()
+
+        for file_info in files_info:
+
+            if file_info['exists']:
+
+                size_str = self.format_file_size(file_info['size'])
+
+                modified_str = file_info['modified'].strftime('%d/%m/%Y %H:%M')
+
+                status = "✅ OK"
+
+            else:
+
+                size_str = "-"
+
+                modified_str = "-"
+
+                status = "❌ Erreur" if 'error' in file_info else "⚠️ Inexistant"
+
+            self.excel_files_tree.insert('', tk.END, values=(
+
+                file_info.get('year', '?'),
+
+                file_info['filename'],
+
+                size_str,
+
+                file_info.get('total_cheques', 0),
+
+                modified_str,
+
+                status
+
+            ), iid=file_info.get('year', 'unknown'))
+
+    def on_excel_file_select(self, event):
+
+        """Handle Excel file selection"""
+
+        selected = self.excel_files_tree.selection()
+
+        if not selected:
+
+            self.details_text.delete(1.0, tk.END)
+
+            return
+
+        year = selected[0]
+
+        try:
+
+            year_int = int(year)
+
+            file_info = self.excel_manager.get_file_info(year_int)
+
+            # Display file details
+
+            details = f"📊 DÉTAILS DU FICHIER EXCEL - ANNÉE {year}\n"
+
+            details += "=" * 50 + "\n\n"
+
+            if file_info['exists']:
+
+                details += f"📁 Fichier: {file_info['filename']}\n"
+
+                details += f"📍 Chemin: {file_info['path']}\n"
+
+                details += f"📏 Taille: {self.format_file_size(file_info['size'])}\n"
+
+                details += f"📅 Modifié: {file_info['modified'].strftime('%d/%m/%Y à %H:%M:%S')}\n"
+
+                details += f"📊 Total chèques: {file_info['total_cheques']}\n\n"
+
+                details += "📋 FEUILLES MENSUELLES:\n"
+
+                details += "-" * 30 + "\n"
+
+                for sheet in file_info['sheets']:
+
+                    details += f"• {sheet['name']:12} : {sheet['cheques']:3} chèques\n"
+
+                if file_info['total_cheques'] > 0:
+
+                    details += f"\n💰 STATISTIQUES:\n"
+
+                    details += "-" * 20 + "\n"
+
+                    details += f"• Moyenne par mois: {file_info['total_cheques']/12:.1f} chèques\n"
+
+                    # Find most active month
+
+                    max_sheet = max(file_info['sheets'], key=lambda x: x['cheques'])
+
+                    details += f"• Mois le plus actif: {max_sheet['name']} ({max_sheet['cheques']} chèques)\n"
+
+            else:
+
+                details += "❌ FICHIER INEXISTANT\n\n"
+
+                details += f"📁 Nom attendu: {file_info['filename']}\n"
+
+                details += f"📍 Chemin: {file_info['path']}\n\n"
+
+                details += "💡 Le fichier sera créé automatiquement lors du prochain ajout de chèque pour cette année.\n"
+
+                if 'error' in file_info:
+
+                    details += f"\n⚠️ Erreur: {file_info['error']}\n"
+
+            self.details_text.delete(1.0, tk.END)
+
+            self.details_text.insert(1.0, details)
+
+        except ValueError:
+
+            self.details_text.delete(1.0, tk.END)
+
+            self.details_text.insert(1.0, "❌ Année invalide sélectionnée")
+
+    def format_file_size(self, size_bytes):
+
+        """Format file size in human-readable format"""
+
+        for unit in ['B', 'KB', 'MB', 'GB']:
+
+            if size_bytes < 1024.0:
+
+                return f"{size_bytes:.1f} {unit}"
+
+            size_bytes /= 1024.0
+
+        return f"{size_bytes:.1f} TB"
+
+    def open_selected_excel_file(self, event):
+
+        """Open selected Excel file"""
+
+        selected = self.excel_files_tree.selection()
+
+        if not selected:
+
+            return
+
+        year = selected[0]
+
+        try:
+
+            year_int = int(year)
+
+            filename = self.excel_manager.get_excel_filename(year_int)
+
+            if filename.exists():
+
+                self.open_file(str(filename))
+
+            else:
+
+                messagebox.showwarning("Fichier introuvable", f"Le fichier pour l'année {year} n'existe pas encore.")
+
+        except ValueError:
+
+            messagebox.showerror("Erreur", "Année invalide sélectionnée")
+
+    def create_year_file_dialog(self):
+
+        """Dialog to create a new year file"""
+
+        year = simpledialog.askinteger("Créer Fichier Année",
+
+                                       "Entrez l'année pour créer le fichier Excel:",
+
+                                      minvalue=2000, maxvalue=2100,
+
+                                      initialvalue=datetime.now().year)
+
+        if year:
+
+            if self.excel_manager.create_yearly_file(year):
+
+                messagebox.showinfo("Succès", f"Fichier créé pour l'année {year}")
+
+                self.refresh_excel_files()
+
+    def export_year_summary_dialog(self):
+
+        """Dialog to export year summary"""
+
+        year = simpledialog.askinteger("Résumé Annuel",
+
+                                       "Entrez l'année pour le résumé:",
+
+                                      minvalue=2000, maxvalue=2100,
+
+                                      initialvalue=datetime.now().year)
+
+        if year:
+
+            self.excel_manager.export_year_summary(year)
+
+    def preview_excel_destination(self):
+
+        """Preview where the cheque will be saved in Excel"""
+
+        try:
+
+            echeance_date = self.echeance.get_date()
+
+            year = echeance_date.year
+
+            month = echeance_date.month
+
+            month_name = self.month_names[month - 1]
+
+            filename = f"cheques_{year}.xlsx"
+
+            message = (
+
+                f"📊 DESTINATION EXCEL\n\n"
+
+                f"📁 Fichier: {filename}\n"
+
+                f"📄 Feuille: {month_name}\n"
+
+                f"📅 Date d'échéance: {echeance_date.strftime('%d/%m/%Y')}\n\n"
+
+                f"💡 Le fichier et la feuille seront créés automatiquement si nécessaire."
+
+            )
+
+            messagebox.showinfo("Aperçu Excel", message)
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur", f"Impossible de déterminer la destination:\n{str(e)}")
+
+    def update_excel_destination(self, event=None):
+
+        """Update Excel destination info"""
+
+        try:
+
+            echeance_date = self.echeance.get_date()
+
+            year = echeance_date.year
+
+            month = echeance_date.month
+
+            month_name = self.month_names[month - 1]
+
+            destination_text = f"📊 → cheques_{year}.xlsx / {month_name}"
+
+            self.excel_destination.config(text=destination_text)
+
+        except Exception:
+
+            self.excel_destination.config(text="")
+
+    def test_excel_creation(self):
+
+        """Test Excel file creation"""
+
+        try:
+
+            test_year = datetime.now().year
+
+            # Test creating a file
+
+            if self.excel_manager.create_yearly_file(test_year):
+
+                messagebox.showinfo("Test Réussi",
+
+                                    f"✅ Test de création Excel réussi!\n"
+
+                                   f"Fichier test: cheques_{test_year}.xlsx\n"
+
+                                   f"12 feuilles mensuelles créées avec succès.")
+
+                self.refresh_excel_files()
+
+            else:
+
+                messagebox.showerror("Test Échoué", "❌ Échec du test de création Excel")
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur Test", f"Erreur lors du test:\n{str(e)}")
+
+    def add_cheque_with_excel_update(self):
+
+        """Add cheque to database and update Excel file automatically - UPDATED"""
+
+        try:
+
+            # Validate required fields
+
+            if not all([self.numero_var.get().strip(), self.banque_var.get(),
+
+                       self.nom_var.get().strip(), self.montant_var.get().strip()]):
+
+                messagebox.showerror("Erreur", "Veuillez remplir tous les champs obligatoires")
+
+                return
+
+            # Check for duplicate
+
+            duplicate = self.db.check_duplicate(self.numero_var.get().strip(), self.banque_var.get())
+
+            if duplicate['exists']:
+
+                if not messagebox.askyesno("Doublon Détecté",
+
+                    f"Un chèque avec le même numéro existe déjà:\n"
+
+                    f"Propriétaire: {duplicate['nom']}\n"
+
+                    f"Déposant: {duplicate['depositor_name']}\n" # Updated
+
+                    f"Montant: {duplicate['montant']:.2f} DH\n"
+
+                    f"Échéance: {duplicate['echeance']}\n\n"
+
+                    f"Voulez-vous continuer quand même?"):
+
+                    return
+
+            # Parse dates
+
+            echeance_date = self.echeance.get_date()
+
+            # Properly handle amount with comma as decimal separator
+
+            montant_str = self.montant_var.get().strip()
+
+            try:
+
+                # Replace comma with dot and convert to float
+
+                montant_value = float(montant_str.replace(',', '.'))
+
+                if montant_value < 0:
+
+                    raise ValueError("Le montant ne peut pas être négatif")
+
+            except ValueError:
+
+                messagebox.showerror("Erreur", "Le montant doit être un nombre valide")
+
+                return
+
+            # Prepare cheque data
+
+            cheque_data = {
+
+                'date_reception': self.date_reception.get_date().strftime('%d/%m/%Y'),
+
+                'reg': self.reg_var.get(),
+
+                'numero': self.numero_var.get().strip(),
+
+                'banque': self.banque_var.get(),
+
+                'nom': self.nom_var.get().strip(),
+
+                'depositor_name': self.depositor_name_var.get().strip(), # Uses 'depositor_name'
+
+                'montant': montant_value,
+
+                'echeance': echeance_date.strftime('%d/%m/%Y'),
+
+                'facture': self.facture_var.get().strip(),
+
+                'date_fac': self.date_fac.get_date().strftime('%d/%m/%Y') if self.date_fac.get() else '',
+
+                'year': echeance_date.year,
+
+                'month': echeance_date.month,
+
+                'notes': self.notes_var.get().strip(),
+
+                'status': self.status_var.get() # New field
+
+            }
+
+            # Insert into database
+
+            cheque_id = self.db.insert_cheque(cheque_data)
+
+            # Update Excel file automatically
+
+            excel_success = self.excel_manager.add_or_update_cheque(cheque_data)
+
+            # Update UI
+
+            self.load_pending_cheques()
+
+            self.load_statistics()
+
+            self.refresh_excel_files()
+
+            # Clear form
+
+            self.clear_form()
+
+            # Show success message
+
+            if excel_success:
+
+                messagebox.showinfo("Succès Complet",
+
+                                    f"✅ Chèque ajouté avec succès!\n\n"
+
+                                   f"🗃️ Base de données: ID {cheque_id}\n"
+
+                                   f"📊 Excel: cheques_{echeance_date.year}.xlsx\n"
+
+                                   f"📄 Feuille: {self.month_names[echeance_date.month-1]}")
+
+            else:
+
+                messagebox.showwarning("Succès Partiel",
+
+                                       f"✅ Chèque ajouté à la base de données (ID: {cheque_id})\n"
+
+                                      f"⚠️ Erreur lors de la mise à jour Excel\n\n"
+
+                                      f"Vous pouvez réessayer la mise à jour Excel plus tard.")
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur", f"Erreur lors de l'ajout du chèque:\n{str(e)}")
+
+    def create_enhanced_pending_table(self, parent):
+
+        """Create enhanced pending cheques table with editing capabilities - UPDATED"""
+
+        # Control bar above table
+
+        control_frame = ttk.Frame(parent)
+
+        control_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Left side controls
+
+        left_controls = ttk.Frame(control_frame)
+
+        left_controls.pack(side=tk.LEFT)
+
+        ttk.Label(left_controls, text="Actions rapides:", font=('Segoe UI', 9, 'bold')).pack(side=tk.LEFT, padx=(0, 10))
+
+        edit_btn = ttk.Button(left_controls, text="✏️ Modifier", command=self.edit_selected_cheque)
+
+        edit_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        delete_btn = ttk.Button(left_controls, text="🗑️ Supprimer",
+
+                               command=self.delete_pending_cheque, style='Danger.TButton')
+
+        delete_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        update_excel_btn = ttk.Button(left_controls, text="📊 Mettre à jour Excel",
+
+                                     command=self.update_selected_to_excel, style='Primary.TButton')
+
+        update_excel_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        # Right side controls
+
+        right_controls = ttk.Frame(control_frame)
+
+        right_controls.pack(side=tk.RIGHT)
+
+        select_all_btn = ttk.Button(right_controls, text="☑️ Tout Sélectionner",
+
+                                   command=self.select_all_pending)
+
+        select_all_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        refresh_btn = ttk.Button(right_controls, text="🔄 Actualiser",
+
+                                command=self.load_pending_cheques)
+
+        refresh_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Enhanced table container
+
+        table_container = ttk.Frame(parent)
+
+        table_container.pack(fill=tk.BOTH, expand=True)
+
+        table_container.columnconfigure(0, weight=1)
+
+        table_container.rowconfigure(0, weight=1)
+
+        # Enhanced treeview with checkboxes - UPDATED columns
+
+        columns = ('✓', 'ID', 'Date', 'Type', 'N°', 'Banque', 'Propriétaire', 'Déposant', 'Montant', 'Échéance', 'Excel', 'Statut')
+
+        self.pending_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=12)
+
+        # Configure enhanced columns
+
+        self.pending_tree.heading('✓', text='✓')
+
+        self.pending_tree.heading('ID', text='ID')
+
+        self.pending_tree.heading('Date', text='Date Réception')
+
+        self.pending_tree.heading('Type', text='Type')
+
+        self.pending_tree.heading('N°', text='N° Chèque')
+
+        self.pending_tree.heading('Banque', text='Banque')
+
+        self.pending_tree.heading('Propriétaire', text='Propriétaire')
+
+        self.pending_tree.heading('Déposant', text='Déposant') # Updated
+
+        self.pending_tree.heading('Montant', text='Montant')
+
+        self.pending_tree.heading('Échéance', text='Échéance')
+
+        self.pending_tree.heading('Excel', text='Destination Excel')
+
+        self.pending_tree.heading('Statut', text='Statut')
+
+        # Enhanced column widths - UPDATED
+
+        self.pending_tree.column('✓', width=30, anchor=tk.CENTER)
+
+        self.pending_tree.column('ID', width=50)
+
+        self.pending_tree.column('Date', width=100)
+
+        self.pending_tree.column('Type', width=60)
+
+        self.pending_tree.column('N°', width=100)
+
+        self.pending_tree.column('Banque', width=100)
+
+        self.pending_tree.column('Propriétaire', width=150)
+
+        self.pending_tree.column('Déposant', width=150) # Updated
+
+        self.pending_tree.column('Montant', width=100)
+
+        self.pending_tree.column('Échéance', width=100)
+
+        self.pending_tree.column('Excel', width=150)
+
+        self.pending_tree.column('Statut', width=80)
+
+        self.pending_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Enhanced scrollbars
+
+        v_scroll = ttk.Scrollbar(table_container, orient=tk.VERTICAL, command=self.pending_tree.yview)
+
+        v_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        self.pending_tree.configure(yscrollcommand=v_scroll.set)
+
+        h_scroll = ttk.Scrollbar(table_container, orient=tk.HORIZONTAL, command=self.pending_tree.xview)
+
+        h_scroll.grid(row=1, column=0, sticky=(tk.W, tk.E))
+
+        self.pending_tree.configure(xscrollcommand=h_scroll.set)
+
+        # Enhanced event bindings
+
+        self.pending_tree.bind('<Double-1>', self.edit_selected_cheque)
+
+        self.pending_tree.bind('<Button-3>', self.show_enhanced_context_menu)
+
+        self.pending_tree.bind('<Button-1>', self.on_pending_tree_click)
+
+        # Selection tracking
+
+        self.selected_cheques = set()
+
+    def update_selected_to_excel(self):
+
+        """Update selected cheques to Excel"""
+
+        selected = self.pending_tree.selection()
+
+        if not selected:
+
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner des chèques à mettre à jour dans Excel")
+
+            return
+
+        success_count = 0
+
+        error_count = 0
+
+        for item_id in selected:
+
+            item = self.pending_tree.item(item_id)
+
+            cheque_id = item['values'][1]  # ID is in second column
+
+            # Find cheque in database
+
+            cheque = next((c for c in self.current_cheques if c['id'] == cheque_id), None)
+
+            if cheque:
+
+                # Ensure the cheque data passed to excel_manager has 'recipient_name' for the DB column
+
+                # and 'status' for the DB column, even if UI uses 'depositor_name' and 'IMPAYE'/'ENCAISSE'
+
+                cheque_for_excel = cheque.copy()
+
+                cheque_for_excel['recipient_name'] = cheque.get('recipient_name', '') # Ensure this is passed
+
+                cheque_for_excel['status'] = cheque.get('status', 'IMPAYE') # Ensure this is passed
+
+                if self.excel_manager.add_or_update_cheque(cheque_for_excel):
+
+                    success_count += 1
+
+                else:
+
+                    error_count += 1
+
+            # Show results
+
+        if error_count == 0:
+
+            messagebox.showinfo("Succès", f"✅ {success_count} chèques mis à jour dans Excel avec succès!")
+
+        else:
+
+            messagebox.showwarning("Résultats Mixtes",
+
+                                   f"✅ {success_count} chèques mis à jour avec succès\n"
+
+                                  f"❌ {error_count} erreurs")
+
+        # Refresh displays
+
+        self.refresh_excel_files()
+
+        self.load_pending_cheques()
+
+    def create_enhanced_manage_tab(self):
+
+        """Create enhanced manage tab with advanced filters - UPDATED"""
+
+        container = ttk.Frame(self.manage_tab)
+
+        container.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
+
+        # Advanced filters section
+
+        filters_frame = ttk.LabelFrame(container, text="🔍 Filtres Avancés", padding=20, style='Filter.TFrame')
+
+        filters_frame.pack(fill=tk.X, pady=(0, 25))
+
+        # Configure filter grid
+
+        filters_frame.columnconfigure(1, weight=1)
+
+        filters_frame.columnconfigure(3, weight=1)
+
+        filters_frame.columnconfigure(5, weight=1)
+
+        filter_row = 0
+
+        # Row 1: Year, Month, Type filters
+
+        ttk.Label(filters_frame, text="📅 Année:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=filter_row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        self.filter_year_var = tk.StringVar()
+
+        self.year_combo = ttk.Combobox(filters_frame, textvariable=self.filter_year_var,
+
+                                       width=12, state="readonly")
+
+        self.year_combo.grid(row=filter_row, column=1, sticky=tk.W, padx=(0, 20), pady=8)
+
+        self.year_combo.bind('<<ComboboxSelected>>', self.apply_filters)
+
+        ttk.Label(filters_frame, text="📆 Mois:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=filter_row, column=2, sticky=tk.W, padx=(0, 10), pady=8)
+
+        self.filter_month_var = tk.StringVar()
+
+        month_values = ["Tous"] + [f"{i:02d} - {name}" for i, name in enumerate(self.month_names, 1)]
+
+        self.month_combo = ttk.Combobox(filters_frame, textvariable=self.filter_month_var,
+
+                                       values=month_values, width=15, state="readonly")
+
+        self.month_combo.grid(row=filter_row, column=3, sticky=tk.W, padx=(0, 20), pady=8)
+
+        self.month_combo.bind('<<ComboboxSelected>>', self.apply_filters)
+
+        ttk.Label(filters_frame, text="🏷️ Type:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=filter_row, column=4, sticky=tk.W, padx=(0, 10), pady=8)
+
+        self.filter_reg_var = tk.StringVar()
+
+        self.reg_combo = ttk.Combobox(filters_frame, textvariable=self.filter_reg_var,
+
+                                      values=["Tous", "CHQ", "LCN"], width=12, state="readonly")
+
+        self.reg_combo.grid(row=filter_row, column=5, sticky=tk.W, pady=8)
+
+        self.reg_combo.bind('<<ComboboxSelected>>', self.apply_filters)
+
+        filter_row += 1
+
+        # Row 2: Bank, Name, Amount filters
+
+        ttk.Label(filters_frame, text="🏦 Banque:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=filter_row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        self.filter_banque_var = tk.StringVar()
+
+        self.banque_filter_combo = ttk.Combobox(filters_frame, textvariable=self.filter_banque_var,
+
+                                                width=12, state="readonly")
+
+        self.banque_filter_combo.grid(row=filter_row, column=1, sticky=tk.W, padx=(0, 20), pady=8)
+
+        self.banque_filter_combo.bind('<<ComboboxSelected>>', self.apply_filters)
+
+        ttk.Label(filters_frame, text="👤 Nom/Raison (Propriétaire/Déposant):", font=('Segoe UI', 10, 'bold')).grid( # Updated label
+
+            row=filter_row, column=2, sticky=tk.W, padx=(0, 10), pady=8)
+
+        self.filter_nom_var = tk.StringVar()
+
+        nom_filter_entry = ttk.Entry(filters_frame, textvariable=self.filter_nom_var, width=20)
+
+        nom_filter_entry.grid(row=filter_row, column=3, sticky=(tk.W, tk.E), padx=(0, 20), pady=8)
+
+        nom_filter_entry.bind('<KeyRelease>', self.on_filter_change)
+
+        ttk.Label(filters_frame, text="💰 Montant:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=filter_row, column=4, sticky=tk.W, padx=(0, 10), pady=8)
+
+        amount_filter_frame = ttk.Frame(filters_frame)
+
+        amount_filter_frame.grid(row=filter_row, column=5, sticky=(tk.W, tk.E), pady=8)
+
+        self.filter_amount_min_var = tk.StringVar()
+
+        self.filter_amount_max_var = tk.StringVar()
+
+        min_entry = ttk.Entry(amount_filter_frame, textvariable=self.filter_amount_min_var, width=8)
+
+        min_entry.pack(side=tk.LEFT)
+
+        ttk.Label(amount_filter_frame, text=" - ").pack(side=tk.LEFT)
+
+        max_entry = ttk.Entry(amount_filter_frame, textvariable=self.filter_amount_max_var, width=8)
+
+        max_entry.pack(side=tk.LEFT)
+
+        min_entry.bind('<KeyRelease>', self.on_filter_change)
+
+        max_entry.bind('<KeyRelease>', self.on_filter_change)
+
+        filter_row += 1
+
+        # Row 3: Status filter - New
+
+        ttk.Label(filters_frame, text="✅ Statut:", font=('Segoe UI', 10, 'bold')).grid(
+
+            row=filter_row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
+
+        self.filter_status_var = tk.StringVar()
+
+        self.status_filter_combo = ttk.Combobox(filters_frame, textvariable=self.filter_status_var,
+
+                                                values=["Tous"] + self.cheque_statuses, width=12, state="readonly")
+
+        self.status_filter_combo.grid(row=filter_row, column=1, sticky=tk.W, padx=(0, 20), pady=8)
+
+        self.status_filter_combo.bind('<<ComboboxSelected>>', self.apply_filters)
+
+        # Row 4: Filter controls and statistics
+
+        control_frame = ttk.Frame(filters_frame)
+
+        control_frame.grid(row=filter_row, column=2, columnspan=4, sticky=(tk.W, tk.E), pady=(15, 0)) # Adjusted row
+
+        # Left side - Filter controls
+
+        left_controls = ttk.Frame(control_frame)
+
+        left_controls.pack(side=tk.LEFT)
+
+        apply_btn = ttk.Button(left_controls, text="🔍 Appliquer Filtres",
+
+                               command=self.apply_filters, style='Primary.TButton')
+
+        apply_btn.pack(side=tk.LEFT, padx=(0, 10))
+
+        clear_filters_btn = ttk.Button(left_controls, text="🗑️ Effacer Filtres",
+
+                                       command=self.clear_all_filters)
+
+        clear_filters_btn.pack(side=tk.LEFT, padx=(0, 10))
+
+        save_filter_btn = ttk.Button(left_controls, text="💾 Sauvegarder Filtre",
+
+                                     command=self.save_filter_preset)
+
+        save_filter_btn.pack(side=tk.LEFT)
+
+        # Right side - Results info
+
+        self.results_info_var = tk.StringVar(value="🔍 Prêt à filtrer")
+
+        results_label = ttk.Label(control_frame, textvariable=self.results_info_var,
+
+                                  font=('Segoe UI', 10, 'bold'), foreground=self.colors['info'])
+
+        results_label.pack(side=tk.RIGHT)
+
+        # Results table frame
+
+        table_frame = ttk.LabelFrame(container, text="📋 Résultats de Recherche", padding=15)
+
+        table_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create results table
+
+        self.create_results_table(table_frame)
+
+        # Load filter options
+
+        self.load_filter_options()
+
+    def create_results_table(self, parent):
+
+        """Create results table with enhanced features - UPDATED"""
+
+        # Control bar above table
+
+        control_frame = ttk.Frame(parent)
+
+        control_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Left side controls
+
+        left_controls = ttk.Frame(control_frame)
+
+        left_controls.pack(side=tk.LEFT)
+
+        ttk.Label(left_controls, text="Actions:", font=('Segoe UI', 9, 'bold')).pack(side=tk.LEFT, padx=(0, 10))
+
+        edit_btn = ttk.Button(left_controls, text="✏️ Modifier", command=self.edit_selected_result)
+
+        edit_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        delete_btn = ttk.Button(left_controls, text="🗑️ Supprimer",
+
+                                command=self.delete_selected_result, style='Danger.TButton')
+
+        delete_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        export_btn = ttk.Button(left_controls, text="📤 Exporter",
+
+                                command=self.export_selected_results)
+
+        export_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        # Right side controls
+
+        right_controls = ttk.Frame(control_frame)
+
+        right_controls.pack(side=tk.RIGHT)
+
+        print_btn = ttk.Button(right_controls, text="🖨️ Imprimer",
+
+                               command=self.print_selected_results)
+
+        print_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        select_all_btn = ttk.Button(right_controls, text="☑️ Tout Sélectionner",
+
+                                    command=self.select_all_results)
+
+        select_all_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        refresh_btn = ttk.Button(right_controls, text="🔄 Actualiser",
+
+                                 command=self.apply_filters)
+
+        refresh_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # Table container
+
+        table_container = ttk.Frame(parent)
+
+        table_container.pack(fill=tk.BOTH, expand=True)
+
+        table_container.columnconfigure(0, weight=1)
+
+        table_container.rowconfigure(0, weight=1)
+
+        # Treeview with checkboxes - UPDATED columns
+
+        columns = ('✓', 'ID', 'Date', 'Type', 'N°', 'Banque', 'Propriétaire', 'Déposant', 'Montant', 'Échéance', 'Facture', 'Statut', 'Exporté')
+
+        self.results_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=15)
+
+        # Configure columns
+
+        self.results_tree.heading('✓', text='✓')
+
+        self.results_tree.heading('ID', text='ID')
+
+        self.results_tree.heading('Date', text='Date Réception')
+
+        self.results_tree.heading('Type', text='Type')
+
+        self.results_tree.heading('N°', text='N° Chèque')
+
+        self.results_tree.heading('Banque', text='Banque')
+
+        self.results_tree.heading('Propriétaire', text='Propriétaire')
+
+        self.results_tree.heading('Déposant', text='Déposant') # Updated
+
+        self.results_tree.heading('Montant', text='Montant')
+
+        self.results_tree.heading('Échéance', text='Échéance')
+
+        self.results_tree.heading('Facture', text='N° Facture')
+
+        self.results_tree.heading('Statut', text='Statut')
+
+        self.results_tree.heading('Exporté', text='Exporté')
+
+        # Column widths - UPDATED
+
+        self.results_tree.column('✓', width=30, anchor=tk.CENTER)
+
+        self.results_tree.column('ID', width=50)
+
+        self.results_tree.column('Date', width=100)
+
+        self.results_tree.column('Type', width=60)
+
+        self.results_tree.column('N°', width=100)
+
+        self.results_tree.column('Banque', width=100)
+
+        self.results_tree.column('Propriétaire', width=150)
+
+        self.results_tree.column('Déposant', width=150) # Updated
+
+        self.results_tree.column('Montant', width=100)
+
+        self.results_tree.column('Échéance', width=100)
+
+        self.results_tree.column('Facture', width=100)
+
+        self.results_tree.column('Statut', width=80)
+
+        self.results_tree.column('Exporté', width=80)
+
+        self.results_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Scrollbars
+
+        v_scroll = ttk.Scrollbar(table_container, orient=tk.VERTICAL, command=self.results_tree.yview)
+
+        v_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        self.results_tree.configure(yscrollcommand=v_scroll.set)
+
+        h_scroll = ttk.Scrollbar(table_container, orient=tk.HORIZONTAL, command=self.results_tree.xview)
+
+        h_scroll.grid(row=1, column=0, sticky=(tk.W, tk.E))
+
+        self.results_tree.configure(xscrollcommand=h_scroll.set)
+
+        # Event bindings
+
+        self.results_tree.bind('<Double-1>', self.edit_selected_result)
+
+        self.results_tree.bind('<Button-3>', self.show_results_context_menu)
+
+        self.results_tree.bind('<Button-1>', self.on_results_tree_click)
+
+        # Selection tracking
+
+        self.selected_results = set()
+
+    def load_filter_options(self):
+
+        """Load filter dropdown options"""
+
+        # Load years
+
+        years = self.db.get_years()
+
+        self.year_combo['values'] = ["Toutes"] + sorted(years, reverse=True)
+
+        self.year_combo.current(0)
+
+        # Load banks
+
+        banks = self.db.get_banks()
+
+        self.banque_filter_combo['values'] = ["Toutes"] + sorted(banks)
+
+        self.banque_filter_combo.current(0)
+
+        # Load reg types
+
+        self.reg_combo.current(0)
+
+        # Load status types - UPDATED
+
+        self.status_filter_combo['values'] = ["Tous"] + self.cheque_statuses
+
+        self.status_filter_combo.current(0)
+
+    def apply_filters(self, event=None):
+
+        """Apply filters to results - UPDATED"""
+
+        filters = {}
+
+        # Year filter
+
+        if self.filter_year_var.get() and self.filter_year_var.get() != "Toutes":
+
+            filters['year'] = int(self.filter_year_var.get())
+
+        # Month filter
+
+        if self.filter_month_var.get() and not self.filter_month_var.get().startswith("Tous"):
+
+            month_num = int(self.filter_month_var.get().split(" - ")[0])
+
+            filters['month'] = month_num
+
+        # Reg filter
+
+        if self.filter_reg_var.get() and self.filter_reg_var.get() != "Tous":
+
+            filters['reg'] = self.filter_reg_var.get()
+
+        # Bank filter
+
+        if self.filter_banque_var.get() and self.filter_banque_var.get() != "Toutes":
+
+            filters['banque_filter'] = self.filter_banque_var.get()
+
+        # Name filter
+
+        if self.filter_nom_var.get():
+
+            filters['nom_filter'] = self.filter_nom_var.get()
+
+        # Status filter - UPDATED
+
+        if self.filter_status_var.get() and self.filter_status_var.get() != "Tous":
+
+            filters['status_filter'] = self.filter_status_var.get()
+
+        # Amount range filter
+
+        try:
+
+            min_amount = float(self.filter_amount_min_var.get().replace(',', '.')) if self.filter_amount_min_var.get() else None
+
+            max_amount = float(self.filter_amount_max_var.get().replace(',', '.')) if self.filter_amount_max_var.get() else None
+
+            if min_amount is not None or max_amount is not None:
+
+                filters['amount_min'] = min_amount
+
+                filters['amount_max'] = max_amount
+
+        except ValueError:
+
+            messagebox.showerror("Erreur", "Veuillez entrer des valeurs numériques valides pour le montant")
+
+            return
+
+        # Save current filters
+
+        self.current_filters = filters
+
+        # Apply filters and update results
+
+        self.update_results_table()
+
+    def update_results_table(self):
+
+        """Update results table based on current filters - UPDATED"""
+
+        # Get filtered cheques
+
+        cheques = self.db.get_cheques(
+
+            year=self.current_filters.get('year'),
+
+            month=self.current_filters.get('month'),
+
+            reg=self.current_filters.get('reg'),
+
+            nom_filter=self.current_filters.get('nom_filter'),
+
+            banque_filter=self.current_filters.get('banque_filter'),
+
+            status_filter=self.current_filters.get('status_filter')
+
+        )
+
+        # Apply amount range filter if specified
+
+        if 'amount_min' in self.current_filters or 'amount_max' in self.current_filters:
+
+            min_amount = self.current_filters.get('amount_min', float('-inf'))
+
+            max_amount = self.current_filters.get('amount_max', float('inf'))
+
+            cheques = [c for c in cheques if min_amount <= c['montant'] <= max_amount]
+
+        # Clear existing results
+
+        for item in self.results_tree.get_children():
+
+            self.results_tree.delete(item)
+
+        # Populate results
+
+        for cheque in cheques:
+
+            exported = "✔️" if cheque['exported'] else "❌"
+
+            # Display status with emojis - UPDATED
+
+            status_display = ""
+
+            if cheque['status'] == "IMPAYE":
+
+                status_display = "❌ Impayé"
+
+            elif cheque['status'] == "ENCAISSE":
+
+                status_display = "✅ Encaissé"
+
+            else:
+
+                status_display = cheque['status'] # Fallback for unknown status (e.g., old 'PENDING' or 'REJECTED')
+
+            self.results_tree.insert('', tk.END, values=(
+
+                '',  # Checkbox
+
+                cheque['id'],
+
+                cheque['date_reception'],
+
+                cheque['reg'],
+
+                cheque['numero'],
+
+                cheque['banque'],
+
+                cheque['nom'],
+
+                cheque.get('recipient_name', ''), # Uses 'recipient_name' DB column
+
+                f"{cheque['montant']:,.2f} DH".replace('.', ','),
+
+                cheque['echeance'],
+
+                cheque.get('facture', ''),
+
+                status_display, # Updated
+
+                exported
+
+            ))
+
+        # Update results info
+
+        total_amount = sum(c['montant'] for c in cheques)
+
+        self.results_info_var.set(f"📊 Résultats: {len(cheques)} chèques | Total: {total_amount:,.2f} DH".replace('.', ','))
+
+    def clear_all_filters(self):
+
+        """Clear all filter fields - UPDATED"""
+
+        self.filter_year_var.set("")
+
+        self.filter_month_var.set("")
+
+        self.filter_reg_var.set("")
+
+        self.filter_banque_var.set("")
+
+        self.filter_nom_var.set("")
+
+        self.filter_amount_min_var.set("")
+
+        self.filter_amount_max_var.set("")
+
+        self.filter_status_var.set("") # New
+
+        # Reset dropdowns to defaults
+
+        self.year_combo.current(0)
+
+        self.month_combo.current(0)
+
+        self.reg_combo.current(0)
+
+        self.banque_filter_combo.current(0)
+
+        self.status_filter_combo.current(0) # New
+
+        # Clear current filters
+
+        self.current_filters = {}
+
+        self.results_info_var.set("🔍 Filtres effacés")
+
+        # Clear results table
+
+        for item in self.results_tree.get_children():
+
+            self.results_tree.delete(item)
+
+    def on_filter_change(self, event=None):
+
+        """Handle filter changes with debounce"""
+
+        if hasattr(self, '_filter_debounce'):
+
+            self.root.after_cancel(self._filter_debounce)
+
+        self._filter_debounce = self.root.after(500, self.apply_filters)
+
+    def save_filter_preset(self):
+
+        """Save current filters as a preset"""
+
+        # Implement this to save filter combinations for quick access
+
+        messagebox.showinfo("Info", "Fonctionnalité de sauvegarde de filtres à implémenter")
+
+    def edit_selected_result(self, event=None):
+
+        """Edit selected result row"""
+
+        selected = self.results_tree.selection()
+
+        if not selected:
+
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner un chèque à modifier")
+
+            return
+
+        item = self.results_tree.item(selected[0])
+
+        cheque_id = item['values'][1]  # ID is in second column
+
+        # Find cheque in database
+
+        cheques = self.db.get_cheques()
+
+        cheque = next((c for c in cheques if c['id'] == cheque_id), None)
+
+        if not cheque:
+
+            messagebox.showerror("Erreur", "Chèque introuvable")
+
+            return
+
+        # Open edit dialog
+
+        dialog = EditChequeDialog(self.root, cheque, self.banks, self.db)
+
+        self.root.wait_window(dialog.dialog)
+
+        if dialog.result:
+
+            # Update the table
+
+            self.apply_filters()
+
+            self.load_statistics() # Status change affects stats
+
+    def delete_selected_result(self):
+
+        """Delete selected result row"""
+
+        selected = self.results_tree.selection()
+
+        if not selected:
+
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner un chèque à supprimer")
+
+            return
+
+        item = self.results_tree.item(selected[0])
+
+        cheque_id = item['values'][1]  # ID is in second column
+
+        if messagebox.askyesno("Confirmer", "Voulez-vous vraiment supprimer ce chèque?"):
+
+            self.db.delete_cheque(cheque_id)
+
+            self.apply_filters()  # Refresh results
+
+            self.load_statistics()  # Update stats
+
+    def export_selected_results(self):
+
+        """Export selected results to Excel or PDF"""
+
+        selected = [self.results_tree.item(i)['values'][1] for i in self.results_tree.selection()]
+
+        if not selected:
+
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner des chèques à exporter")
+
+            return
+
+        # Get selected cheques
+
+        cheques = self.db.get_cheques()
+
+        selected_cheques = [c for c in cheques if c['id'] in selected]
+
+        # Ask for export format
+
+        format_choice = messagebox.askquestion("Format d'export",
+
+                                              "Voulez-vous exporter en format Excel?",
+
+                                              icon='question')
+
+        if format_choice == 'yes':
+
+            self.export_to_excel(selected_cheques)
+
+        else:
+
+            self.export_to_pdf(selected_cheques)
+
+    def print_selected_results(self):
+
+        """Print selected results"""
+
+        selected = [self.results_tree.item(i)['values'][1] for i in self.results_tree.selection()]
+
+        if not selected:
+
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner des chèques à imprimer")
+
+            return
+
+        # Get selected cheques
+
+        cheques = self.db.get_cheques()
+
+        selected_cheques = [c for c in cheques if c['id'] in selected]
+
+        # Generate PDF and open it
+
+        pdf_path = os.path.join(self.cheques_dir, f"print_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
+
+        exporter = PDFExporter(selected_cheques, title="Liste des Chèques Sélectionnés")
+
+        if exporter.export_to_pdf(pdf_path):
+
+            self.open_file(pdf_path)
+
+    def select_all_results(self):
+
+        """Select all results in the table"""
+
+        for item in self.results_tree.get_children():
+
+            self.results_tree.selection_add(item)
+
+    def on_results_tree_click(self, event):
+
+        """Handle clicks on results tree (for checkboxes)"""
+
+        region = self.results_tree.identify("region", event.x, event.y)
+
+        column = self.results_tree.identify_column(event.x)
+
+        if region == "cell" and column == "#1":  # Checkbox column
+
+            item = self.results_tree.identify_row(event.y)
+
+            current_values = list(self.results_tree.item(item, 'values'))
+
+            # Toggle checkbox
+
+            current_values[0] = '✓' if current_values[0] == '' else ''
+
+            self.results_tree.item(item, values=current_values)
+
+            # Update selection set
+
+            cheque_id = current_values[1]
+
+            if current_values[0] == '✓':
+
+                self.selected_results.add(cheque_id)
+
+            else:
+
+                self.selected_results.discard(cheque_id)
+
+    def show_results_context_menu(self, event):
+
+        """Show context menu for results table - UPDATED"""
+
+        item = self.results_tree.identify_row(event.y)
+
+        if not item:
+
+            return
+
+        # Select the item
+
+        self.results_tree.selection_set(item)
+
+        # Create menu
+
+        menu = tk.Menu(self.root, tearoff=0)
+
+        menu.add_command(label="✏️ Modifier", command=self.edit_selected_result)
+
+        menu.add_command(label="🗑️ Supprimer", command=self.delete_selected_result)
+
+        menu.add_separator()
+
+        menu.add_command(label="📤 Exporter vers Excel", command=lambda: self.export_selected_results())
+
+        menu.add_command(label="🖨️ Imprimer", command=self.print_selected_results)
+
+        menu.add_separator()
+
+        # Submenu for status change - UPDATED
+
+        status_menu = tk.Menu(menu, tearoff=0)
+
+        status_menu.add_command(label="Impayé", command=lambda: self.change_selected_cheque_status("IMPAYE"))
+
+        status_menu.add_command(label="Encaissé", command=lambda: self.change_selected_cheque_status("ENCAISSE"))
+
+        menu.add_cascade(label="✅ Changer Statut", menu=status_menu)
+
+        menu.add_separator()
+
+        menu.add_command(label="📋 Copier les détails", command=self.copy_cheque_details)
+
+        try:
+
+            menu.tk_popup(event.x_root, event.y_root)
+
+        finally:
+
+            menu.grab_release()
+
+    def change_selected_cheque_status(self, new_status):
+
+        """Change the status of selected cheques in the results table"""
+
+        selected_ids = [self.results_tree.item(i)['values'][1] for i in self.results_tree.selection()]
+
+        if not selected_ids:
+
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner des chèques pour changer le statut.")
+
+            return
+
+        if messagebox.askyesno("Confirmer le changement de statut",
+
+                               f"Voulez-vous vraiment changer le statut de {len(selected_ids)} chèque(s) à '{new_status}'?"):
+
+            for cheque_id in selected_ids:
+
+                self.db.update_cheque_status(cheque_id, new_status)
+
+            messagebox.showinfo("Succès", f"Statut mis à jour pour {len(selected_ids)} chèque(s).")
+
+            self.apply_filters() # Refresh the table
+
+            self.load_statistics() # Update stats
+
+    def copy_cheque_details(self):
+
+        """Copy cheque details to clipboard - UPDATED"""
+
+        selected = self.results_tree.selection()
+
+        if not selected:
+
+            return
+
+        item = self.results_tree.item(selected[0])
+
+        cheque_id = item['values'][1]
+
+        cheques = self.db.get_cheques()
+
+        cheque = next((c for c in cheques if c['id'] == cheque_id), None)
+
+        if not cheque:
+
+            return
+
+        details = (
+
+            f"Date: {cheque['date_reception']}\n"
+
+            f"Type: {cheque['reg']}\n"
+
+            f"N°: {cheque['numero']}\n"
+
+            f"Banque: {cheque['banque']}\n"
+
+            f"Propriétaire: {cheque['nom']}\n"
+
+            f"Déposant: {cheque.get('recipient_name', '')}\n" # Uses 'recipient_name' DB column
+
+            f"Montant: {cheque['montant']:,.2f} DH\n"
+
+            f"Échéance: {cheque['echeance']}\n"
+
+            f"Facture: {cheque.get('facture', '')}\n"
+
+            f"Statut: {cheque.get('status', 'IMPAYE')}" # Default status changed
+
+        ).replace('.', ',')
+
+        self.root.clipboard_clear()
+
+        self.root.clipboard_append(details)
+
+        messagebox.showinfo("Copié", "Les détails du chèque ont été copiés dans le presse-papiers")
+
+    def create_enhanced_export_tab(self):
+
+        """Create enhanced export tab with multiple options"""
+
+        container = ttk.Frame(self.export_tab)
+
+        container.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
+
+        # Export options frame
+
+        options_frame = ttk.LabelFrame(container, text="📤 Options d'Export", padding=20)
+
+        options_frame.pack(fill=tk.X, pady=(0, 25))
+
+        # Export format selection
+
+        ttk.Label(options_frame, text="Format d'export:", font=('Segoe UI', 10, 'bold')).pack(anchor=tk.W, pady=(0, 10))
+
+        self.export_format_var = tk.StringVar(value="excel")
+
+        format_frame = ttk.Frame(options_frame)
+
+        format_frame.pack(fill=tk.X, pady=(0, 20))
+
+        ttk.Radiobutton(format_frame, text="Excel (XLSX)", variable=self.export_format_var,
+
+                        value="excel").pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Radiobutton(format_frame, text="PDF", variable=self.export_format_var,
+
+                        value="pdf").pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Radiobutton(format_frame, text="CSV", variable=self.export_format_var,
+
+                        value="csv").pack(side=tk.LEFT)
+
+        # Export scope selection
+
+        ttk.Label(options_frame, text="Étendue de l'export:", font=('Segoe UI', 10, 'bold')).pack(anchor=tk.W, pady=(0, 10))
+
+        self.export_scope_var = tk.StringVar(value="pending")
+
+        scope_frame = ttk.Frame(options_frame)
+
+        scope_frame.pack(fill=tk.X, pady=(0, 20))
+
+        ttk.Radiobutton(scope_frame, text="Chèques en attente seulement",
+
+                        variable=self.export_scope_var, value="pending").pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Radiobutton(scope_frame, text="Tous les chèques",
+
+                        variable=self.export_scope_var, value="all").pack(side=tk.LEFT, padx=(0, 20))
+
+        ttk.Radiobutton(scope_frame, text="Sélection personnalisée",
+
+                        variable=self.export_scope_var, value="custom").pack(side=tk.LEFT)
+
+        # Export file naming
+
+        ttk.Label(options_frame, text="Nom du fichier:", font=('Segoe UI', 10, 'bold')).pack(anchor=tk.W, pady=(0, 10))
+
+        self.export_filename_var = tk.StringVar()
+
+        filename_frame = ttk.Frame(options_frame)
+
+        filename_frame.pack(fill=tk.X, pady=(0, 20))
+
+        ttk.Entry(filename_frame, textvariable=self.export_filename_var,
+
+                  font=('Segoe UI', 10)).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        ttk.Button(filename_frame, text="📁", command=self.browse_export_path).pack(side=tk.LEFT, padx=(10, 0))
+
+        # Default filename
+
+        default_name = f"cheques_{datetime.now().strftime('%Y%m%d')}"
+
+        self.export_filename_var.set(default_name)
+
+        # Export button
+
+        export_btn = ttk.Button(container, text="🚀 Exporter Maintenant",
+
+                                command=self.perform_export, style='Primary.TButton')
+
+        export_btn.pack(pady=20)
+
+        # Export history frame
+
+        history_frame = ttk.LabelFrame(container, text="📜 Historique des Exports", padding=15)
+
+        history_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create export history table
+
+        self.create_export_history_table(history_frame)
+
+        # Load export history
+
+        self.load_export_history()
+
+    def create_export_history_table(self, parent):
+
+        """Create export history table"""
+
+        # Table container
+
+        table_container = ttk.Frame(parent)
+
+        table_container.pack(fill=tk.BOTH, expand=True)
+
+        table_container.columnconfigure(0, weight=1)
+
+        table_container.rowconfigure(0, weight=1)
+
+        # Treeview
+
+        columns = ('Date', 'Fichier', 'Type', 'Nombre', 'Actions')
+
+        self.history_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=8)
+
+        # Configure columns
+
+        self.history_tree.heading('Date', text='Date Export')
+
+        self.history_tree.heading('Fichier', text='Nom Fichier')
+
+        self.history_tree.heading('Type', text='Type')
+
+        self.history_tree.heading('Nombre', text='N° Chèques')
+
+        self.history_tree.heading('Actions', text='Actions')
+
+        # Column widths
+
+        self.history_tree.column('Date', width=150)
+
+        self.history_tree.column('Fichier', width=250)
+
+        self.history_tree.column('Type', width=100)
+
+        self.history_tree.column('Nombre', width=100)
+
+        self.history_tree.column('Actions', width=150)
+
+        self.history_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Scrollbars
+
+        v_scroll = ttk.Scrollbar(table_container, orient=tk.VERTICAL, command=self.history_tree.yview)
+
+        v_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        self.history_tree.configure(yscrollcommand=v_scroll.set)
+
+        h_scroll = ttk.Scrollbar(table_container, orient=tk.HORIZONTAL, command=self.history_tree.xview)
+
+        h_scroll.grid(row=1, column=0, sticky=(tk.W, tk.E))
+
+        self.history_tree.configure(xscrollcommand=h_scroll.set)
+
+        # Event bindings
+
+        self.history_tree.bind('<Double-1>', self.open_exported_file)
+
+        self.history_tree.bind('<Button-3>', self.show_history_context_menu)
+
+    def load_export_history(self):
+
+        """Load export history from database"""
+
+        with sqlite3.connect(self.db.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT * FROM export_history ORDER BY export_date DESC")
+
+            history = cursor.fetchall()
+
+        # Clear existing items
+
+        for item in self.history_tree.get_children():
+
+            self.history_tree.delete(item)
+
+        # Populate history
+
+        for record in history:
+
+            export_id, filename, export_date, count, export_type = record
+
+            date_str = datetime.strptime(export_date, '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y %H:%M')
+
+            self.history_tree.insert('', tk.END, values=(
+
+                date_str,
+
+                filename,
+
+                export_type.upper(),
+
+                count,
+
+                "📂 Ouvrir | 🗑️ Supprimer"
+
+            ), iid=export_id)
+
+    def perform_export(self):
+
+        """Perform export based on selected options"""
+
+        export_format = self.export_format_var.get()
+
+        export_scope = self.export_scope_var.get()
+
+        filename = self.export_filename_var.get().strip()
+
+        if not filename:
+
+            messagebox.showerror("Erreur", "Veuillez spécifier un nom de fichier")
+
+            return
+
+        # Get cheques to export based on scope
+
+        if export_scope == "pending":
+
+            cheques = self.db.get_cheques(exported=False)
+
+        elif export_scope == "all":
+
+            cheques = self.db.get_cheques()
+
+        else:  # custom
+
+            selected = [self.pending_tree.item(i)['values'][1] for i in self.pending_tree.selection()]
+
+            if not selected:
+
+                messagebox.showwarning("Aucune sélection", "Veuillez sélectionner des chèques à exporter")
+
+                return
+
+            cheques = [c for c in self.db.get_cheques() if c['id'] in selected]
+
+        if not cheques:
+
+            messagebox.showwarning("Aucun chèque", "Aucun chèque à exporter")
+
+            return
+
+        # Add file extension if not present
+
+        if not filename.lower().endswith(('.xlsx', '.pdf', '.csv')):
+
+            if export_format == "excel":
+
+                filename += ".xlsx"
+
+            elif export_format == "pdf":
+
+                filename += ".pdf"
+
+            else:
+
+                filename += ".csv"
+
+        # Full file path
+
+        file_path = os.path.join(self.cheques_dir, filename)
+
+        # Perform export
+
+        success = False
+
+        if export_format == "excel":
+
+            success = self.export_to_excel(cheques, file_path)
+
+        elif export_format == "pdf":
+
+            success = self.export_to_pdf(cheques, file_path)
+
+        else:  # csv
+
+            success = self.export_to_csv(cheques, file_path)
+
+        if success:
+
+            # Record export in history
+
+            with sqlite3.connect(self.db.db_path) as conn:
+
+                cursor = conn.cursor()
+
+                cursor.execute(
+
+                    "INSERT INTO export_history (filename, cheques_count, export_type) VALUES (?, ?, ?)",
+
+                    (filename, len(cheques), export_format.upper())
+
+                )
+
+            # Mark cheques as exported if they were pending
+
+            if export_scope == "pending":
+
+                cheque_ids = [c['id'] for c in cheques]
+
+                self.db.mark_exported(cheque_ids)
+
+            # Refresh displays
+
+            self.load_export_history()
+
+            self.load_pending_cheques()
+
+            self.load_statistics()
+
+            # Show success message
+
+            messagebox.showinfo("Export Réussi",
+
+                                f"✅ Export terminé avec succès!\n\n"
+
+                               f"📁 Fichier: {filename}\n"
+
+                               f"📊 Chèques exportés: {len(cheques)}\n"
+
+                               f"📍 Emplacement: {file_path}")
+
+            # Ask to open file
+
+            if messagebox.askyesno("Ouvrir le fichier", "Voulez-vous ouvrir le fichier exporté?"):
+
+                self.open_file(file_path)
+
+    def browse_export_path(self):
+
+        """Browse for export file path"""
+
+        export_format = self.export_format_var.get()
+
+        if export_format == "excel":
+
+            filetypes = [("Excel files", "*.xlsx"), ("All files", "*.*")]
+
+        elif export_format == "pdf":
+
+            filetypes = [("PDF files", "*.pdf"), ("All files", "*.*")]
+
+        else:
+
+            filetypes = [("CSV files", "*.csv"), ("All files", "*.*")]
+
+        filename = filedialog.asksaveasfilename(
+
+            title="Sauvegarder l'export",
+
+            initialdir=str(self.cheques_dir),
+
+            filetypes=filetypes
+
+        )
+
+        if filename:
+
+            # Extract just the filename without path
+
+            self.export_filename_var.set(os.path.basename(filename))
+
+    def export_to_excel(self, cheques, file_path=None):
+
+        """Export cheques to Excel file - UPDATED"""
+
+        if not file_path:
+
+            file_path = filedialog.asksaveasfilename(
+
+                title="Exporter vers Excel",
+
+                defaultextension=".xlsx",
+
+                filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+
+            )
+
+            if not file_path:
+
+                return False
+
+        try:
+
+            workbook = openpyxl.Workbook()
+
+            sheet = workbook.active
+
+            sheet.title = "Chèques"
+
+            # Headers - UPDATED
+
+            headers = [
+
+                "Date de réception", "Type", "N° Chèque", "Banque",
+
+                "Nom et prénom / Raison sociale", "Nom du Déposant", "Montant", "Échéance",
+
+                "N° Facture", "Date Facture", "Notes", "Statut du Chèque"
+
+            ]
+
+            for col, header in enumerate(headers, 1):
+
+                cell = sheet.cell(row=1, column=col, value=header)
+
+                cell.font = Font(bold=True, color="FFFFFF")
+
+                cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+            # Data - UPDATED
+
+            for row, cheque in enumerate(cheques, 2):
+
+                sheet.cell(row=row, column=1, value=cheque['date_reception'])
+
+                sheet.cell(row=row, column=2, value=cheque['reg'])
+
+                sheet.cell(row=row, column=3, value=cheque['numero'])
+
+                sheet.cell(row=row, column=4, value=cheque['banque'])
+
+                sheet.cell(row=row, column=5, value=cheque['nom'])
+
+                sheet.cell(row=row, column=6, value=cheque.get('recipient_name', '')) # Uses 'recipient_name' DB column
+
+                sheet.cell(row=row, column=7, value=cheque['montant'])
+
+                sheet.cell(row=row, column=8, value=cheque['echeance'])
+
+                sheet.cell(row=row, column=9, value=cheque.get('facture', ''))
+
+                sheet.cell(row=row, column=10, value=cheque.get('date_fac', ''))
+
+                sheet.cell(row=row, column=11, value=cheque.get('notes', ''))
+
+                sheet.cell(row=row, column=12, value=cheque.get('status', 'IMPAYE')) # Default status changed
+
+                # Format amount
+
+                sheet.cell(row=row, column=7).number_format = '#,##0.00' # Adjusted column index
+
+            # Auto-size columns
+
+            for column in sheet.columns:
+
+                max_length = 0
+
+                column_letter = column[0].column_letter
+
+                for cell in column:
+
+                    try:
+
+                        if len(str(cell.value)) > max_length:
+
+                            max_length = len(str(cell.value))
+
+                    except:
+
+                        pass
+
+                adjusted_width = (max_length + 2) * 1.2
+
+                sheet.column_dimensions[column_letter].width = adjusted_width
+
+            workbook.save(file_path)
+
+            return True
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur Excel", f"Erreur lors de l'export Excel:\n{str(e)}")
+
+            return False
+
+    def export_to_pdf(self, cheques, file_path=None):
+
+        """Export cheques to PDF file"""
+
+        if not file_path:
+
+            file_path = filedialog.asksaveasfilename(
+
+                title="Exporter vers PDF",
+
+                defaultextension=".pdf",
+
+                filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")]
+
+            )
+
+            if not file_path:
+
+                return False
+
+        try:
+
+            exporter = PDFExporter(cheques, title="Liste des Chèques")
+
+            return exporter.export_to_pdf(file_path)
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur PDF", f"Erreur lors de l'export PDF:\n{str(e)}")
+
+            return False
+
+    def export_to_csv(self, cheques, file_path=None):
+
+        """Export cheques to CSV file - UPDATED"""
+
+        if not file_path:
+
+            file_path = filedialog.asksaveasfilename(
+
+                title="Exporter vers CSV",
+
+                defaultextension=".csv",
+
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+
+            )
+
+            if not file_path:
+
+                return False
+
+        try:
+
+            import csv
+
+            with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+
+                writer = csv.writer(csvfile, delimiter=';')
+
+                # Headers - UPDATED
+
+                writer.writerow([
+
+                    "Date de réception", "Type", "N° Chèque", "Banque",
+
+                    "Nom et prénom / Raison sociale", "Nom du Déposant", "Montant", "Échéance",
+
+                    "N° Facture", "Date Facture", "Notes", "Statut du Chèque"
+
+                ])
+
+                # Data - UPDATED
+
+                for cheque in cheques:
+
+                    writer.writerow([
+
+                        cheque['date_reception'],
+
+                        cheque['reg'],
+
+                        cheque['numero'],
+
+                        cheque['banque'],
+
+                        cheque['nom'],
+
+                        cheque.get('recipient_name', ''), # Uses 'recipient_name' DB column
+
+                        f"{cheque['montant']:.2f}".replace('.', ','),
+
+                        cheque['echeance'],
+
+                        cheque.get('facture', ''),
+
+                        cheque.get('date_fac', ''),
+
+                        cheque.get('notes', ''),
+
+                        cheque.get('status', 'IMPAYE') # Default status changed
+
+                    ])
+
+            return True
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur CSV", f"Erreur lors de l'export CSV:\n{str(e)}")
+
+            return False
+
+    def open_exported_file(self, event):
+
+        """Open exported file from history"""
+
+        selected = self.history_tree.selection()
+
+        if not selected:
+
+            return
+
+        export_id = selected[0]
+
+        item = self.history_tree.item(export_id)
+
+        filename = item['values'][1]
+
+        file_path = os.path.join(self.cheques_dir, filename)
+
+        if os.path.exists(file_path):
+
+            self.open_file(file_path)
+
+        else:
+
+            messagebox.showerror("Fichier introuvable", f"Le fichier {filename} n'existe plus")
+
+    def show_history_context_menu(self, event):
+
+        """Show context menu for export history"""
+
+        item = self.history_tree.identify_row(event.y)
+
+        if not item:
+
+            return
+
+        # Select the item
+
+        self.history_tree.selection_set(item)
+
+        # Create menu
+
+        menu = tk.Menu(self.root, tearoff=0)
+
+        menu.add_command(label="📂 Ouvrir fichier", command=lambda: self.open_exported_file(None))
+
+        menu.add_command(label="📁 Ouvrir dossier", command=self.open_cheques_folder)
+
+        menu.add_separator()
+
+        menu.add_command(label="🗑️ Supprimer de l'historique", command=self.delete_from_history)
+
+        try:
+
+            menu.tk_popup(event.x_root, event.y_root)
+
+        finally:
+
+            menu.grab_release()
+
+    def delete_from_history(self):
+
+        """Delete selected item from export history"""
+
+        selected = self.history_tree.selection()
+
+        if not selected:
+
+            return
+
+        export_id = selected[0]
+
+        if messagebox.askyesno("Confirmer", "Supprimer cet élément de l'historique?"):
+
+            with sqlite3.connect(self.db.db_path) as conn:
+
+                cursor = conn.cursor()
+
+                cursor.execute("DELETE FROM export_history WHERE id = ?", (export_id,))
+
+            self.load_export_history()
+
+    def create_enhanced_files_tab(self):
+
+        """Create enhanced files manager tab"""
+
+        container = ttk.Frame(self.files_tab)
+
+        container.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
+
+        # Files overview
+
+        overview_frame = ttk.LabelFrame(container, text="📁 Gestionnaire de Fichiers", padding=15)
+
+        overview_frame.pack(fill=tk.X, pady=(0, 15))
+
+        # Control buttons
+
+        control_frame = ttk.Frame(overview_frame)
+
+        control_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Button(control_frame, text="📁 Ouvrir Dossier Chèques",
+
+                  command=self.open_cheques_folder).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(control_frame, text="🔄 Actualiser",
+
+                  command=self.scan_existing_files).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(control_frame, text="🧹 Nettoyer Fichiers",
+
+                  command=self.cleanup_files).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(control_frame, text="💾 Sauvegarde",
+
+                  command=self.backup_files).pack(side=tk.LEFT)
+
+        # Files info
+
+        self.files_info_var = tk.StringVar()
+
+        info_label = ttk.Label(overview_frame, textvariable=self.files_info_var,
+
+                               font=('Segoe UI', 10), foreground=self.colors['info'])
+
+        info_label.pack(fill=tk.X, pady=10)
+
+        # Files list
+
+        files_frame = ttk.LabelFrame(container, text="📄 Fichiers Existants", padding=15)
+
+        files_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Create files table
+
+        self.create_files_table(files_frame)
+
+        # Scan existing files
+
+        self.scan_existing_files()
+
+    def create_files_table(self, parent):
+
+        """Create files table"""
+
+        # Table container
+
+        table_container = ttk.Frame(parent)
+
+        table_container.pack(fill=tk.BOTH, expand=True)
+
+        table_container.columnconfigure(0, weight=1)
+
+        table_container.rowconfigure(0, weight=1)
+
+        # Treeview
+
+        columns = ('Nom', 'Type', 'Taille', 'Modifié', 'Statut', 'Actions')
+
+        self.files_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=12)
+
+        # Configure columns
+
+        self.files_tree.heading('Nom', text='Nom du Fichier')
+
+        self.files_tree.heading('Type', text='Type')
+
+        self.files_tree.heading('Taille', text='Taille')
+
+        self.files_tree.heading('Modifié', text='Dernière Modification')
+
+        self.files_tree.heading('Statut', text='Statut')
+
+        self.files_tree.heading('Actions', text='Actions')
+
+        # Column widths
+
+        self.files_tree.column('Nom', width=250)
+
+        self.files_tree.column('Type', width=100)
+
+        self.files_tree.column('Taille', width=100)
+
+        self.files_tree.column('Modifié', width=150)
+
+        self.files_tree.column('Statut', width=100)
+
+        self.files_tree.column('Actions', width=150)
+
+        self.files_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Scrollbars
+
+        v_scroll = ttk.Scrollbar(table_container, orient=tk.VERTICAL, command=self.files_tree.yview)
+
+        v_scroll.grid(row=0, column=1, sticky=(tk.N, tk.S))
+
+        self.files_tree.configure(yscrollcommand=v_scroll.set)
+
+        h_scroll = ttk.Scrollbar(table_container, orient=tk.HORIZONTAL, command=self.files_tree.xview)
+
+        h_scroll.grid(row=1, column=0, sticky=(tk.W, tk.E))
+
+        self.files_tree.configure(xscrollcommand=h_scroll.set)
+
+        # Event bindings
+
+        self.files_tree.bind('<Double-1>', self.open_selected_file)
+
+        self.files_tree.bind('<Button-3>', self.show_files_context_menu)
+
+    def scan_existing_files(self):
+
+        """Scan existing files in the cheques directory"""
+
+        # Clear existing items
+
+        for item in self.files_tree.get_children():
+
+            self.files_tree.delete(item)
+
+        total_files = 0
+
+        total_size = 0
+
+        # Scan directory
+
+        for file_path in self.cheques_dir.iterdir():
+
+            if file_path.is_file():
+
+                total_files += 1
+
+                file_size = file_path.stat().st_size
+
+                total_size += file_size
+
+                # Determine file type
+
+                file_ext = file_path.suffix.lower()
+
+                if file_ext == '.xlsx':
+
+                    file_type = "📊 Excel"
+
+                    status = "✅ OK"
+
+                elif file_ext == '.pdf':
+
+                    file_type = "📄 PDF"
+
+                    status = "✅ OK"
+
+                elif file_ext == '.csv':
+
+                    file_type = "📋 CSV"
+
+                    status = "✅ OK"
+
+                elif file_ext == '.db':
+
+                    file_type = "🗃️ Database"
+
+                    status = "✅ OK"
+
+                else:
+
+                    file_type = "❓ Autre"
+
+                    status = "⚠️ Inconnu"
+
+                # Format modification time
+
+                mod_time = datetime.fromtimestamp(file_path.stat().st_mtime)
+
+                mod_str = mod_time.strftime('%d/%m/%Y %H:%M')
+
+                # Add to table
+
+                self.files_tree.insert('', tk.END, values=(
+
+                    file_path.name,
+
+                    file_type,
+
+                    self.format_file_size(file_size),
+
+                    mod_str,
+
+                    status,
+
+                    "📂 Ouvrir | 🗑️ Supprimer"
+
+                ), iid=str(file_path))
+
+        # Update info
+
+        self.files_info_var.set(
+
+            f"📊 Total: {total_files} fichiers | "
+
+            f"💾 Taille totale: {self.format_file_size(total_size)} | "
+
+            f"📁 Dossier: {self.cheques_dir}"
+
+        )
+
+    def open_selected_file(self, event):
+
+        """Open selected file"""
+
+        selected = self.files_tree.selection()
+
+        if not selected:
+
+            return
+
+        file_path = selected[0]
+
+        if os.path.exists(file_path):
+
+            self.open_file(file_path)
+
+    def show_files_context_menu(self, event):
+
+        """Show context menu for files table"""
+
+        item = self.files_tree.identify_row(event.y)
+
+        if not item:
+
+            return
+
+        # Select the item
+
+        self.files_tree.selection_set(item)
+
+        # Create menu
+
+        menu = tk.Menu(self.root, tearoff=0)
+
+        menu.add_command(label="📂 Ouvrir", command=lambda: self.open_selected_file(None))
+
+        menu.add_command(label="📁 Ouvrir dossier", command=self.open_cheques_folder)
+
+        menu.add_separator()
+
+        menu.add_command(label="📋 Copier chemin", command=self.copy_file_path)
+
+        menu.add_command(label="🔄 Renommer", command=self.rename_file)
+
+        menu.add_separator()
+
+        menu.add_command(label="🗑️ Supprimer", command=self.delete_selected_file)
+
+        try:
+
+            menu.tk_popup(event.x_root, event.y_root)
+
+        finally:
+
+            menu.grab_release()
+
+    def copy_file_path(self):
+
+        """Copy selected file path to clipboard"""
+
+        selected = self.files_tree.selection()
+
+        if not selected:
+
+            return
+
+        file_path = selected[0]
+
+        self.root.clipboard_clear()
+
+        self.root.clipboard_append(file_path)
+
+        messagebox.showinfo("Copié", "Chemin du fichier copié dans le presse-papiers")
+
+    def rename_file(self):
+
+        """Rename selected file"""
+
+        selected = self.files_tree.selection()
+
+        if not selected:
+
+            return
+
+        old_path = Path(selected[0])
+
+        old_name = old_path.name
+
+        new_name = simpledialog.askstring("Renommer", f"Nouveau nom pour '{old_name}':",
+
+                                          initialvalue=old_name)
+
+        if new_name and new_name != old_name:
+
+            try:
+
+                new_path = old_path.parent / new_name
+
+                old_path.rename(new_path)
+
+                self.scan_existing_files()
+
+                messagebox.showinfo("Succès", f"Fichier renommé en '{new_name}'")
+
+            except Exception as e:
+
+                messagebox.showerror("Erreur", f"Impossible de renommer le fichier:\n{str(e)}")
+
+    def delete_selected_file(self):
+
+        """Delete selected file"""
+
+        selected = self.files_tree.selection()
+
+        if not selected:
+
+            return
+
+        file_path = Path(selected[0])
+
+        if messagebox.askyesno("Confirmer", f"Supprimer définitivement '{file_path.name}'?"):
+
+            try:
+
+                file_path.unlink()
+
+                self.scan_existing_files()
+
+                messagebox.showinfo("Succès", "Fichier supprimé")
+
+            except Exception as e:
+
+                messagebox.showerror("Erreur", f"Impossible de supprimer le fichier:\n{str(e)}")
+
+    def cleanup_files(self):
+
+        """Clean up old or unnecessary files"""
+
+        cleanup_dialog = tk.Toplevel(self.root)
+
+        cleanup_dialog.title("Nettoyage des Fichiers")
+
+        cleanup_dialog.geometry("500x400")
+
+        cleanup_dialog.transient(self.root)
+
+        cleanup_dialog.grab_set()
+
+        # Cleanup options
+
+        ttk.Label(cleanup_dialog, text="Options de nettoyage:",
+
+                  font=('Segoe UI', 12, 'bold')).pack(pady=10)
+
+        options_frame = ttk.Frame(cleanup_dialog)
+
+        options_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        self.cleanup_old_exports = tk.BooleanVar()
+
+        ttk.Checkbutton(options_frame, text="Supprimer les exports de plus de 30 jours",
+
+                        variable=self.cleanup_old_exports).pack(anchor=tk.W, pady=5)
+
+        self.cleanup_temp_files = tk.BooleanVar()
+
+        ttk.Checkbutton(options_frame, text="Supprimer les fichiers temporaires",
+
+                        variable=self.cleanup_temp_files).pack(anchor=tk.W, pady=5)
+
+        self.cleanup_empty_files = tk.BooleanVar()
+
+        ttk.Checkbutton(options_frame, text="Supprimer les fichiers vides",
+
+                        variable=self.cleanup_empty_files).pack(anchor=tk.W, pady=5)
+
+        # Buttons
+
+        button_frame = ttk.Frame(cleanup_dialog)
+
+        button_frame.pack(pady=20)
+
+        ttk.Button(button_frame, text="🧹 Nettoyer",
+
+                   command=lambda: self.perform_cleanup(cleanup_dialog)).pack(side=tk.LEFT, padx=(0, 10))
+
+        ttk.Button(button_frame, text="Annuler",
+
+                   command=cleanup_dialog.destroy).pack(side=tk.LEFT)
+
+    def perform_cleanup(self, dialog):
+
+        """Perform file cleanup"""
+
+        cleaned_count = 0
+
+        try:
+
+            if self.cleanup_old_exports.get():
+
+                # Clean old export files
+
+                cutoff_date = datetime.now() - timedelta(days=30)
+
+                for file_path in self.cheques_dir.glob("*.xlsx"):
+
+                    if file_path.name.startswith("export_"):
+
+                        mod_time = datetime.fromtimestamp(file_path.stat().st_mtime)
+
+                        if mod_time < cutoff_date:
+
+                            file_path.unlink()
+
+                            cleaned_count += 1
+
+            if self.cleanup_temp_files.get():
+
+                # Clean temporary files
+
+                for pattern in ["*.tmp", "*.temp", "*~"]:
+
+                    for file_path in self.cheques_dir.glob(pattern):
+
+                        file_path.unlink()
+
+                        cleaned_count += 1
+
+            if self.cleanup_empty_files.get():
+
+                # Clean empty files
+
+                for file_path in self.cheques_dir.iterdir():
+
+                    if file_path.is_file() and file_path.stat().st_size == 0:
+
+                        file_path.unlink()
+
+                        cleaned_count += 1
+
+            dialog.destroy()
+
+            self.scan_existing_files()
+
+            messagebox.showinfo("Nettoyage Terminé", f"✅ {cleaned_count} fichiers nettoyés")
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur", f"Erreur lors du nettoyage:\n{str(e)}")
+
+    def backup_files(self):
+
+        """Create backup of important files"""
+
+        backup_dir = filedialog.askdirectory(title="Choisir le dossier de sauvegarde")
+
+        if not backup_dir:
+
+            return
+
+        try:
+
+            backup_path = Path(backup_dir) / f"cheques_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+            backup_path.mkdir(exist_ok=True)
+
+            # Copy database
+
+            if Path(self.db.db_path).exists():
+
+                import shutil
+
+                shutil.copy2(self.db.db_path, backup_path / "cheques.db")
+
+            # Copy Excel files
+
+            excel_count = 0
+
+            for excel_file in self.cheques_dir.glob("cheques_*.xlsx"):
+
+                shutil.copy2(excel_file, backup_path / excel_file.name)
+
+                excel_count += 1
+
+            messagebox.showinfo("Sauvegarde Terminée",
+
+                                f"✅ Sauvegarde créée avec succès!\n\n"
+
+                               f"📁 Dossier: {backup_path}\n"
+
+                               f"🗃️ Base de données: ✓\n"
+
+                               f"📊 Fichiers Excel: {excel_count}")
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur", f"Erreur lors de la sauvegarde:\n{str(e)}")
+
+    def create_analytics_tab(self):
+
+        """Create analytics dashboard tab"""
+
+        container = ttk.Frame(self.analytics_tab)
+
+        container.pack(fill=tk.BOTH, expand=True, padx=25, pady=25)
+
+        # Analytics header
+
+        header_frame = ttk.Frame(container)
+
+        header_frame.pack(fill=tk.X, pady=(0, 25))
+
+        ttk.Label(header_frame, text="📈 Tableau de Bord Analytique",
+
+                  font=('Segoe UI', 16, 'bold')).pack(side=tk.LEFT)
+
+        ttk.Button(header_frame, text="🔄 Actualiser",
+
+                   command=self.refresh_analytics).pack(side=tk.RIGHT)
+
+        # Create analytics content
+
+        self.create_analytics_content(container)
+
+        # Load analytics
+
+        self.refresh_analytics()
+
+    def create_analytics_content(self, parent):
+
+        """Create analytics content"""
+
+        # Top row - Summary cards (already handled by create_enhanced_stats_cards)
+
+        # summary_frame = ttk.Frame(parent)
+
+        # summary_frame.pack(fill=tk.X, pady=(0, 20))
+
+        # Monthly trends
+
+        trends_frame = ttk.LabelFrame(parent, text="📊 Tendances Mensuelles", padding=15)
+
+        trends_frame.pack(fill=tk.X, pady=(0, 20))
+
+        # Create trends table
+
+        self.create_trends_table(trends_frame)
+
+        # Bottom row - Bank analysis and top clients
+
+        bottom_frame = ttk.Frame(parent)
+
+        bottom_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Bank analysis
+
+        bank_frame = ttk.LabelFrame(bottom_frame, text="🏦 Analyse par Banque", padding=15)
+
+        bank_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+
+        self.create_bank_analysis_table(bank_frame)
+
+        # Top clients
+
+        clients_frame = ttk.LabelFrame(bottom_frame, text="👥 Top Clients", padding=15)
+
+        clients_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
+
+        self.create_top_clients_table(clients_frame)
+
+    def create_trends_table(self, parent):
+
+        """Create monthly trends table - UPDATED"""
+
+        # Table container
+
+        table_container = ttk.Frame(parent)
+
+        table_container.pack(fill=tk.BOTH, expand=True)
+
+        # Treeview
+
+        columns = ('Mois', 'Chèques', 'Montant', 'CHQ', 'LCN', 'Encaissé', 'Impayé', 'Moyenne', 'Évolution') # Updated status columns
+
+        self.trends_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=8)
+
+        # Configure columns
+
+        for col in columns:
+
+            self.trends_tree.heading(col, text=col)
+
+            self.trends_tree.column(col, width=100, anchor=tk.CENTER)
+
+        self.trends_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Scrollbar
+
+        trends_scroll = ttk.Scrollbar(table_container, orient=tk.VERTICAL, command=self.trends_tree.yview)
+
+        trends_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.trends_tree.configure(yscrollcommand=trends_scroll.set)
+
+    def create_bank_analysis_table(self, parent):
+
+        """Create bank analysis table - UPDATED"""
+
+        # Table container
+
+        table_container = ttk.Frame(parent)
+
+        table_container.pack(fill=tk.BOTH, expand=True)
+
+        # Treeview
+
+        columns = ('Banque', 'Chèques', 'Montant', 'Part %', 'Moyenne', 'Encaissé', 'Impayé') # Updated status columns
+
+        self.bank_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=8)
+
+        # Configure columns
+
+        for col in columns:
+
+            self.bank_tree.heading(col, text=col)
+
+            self.bank_tree.column(col, width=100, anchor=tk.CENTER)
+
+        self.bank_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Scrollbar
+
+        bank_scroll = ttk.Scrollbar(table_container, orient=tk.VERTICAL, command=self.bank_tree.yview)
+
+        bank_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.bank_tree.configure(yscrollcommand=bank_scroll.set)
+
+    def create_top_clients_table(self, parent):
+
+        """Create top clients table"""
+
+        # Table container
+
+        table_container = ttk.Frame(parent)
+
+        table_container.pack(fill=tk.BOTH, expand=True)
+
+        # Treeview
+
+        columns = ('Rang', 'Client', 'Chèques', 'Montant', 'Dernière')
+
+        self.clients_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=8)
+
+        # Configure columns
+
+        for col in columns:
+
+            self.clients_tree.heading(col, text=col)
+
+            self.clients_tree.column(col, width=100, anchor=tk.CENTER)
+
+        self.clients_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Scrollbar
+
+        clients_scroll = ttk.Scrollbar(table_container, orient=tk.VERTICAL, command=self.clients_tree.yview)
+
+        clients_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.clients_tree.configure(yscrollcommand=clients_scroll.set)
+
+    def refresh_analytics(self):
+
+        """Refresh analytics data"""
+
+        self.load_monthly_trends()
+
+        self.load_bank_analysis()
+
+        self.load_top_clients()
+
+    def load_monthly_trends(self):
+
+        """Load monthly trends data - UPDATED"""
+
+        # Clear existing data
+
+        for item in self.trends_tree.get_children():
+
+            self.trends_tree.delete(item)
+
+        # Get monthly data
+
+        with sqlite3.connect(self.db.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute('''
+
+                SELECT
+
+                    year, month,
+
+                    COUNT(*) as count,
+
+                    SUM(montant) as total,
+
+                    SUM(CASE WHEN reg = 'CHQ' THEN 1 ELSE 0 END) as chq_count,
+
+                    SUM(CASE WHEN reg = 'LCN' THEN 1 ELSE 0 END) as lcn_count,
+
+                    SUM(CASE WHEN status = 'ENCAISSE' THEN 1 ELSE 0 END) as paid_count,     -- Updated
+
+                    SUM(CASE WHEN status = 'IMPAYE' THEN 1 ELSE 0 END) as unpaid_count, -- Updated
+
+                    AVG(montant) as average
+
+                FROM cheques
+
+                GROUP BY year, month
+
+                ORDER BY year DESC, month DESC
+
+                LIMIT 12
+
+            ''')
+
+            monthly_data = cursor.fetchall()
+
+        previous_total = None
+
+        for data in monthly_data:
+
+            year, month, count, total, chq_count, lcn_count, paid_count, unpaid_count, average = data # Updated
+
+            # Calculate evolution
+
+            if previous_total is not None:
+
+                evolution = ((total - previous_total) / previous_total) * 100 if previous_total != 0 else 0
+
+                evolution_str = f"{evolution:+.1f}%"
+
+                if evolution > 0:
+
+                    evolution_str = f"📈 {evolution_str}"
+
+                elif evolution < 0:
+
+                    evolution_str = f"📉 {evolution_str}"
+
+                else:
+
+                    evolution_str = "➡️ 0%"
+
+            else:
+
+                evolution_str = "➖"
+
+            month_name = self.month_names[month - 1][:3]  # Short month name
+
+            self.trends_tree.insert('', tk.END, values=(
+
+                f"{month_name} {year}",
+
+                count,
+
+                f"{total:,.0f}".replace(',', ' '),
+
+                chq_count,
+
+                lcn_count,
+
+                paid_count,
+
+                unpaid_count,
+
+                f"{average:,.0f}".replace(',', ' '),
+
+                evolution_str
+
+            ))
+
+            previous_total = total
+
+    def load_bank_analysis(self):
+
+        """Load bank analysis data - UPDATED"""
+
+        # Clear existing data
+
+        for item in self.bank_tree.get_children():
+
+            self.bank_tree.delete(item)
+
+        # Get bank data
+
+        with sqlite3.connect(self.db.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute('''
+
+                SELECT
+
+                    banque,
+
+                    COUNT(*) as count,
+
+                    SUM(montant) as total,
+
+                    AVG(montant) as average,
+
+                    SUM(CASE WHEN status = 'ENCAISSE' THEN 1 ELSE 0 END) as paid_count,     -- Updated
+
+                    SUM(CASE WHEN status = 'IMPAYE' THEN 1 ELSE 0 END) as unpaid_count -- Updated
+
+                FROM cheques
+
+                GROUP BY banque
+
+                ORDER BY total DESC
+
+            ''')
+
+            bank_data = cursor.fetchall()
+
+        # Calculate total for percentages
+
+        total_amount = sum(data[2] for data in bank_data)
+
+        for data in bank_data:
+
+            banque, count, total, average, paid_count, unpaid_count = data # Updated
+
+            percentage = (total / total_amount) * 100 if total_amount > 0 else 0
+
+            self.bank_tree.insert('', tk.END, values=(
+
+                banque,
+
+                count,
+
+                f"{total:,.0f}".replace(',', ' '),
+
+                f"{percentage:.1f}%",
+
+                f"{average:,.0f}".replace(',', ' '),
+
+                paid_count,
+
+                unpaid_count
+
+            ))
+
+    def load_top_clients(self):
+
+        """Load top clients data"""
+
+        # Clear existing data
+
+        for item in self.clients_tree.get_children():
+
+            self.clients_tree.delete(item)
+
+        # Get client data
+
+        with sqlite3.connect(self.db.db_path) as conn:
+
+            cursor = conn.cursor()
+
+            cursor.execute('''
+
+                SELECT
+
+                    nom,
+
+                    COUNT(*) as count,
+
+                    SUM(montant) as total,
+
+                    MAX(date_reception) as last_date
+
+                FROM cheques
+
+                GROUP BY nom
+
+                ORDER BY total DESC
+
+                LIMIT 10
+
+            ''')
+
+            client_data = cursor.fetchall()
+
+        for rank, data in enumerate(client_data, 1):
+
+            nom, count, total, last_date = data
+
+            # Truncate long names
+
+            display_name = nom[:20] + "..." if len(nom) > 20 else nom
+
+            self.clients_tree.insert('', tk.END, values=(
+
+                f"#{rank}",
+
+                display_name,
+
+                count,
+
+                f"{total:,.0f}".replace(',', ' '),
+
+                last_date
+
+            ))
+
+    def create_enhanced_status_bar(self, parent):
+
+        """Create enhanced status bar with more information"""
+
+        status_frame = ttk.Frame(parent)
+
+        status_frame.pack(fill=tk.X, pady=(25, 0))
+
+        # Left side - Status info
+
+        left_status = ttk.Frame(status_frame)
+
+        left_status.pack(side=tk.LEFT)
+
+        self.status_var = tk.StringVar(value="🚀 Prêt - Gestionnaire de Chèques Pro")
+
+        status_label = ttk.Label(left_status, textvariable=self.status_var,
+
+                                font=('Segoe UI', 9), foreground=self.colors['info'])
+
+        status_label.pack(side=tk.LEFT)
+
+        # Center - Connection status
+
+        center_status = ttk.Frame(status_frame)
+
+        center_status.pack()
+
+        self.db_status_var = tk.StringVar(value="🗃️ Base de données: Connectée")
+
+        db_status_label = ttk.Label(center_status, textvariable=self.db_status_var,
+
+                                   font=('Segoe UI', 9), foreground=self.colors['success'])
+
+        db_status_label.pack()
+
+        # Right side - Time and version
+
+        right_status = ttk.Frame(status_frame)
+
+        right_status.pack(side=tk.RIGHT)
+
+        self.time_var = tk.StringVar()
+
+        time_label = ttk.Label(right_status, textvariable=self.time_var,
+
+                              font=('Segoe UI', 9), foreground=self.colors['muted'])
+
+        time_label.pack(side=tk.RIGHT, padx=(10, 0))
+
+        version_label = ttk.Label(right_status, text="v2.3 Auto Excel", # Updated version
+
+                                 font=('Segoe UI', 9), foreground=self.colors['muted'])
+
+        version_label.pack(side=tk.RIGHT)
+
+        # Update time periodically
+
+        self.update_time()
+
+    def update_time(self):
+
+        """Update time display"""
+
+        current_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+        self.time_var.set(f"🕒 {current_time}")
+
+        self.root.after(1000, self.update_time)
+
+    # Enhanced utility methods
+
+    def validate_amount(self, event=None):
+
+        """Validate amount input - FIXED VERSION"""
+
+        value = self.montant_var.get().strip()
+
+        if not value:
+
+            self.amount_indicator.config(text="", foreground=self.colors['muted'])
+
+            return
+
+        # Allow digits, comma, and dot
+
+        cleaned = ''.join(c for c in value if c.isdigit() or c in '.,')
+
+        if cleaned != value:
+
+            self.montant_var.set(cleaned)
+
+            value = cleaned
+
+        # Validate numeric with comma support
+
+        try:
+
+            # Replace comma with dot for validation
+
+            test_value = value.replace(',', '.')
+
+            float_val = float(test_value)
+
+            if float_val >= 0:
+
+                self.amount_indicator.config(text="✓", foreground=self.colors['success'])
+
+            else:
+
+                self.amount_indicator.config(text="✗", foreground=self.colors['danger'])
+
+        except ValueError:
+
+            self.amount_indicator.config(text="✗", foreground=self.colors['danger'])
+
+    def format_montant(self, event=None):
+
+        """Format amount with 2 decimal places - FIXED VERSION"""
+
+        try:
+
+            value_str = self.montant_var.get().strip()
+
+            if not value_str:
+
+                return
+
+            # Replace comma with dot for conversion
+
+            value_str = value_str.replace(',', '.')
+
+            value = float(value_str)
+
+            # Format with comma as decimal separator (French style)
+
+            formatted = f"{value:.2f}".replace('.', ',')
+
+            self.montant_var.set(formatted)
+
+            self.amount_indicator.config(text="✓", foreground=self.colors['success'])
+
+        except ValueError:
+
+            self.amount_indicator.config(text="✗", foreground=self.colors['danger'])
+
+    def check_duplicate(self, event=None):
+
+        """Check for duplicate cheque numbers - UPDATED"""
+
+        numero = self.numero_var.get().strip()
+
+        banque = self.banque_var.get()
+
+        if not numero or not banque:
+
+            self.duplicate_indicator.config(text="")
+
+            return
+
+        duplicate = self.db.check_duplicate(numero, banque)
+
+        if duplicate['exists']:
+
+            self.duplicate_indicator.config(text="⚠️ Doublon", foreground=self.colors['warning'])
+
+        else:
+
+            self.duplicate_indicator.config(text="✓", foreground=self.colors['success'])
+
+    def suggest_names(self, event=None):
+
+        """Suggest names based on input (basic implementation)"""
+
+        # This could be enhanced with a dropdown of suggestions
+
+        pass
+
+    def validate_form_visual(self):
+
+        """Visual validation of the form"""
+
+        errors = []
+
+        if not self.numero_var.get().strip():
+
+            errors.append("• N° Chèque manquant")
+
+        if not self.banque_var.get():
+
+            errors.append("• Banque non sélectionnée")
+
+        if not self.nom_var.get().strip():
+
+            errors.append("• Nom du Propriétaire manquant") # Updated label
+
+        if not self.montant_var.get().strip():
+
+            errors.append("• Montant manquant")
+
+        else:
+
+            try:
+
+                montant_str = self.montant_var.get().strip()
+
+                float(montant_str.replace(',', '.'))
+
+            except ValueError:
+
+                errors.append("• Montant invalide")
+
+        if errors:
+
+            messagebox.showerror("Validation", "Erreurs trouvées:\n\n" + "\n".join(errors))
+
+        else:
+
+            messagebox.showinfo("Validation", "✅ Formulaire valide!")
+
+    def quick_fill_form(self):
+
+        """Quick fill form with test data - UPDATED"""
+
+        if messagebox.askyesno("Remplissage Rapide", "Remplir le formulaire avec des données de test?"):
+
+            self.numero_var.set("123456")
+
+            self.banque_var.set("CAM")
+
+            self.nom_var.set("Client Test S.A.R.L.")
+
+            self.depositor_name_var.set("John Doe") # Updated
+
+            self.montant_var.set("1000,00")
+
+            self.facture_var.set("FAC001")
+
+            self.notes_var.set("Test rapide")
+
+            self.status_var.set("IMPAYE") # Updated
+
+    def clear_form(self):
+
+        """Clear all form fields - UPDATED"""
+
+        self.numero_var.set("")
+
+        self.banque_var.set("")
+
+        self.nom_var.set("")
+
+        self.depositor_name_var.set("") # Updated
+
+        self.montant_var.set("")
+
+        self.facture_var.set("")
+
+        self.notes_var.set("")
+
+        self.reg_var.set("CHQ")
+
+        self.status_var.set("IMPAYE") # Updated
+
+        # Reset dates to today
+
+        today = date.today()
+
+        self.date_reception.set_date(today)
+
+        self.echeance.set_date(today)
+
+        self.date_fac.set_date(today)
+
+        # Clear indicators
+
+        self.duplicate_indicator.config(text="")
+
+        self.amount_indicator.config(text="")
+
+        self.excel_destination.config(text="")
+
+    def load_pending_cheques(self):
+
+        """Load pending cheques into the table - UPDATED"""
+
+        # Get pending cheques
+
+        self.current_cheques = self.db.get_cheques(exported=False)
+
+        # Clear existing items
+
+        for item in self.pending_tree.get_children():
+
+            self.pending_tree.delete(item)
+
+        # Populate table
+
+        for cheque in self.current_cheques:
+
+            excel_destination = f"cheques_{cheque['year']}.xlsx / {self.month_names[cheque['month']-1]}"
+
+            # Display status with emojis - UPDATED
+
+            status_display = ""
+
+            if cheque['status'] == "IMPAYE":
+
+                status_display = "❌ Impayé"
+
+            elif cheque['status'] == "ENCAISSE":
+
+                status_display = "✅ Encaissé"
+
+            else:
+
+                status_display = cheque['status'] # Fallback for unknown status
+
+            self.pending_tree.insert('', tk.END, values=(
+
+                '',  # Checkbox
+
+                cheque['id'],
+
+                cheque['date_reception'],
+
+                cheque['reg'],
+
+                cheque['numero'],
+
+                cheque['banque'],
+
+                cheque['nom'],
+
+                cheque.get('recipient_name', ''), # Uses 'recipient_name' DB column
+
+                f"{cheque['montant']:,.2f} DH".replace('.', ','),
+
+                cheque['echeance'],
+
+                excel_destination,
+
+                status_display # Updated
+
+            ))
+
+    def load_statistics(self):
+
+        """Load and display statistics"""
+
+        stats = self.db.get_statistics()
+
+        self.create_enhanced_stats_cards(stats)
+
+    def edit_selected_cheque(self, event=None):
+
+        """Edit selected cheque from pending table"""
+
+        selected = self.pending_tree.selection()
+
+        if not selected:
+
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner un chèque à modifier")
+
+            return
+
+        item = self.pending_tree.item(selected[0])
+
+        cheque_id = item['values'][1]  # ID is in second column
+
+        # Find cheque in current list
+
+        cheque = next((c for c in self.current_cheques if c['id'] == cheque_id), None)
+
+        if not cheque:
+
+            messagebox.showerror("Erreur", "Chèque introuvable")
+
+            return
+
+        # Open edit dialog
+
+        dialog = EditChequeDialog(self.root, cheque, self.banks, self.db)
+
+        self.root.wait_window(dialog.dialog)
+
+        if dialog.result:
+
+            # Refresh the table
+
+            self.load_pending_cheques()
+
+            self.load_statistics()
+
+    def delete_pending_cheque(self):
+
+        """Delete selected pending cheque"""
+
+        selected = self.pending_tree.selection()
+
+        if not selected:
+
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner un chèque à supprimer")
+
+            return
+
+        item = self.pending_tree.item(selected[0])
+
+        cheque_id = item['values'][1]  # ID is in second column
+
+        if messagebox.askyesno("Confirmer", "Voulez-vous vraiment supprimer ce chèque?"):
+
+            self.db.delete_cheque(cheque_id)
+
+            self.load_pending_cheques()
+
+            self.load_statistics()
+
+    def select_all_pending(self):
+
+        """Select all pending cheques"""
+
+        for item in self.pending_tree.get_children():
+
+            self.pending_tree.selection_add(item)
+
+    def on_pending_tree_click(self, event):
+
+        """Handle clicks on pending tree (for checkboxes)"""
+
+        region = self.pending_tree.identify("region", event.x, event.y)
+
+        column = self.pending_tree.identify_column(event.x)
+
+        if region == "cell" and column == "#1":  # Checkbox column
+
+            item = self.pending_tree.identify_row(event.y)
+
+            current_values = list(self.pending_tree.item(item, 'values'))
+
+            # Toggle checkbox
+
+            current_values[0] = '✓' if current_values[0] == '' else ''
+
+            self.pending_tree.item(item, values=current_values)
+
+            # Update selection set
+
+            cheque_id = current_values[1]
+
+            if current_values[0] == '✓':
+
+                self.selected_cheques.add(cheque_id)
+
+            else:
+
+                self.selected_cheques.discard(cheque_id)
+
+    def show_enhanced_context_menu(self, event):
+
+        """Show enhanced context menu for pending table - UPDATED"""
+
+        item = self.pending_tree.identify_row(event.y)
+
+        if not item:
+
+            return
+
+        # Select the item
+
+        self.pending_tree.selection_set(item)
+
+        # Create menu
+
+        menu = tk.Menu(self.root, tearoff=0)
+
+        menu.add_command(label="✏️ Modifier", command=self.edit_selected_cheque)
+
+        menu.add_command(label="🗑️ Supprimer", command=self.delete_pending_cheque)
+
+        menu.add_separator()
+
+        menu.add_command(label="📊 Mettre à jour Excel", command=self.update_selected_to_excel)
+
+        menu.add_command(label="📤 Exporter", command=self.export_selected_results)
+
+        menu.add_separator()
+
+        # Submenu for status change - UPDATED
+
+        status_menu = tk.Menu(menu, tearoff=0)
+
+        status_menu.add_command(label="Impayé", command=lambda: self.change_selected_cheque_status_pending("IMPAYE"))
+
+        status_menu.add_command(label="Encaissé", command=lambda: self.change_selected_cheque_status_pending("ENCAISSE"))
+
+        menu.add_cascade(label="✅ Changer Statut", menu=status_menu)
+
+        menu.add_separator()
+
+        menu.add_command(label="📋 Copier les détails", command=self.copy_cheque_details)
+
+        try:
+
+            menu.tk_popup(event.x_root, event.y_root)
+
+        finally:
+
+            menu.grab_release()
+
+    def change_selected_cheque_status_pending(self, new_status):
+
+        """Change the status of selected cheques in the pending table"""
+
+        selected_ids = [self.pending_tree.item(i)['values'][1] for i in self.pending_tree.selection()]
+
+        if not selected_ids:
+
+            messagebox.showwarning("Aucune sélection", "Veuillez sélectionner des chèques pour changer le statut.")
+
+            return
+
+        if messagebox.askyesno("Confirmer le changement de statut",
+
+                               f"Voulez-vous vraiment changer le statut de {len(selected_ids)} chèque(s) à '{new_status}'?"):
+
+            for cheque_id in selected_ids:
+
+                self.db.update_cheque_status(cheque_id, new_status)
+
+            messagebox.showinfo("Succès", f"Statut mis à jour pour {len(selected_ids)} chèque(s).")
+
+            self.load_pending_cheques() # Refresh the table
+
+            self.load_statistics() # Update stats
+
+    def open_cheques_folder(self):
+
+        """Open cheques folder in file explorer"""
+
+        self.open_file(str(self.cheques_dir))
+
+    def open_file(self, file_path):
+
+        """Open file with default application"""
+
+        try:
+
+            if os.name == 'nt':  # Windows
+
+                os.startfile(file_path)
+
+            elif os.name == 'posix':  # macOS and Linux
+
+                subprocess.call(['open', file_path])
+
+            else:
+
+                subprocess.call(['xdg-open', file_path])
+
+        except Exception as e:
+
+            messagebox.showerror("Erreur", f"Impossible d'ouvrir le fichier:\n{str(e)}")
+
+def main():
+
+    """Main function to run the application"""
+
+    try:
+
+        # Set locale for proper number formatting
+
+        try:
+
+            locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
+
+        except locale.Error:
+
+            try:
+
+                locale.setlocale(locale.LC_ALL, 'French_France.1252')
+
+            except locale.Error:
+
+                pass  # Use default locale
+
+        # Create main window
+
+        root = tk.Tk()
+
+        # Create application
+
+        app = EnhancedChequeManager(root)
+
+        # Start the application
+
+        root.mainloop()
+
+    except Exception as e:
+
+        print(f"Erreur fatale: {str(e)}")
+
+        messagebox.showerror("Erreur Fatale", f"Une erreur fatale s'est produite:\n{str(e)}")
+
+if __name__ == "__main__":
+
+    main()
+
+
+

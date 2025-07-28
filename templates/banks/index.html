@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Banques - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-university me-2"></i>Gestion des Banques</h1>
+    {% if current_user.role == 'admin' %}
+    <a href="{{ url_for('banks.new') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Nouvelle Banque
+    </a>
+    {% endif %}
+</div>
+
+{% if banks %}
+    {% for bank in banks %}
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-university me-2"></i>{{ bank.name }}
+            </h5>
+            {% if current_user.role == 'admin' %}
+            <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('banks.new_branch', bank_id=bank.id) }}" class="btn btn-outline-success">
+                    <i class="fas fa-plus me-1"></i>Agence
+                </a>
+                <a href="{{ url_for('banks.edit', id=bank.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit me-1"></i>Modifier
+                </a>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ bank.id }}">
+                    <i class="fas fa-trash me-1"></i>Supprimer
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if bank.branches %}
+        <div class="card-body">
+            <h6 class="card-subtitle mb-3 text-muted">Agences ({{ bank.branches|length }})</h6>
+            <div class="row">
+                {% for branch in bank.branches %}
+                <div class="col-md-6 mb-3">
+                    <div class="card border-light">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title">{{ branch.name }}</h6>
+                                    {% if branch.address %}
+                                        <p class="card-text small text-muted mb-1">
+                                            <i class="fas fa-map-marker-alt me-1"></i>{{ branch.address }}
+                                            {% if branch.postal_code %} - {{ branch.postal_code }}{% endif %}
+                                        </p>
+                                    {% endif %}
+                                    {% if branch.phone %}
+                                        <p class="card-text small text-muted mb-1">
+                                            <i class="fas fa-phone me-1"></i>{{ branch.phone }}
+                                        </p>
+                                    {% endif %}
+                                    {% if branch.email %}
+                                        <p class="card-text small text-muted mb-0">
+                                            <i class="fas fa-envelope me-1"></i>{{ branch.email }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                                {% if current_user.role == 'admin' %}
+                                <div class="btn-group-vertical btn-group-sm">
+                                    <a href="{{ url_for('banks.edit_branch', id=branch.id) }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteBranchModal{{ branch.id }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Delete Branch Modal -->
+                {% if current_user.role == 'admin' %}
+                <div class="modal fade" id="deleteBranchModal{{ branch.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Confirmer la suppression</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                Êtes-vous sûr de vouloir supprimer l'agence <strong>{{ branch.name }}</strong> ?
+                                Cette action est irréversible.
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <form method="POST" action="{{ url_for('banks.delete_branch', id=branch.id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card-body">
+            <p class="text-muted mb-0">Aucune agence enregistrée pour cette banque.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Delete Bank Modal -->
+    {% if current_user.role == 'admin' %}
+    <div class="modal fade" id="deleteModal{{ bank.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmer la suppression</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Êtes-vous sûr de vouloir supprimer la banque <strong>{{ bank.name }}</strong> et toutes ses agences ?
+                    Cette action est irréversible.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form method="POST" action="{{ url_for('banks.delete', id=bank.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-university fa-3x text-muted mb-3"></i>
+        <h5>Aucune banque enregistrée</h5>
+        <p class="text-muted">Commencez par ajouter une banque pour gérer vos chèques.</p>
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('banks.new') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Ajouter une banque
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

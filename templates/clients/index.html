@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Clients - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-users me-2"></i>Gestion des Clients</h1>
+    {% if current_user.role in ['admin', 'comptable', 'agent'] %}
+    <a href="{{ url_for('clients.new') }}" class="btn btn-primary">
+        <i class="fas fa-user-plus me-2"></i>Nouveau Client
+    </a>
+    {% endif %}
+</div>
+
+<!-- Search and Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-6">
+                <label for="search" class="form-label">Rechercher</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search }}" placeholder="Nom, CIN, RC, IF...">
+            </div>
+            <div class="col-md-4">
+                <label for="type" class="form-label">Type de client</label>
+                <select class="form-select" id="type" name="type">
+                    <option value="">Tous les types</option>
+                    <option value="personne" {{ 'selected' if client_type == 'personne' }}>Personne physique</option>
+                    <option value="entreprise" {{ 'selected' if client_type == 'entreprise' }}>Entreprise</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-search me-1"></i>Rechercher
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Clients List -->
+{% if clients %}
+<div class="row">
+    {% for client in clients %}
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="card-title">
+                            <i class="fas {{ 'fa-user' if client.type == 'personne' else 'fa-building' }} me-2"></i>
+                            {{ client.name }}
+                        </h6>
+                        <div class="small text-muted">
+                            <div class="mb-1">
+                                <span class="badge bg-{{ 'primary' if client.type == 'personne' else 'info' }}">
+                                    {{ 'Personne physique' if client.type == 'personne' else 'Entreprise' }}
+                                </span>
+                            </div>
+                            {% if client.id_number %}
+                            <div class="mb-1">
+                                <strong>{{ 'CIN:' if client.type == 'personne' else 'RC:' }}</strong> {{ client.id_number }}
+                            </div>
+                            {% endif %}
+                            {% if client.vat_number %}
+                            <div class="mb-1">
+                                <strong>{{ 'IF:' if client.type == 'personne' else 'ICE:' }}</strong> {{ client.vat_number }}
+                            </div>
+                            {% endif %}
+                            <div class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                Créé le {{ client.created_at.strftime('%d/%m/%Y') }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if current_user.role in ['admin', 'comptable', 'agent'] %}
+                    <div class="btn-group-vertical btn-group-sm">
+                        <a href="{{ url_for('clients.edit', id=client.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        {% if current_user.role == 'admin' %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal{{ client.id }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Cheques count -->
+                {% if client.cheques %}
+                <div class="mt-2 pt-2 border-top">
+                    <small class="text-muted">
+                        <i class="fas fa-money-check me-1"></i>
+                        {{ client.cheques|length }} chèque{{ 's' if client.cheques|length > 1 else '' }}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Modal -->
+    {% if current_user.role == 'admin' %}
+    <div class="modal fade" id="deleteModal{{ client.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmer la suppression</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Êtes-vous sûr de vouloir supprimer le client <strong>{{ client.name }}</strong> ?
+                    Cette action est irréversible.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form method="POST" action="{{ url_for('clients.delete', id=client.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+
+<!-- Pagination would go here if needed -->
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+        <h5>Aucun client trouvé</h5>
+        <p class="text-muted">
+            {% if search or client_type %}
+                Aucun client ne correspond à vos critères de recherche.
+            {% else %}
+                Commencez par ajouter des clients pour gérer vos chèques.
+            {% endif %}
+        </p>
+        {% if current_user.role in ['admin', 'comptable', 'agent'] %}
+        <a href="{{ url_for('clients.new') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-2"></i>Ajouter un client
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

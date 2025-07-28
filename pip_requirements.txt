@@ -1,0 +1,494 @@
+# Core Flask Web Framework and Extensions
+Flask==3.0.0
+Flask-Login==0.6.3
+Flask-SQLAlchemy==3.1.1
+Flask-WTF==1.2.1
+
+# Database Support (SQLite is built-in Python, but these are for enhanced features)
+SQLAlchemy==2.0.23
+
+# Forms and Validation
+WTForms==3.1.1
+email-validator==2.1.0
+
+# Excel File Processing (REQUIRED for Excel Manager)
+openpyxl==3.1.2
+
+# PDF Generation (REQUIRED for PDF exports)
+reportlab==4.0.7
+
+# Task Scheduling (REQUIRED for notifications)
+APScheduler==3.10.4
+
+# WSGI Server (REQUIRED for production)
+gunicorn==21.2.0
+
+# Security and Password Hashing
+Werkzeug==3.0.1
+
+# Date and Time Utilities
+tzlocal==5.2
+
+# Windows Desktop Integration (HIGHLY RECOMMENDED for Windows)
+pywin32==306
+winshell==0.6
+
+# Image Processing (for cheque scans)
+Pillow==10.1.0
+
+# Configuration Management
+python-dotenv==1.0.0
+
+# System Information and Monitoring
+psutil==5.9.6
+
+# File Operations
+send2trash==1.8.2
+pathlib2==2.3.7
+
+# Advanced Excel Features (OPTIONAL but recommended)
+xlsxwriter==3.1.9
+pandas==2.1.4
+
+# OCR Support (for future cheque scanning)
+pytesseract==0.3.10
+opencv-python==4.8.1.78
+
+# Barcode/QR Code Support (for future features)
+python-barcode==0.15.1
+qrcode==7.4.2
+
+# Backup and Compression
+py7zr==0.20.8
+
+# Desktop Notifications
+plyer==2.1.0
+
+# Advanced File Watching
+watchdog==3.0.0
+
+# Progress Bars and User Interface
+tqdm==4.66.1
+colorama==0.4.6
+
+# Text Processing
+python-slugify==8.0.1
+python-dateutil==2.8.2
+
+# File Type Detection
+python-magic-bin==0.4.14
+
+# Configuration Validation
+cerberus==1.3.5
+
+# Advanced Logging
+loguru==0.7.2
+
+# System Performance
+line-profiler==4.1.1
+
+# Desktop GUI Framework (for future standalone app)
+tkinter-page==7.0.8
+
+# System Tray Integration
+pystray==0.19.5
+
+# Windows Service Support
+python-windows-service==0.1.1
+
+# License and Security
+keyring==24.3.0
+
+# Rich Console Output
+rich==13.7.0
+
+# Advanced CLI
+typer==0.9.0
+
+# Memory Management
+pympler==0.9
+
+# Advanced Date Handling
+arrow==1.3.0
+
+# File Locking
+filelock==3.13.1
+
+# Network Utilities
+requests==2.31.0
+
+# Encryption Support
+cryptography==41.0.8
+
+# Timezone Support
+pytz==2023.3
+
+# Validation
+validators==0.22.0
+
+# Environment Detection
+platform-specific==1.0.0
+
+# JSON Handling
+simplejson==3.19.2
+
+# Configuration Parser
+configparser==6.0.0
+
+# HTTP Client
+urllib3==2.1.0
+
+# XML Processing
+lxml==4.9.3
+
+# Advanced Text Processing
+chardet==5.2.0
+
+# System Resource Monitoring
+resource==0.2.1
+
+# Advanced Backup Tools
+checksumdir==1.2.0
+
+# Database Utilities
+sqlalchemy-utils==0.41.1
+
+# Data Validation
+schema==0.7.5
+
+# Windows Registry Access
+winreg-unicode==1.0.1
+
+# Hardware Information
+GPUtil==1.4.0
+
+# Advanced File Compression
+lz4==4.3.2
+
+# Internationalization Support
+babel==2.14.0
+
+# Performance Monitoring
+memory-profiler==0.61.0
+
+# Process Management
+concurrent-futures==3.1.1
+
+# Advanced Logging
+structlog==23.2.0
+
+# Database Backup
+sqlite-backup==1.0.0
+
+# System Information Display
+py-cpuinfo==9.0.0
+
+# Desktop File Integration
+desktop-file==0.2.0
+
+# Auto-updater Framework
+pyupdater==4.2.3
+
+# License Management
+licensing==0.42
+
+# Environment Management
+python-decouple==3.8
+
+# Advanced File Handling
+pathspec==0.11.2
+
+# Progress Tracking
+alive-progress==3.1.5
+
+# Windows Excel Integration (Advanced)
+xlwings==0.30.13
+
+# Advanced PDF Processing
+PyPDF2==3.0.1
+
+# Mathematical Operations
+numpy==1.26.2
+
+# Statistical Analysis
+scipy==1.11.4
+
+# Data Analysis
+matplotlib==3.8.2
+
+# Machine Learning (Future AI Features)
+scikit-learn==1.3.2
+
+# Natural Language Processing
+nltk==3.8.1
+
+# Code Quality Tools
+flake8==6.1.0
+black==23.11.0
+
+# Testing Framework
+pytest==7.4.3
+pytest-benchmark==4.0.0
+
+# Documentation
+Sphinx==7.2.6
+
+# Flask Extensions
+flask-session==0.5.0
+flask-caching==2.1.0
+flask-limiter==3.5.0
+flask-cors==4.0.0
+flask-migrate==4.0.5
+flask-admin==1.6.1
+flask-mail==0.9.1
+flask-babel==4.0.0
+
+# Security Enhancements
+flask-talisman==1.1.0
+PyJWT==2.8.0
+
+# API Documentation
+flask-restx==1.3.0
+
+# Performance Monitoring
+flask-profiler==1.8.1
+
+# Health Checks
+healthcheck==1.3.3
+
+# Advanced Authentication
+passlib==1.7.4
+
+# Email Support
+smtplib==3.11.0
+
+# Calendar Support
+icalendar==5.0.11
+
+# Advanced Excel Charts
+openpyxl-image-loader==1.0.6
+
+# System Optimization
+defraglib==0.1.2
+
+# Advanced File Operations
+shutil==3.11.0
+
+# Database Connection Pooling
+sqlalchemy-pool==2.0.23
+
+# Windows-specific Performance
+win32api==227
+win32gui==227
+win32con==227
+
+# Registry Management
+winreg==3.11.0
+
+# System Services
+winsound==3.11.0
+
+# File System Monitoring
+win32file==227
+
+# Process Management
+win32process==227
+
+# Event Logging
+win32evtlog==227
+
+# System Information
+win32api==227
+
+# Network Information
+win32net==227
+
+# Performance Counters
+win32pdh==227
+
+# Registry Operations
+win32api==227
+
+# Service Control
+win32service==227
+
+# Shell Operations
+win32shell==227
+
+# COM Interface
+win32com==227
+
+# WMI Support
+wmi==1.5.1
+
+# Advanced System Monitoring
+win32api==227
+
+# File Attributes
+win32file==227
+
+# System Time
+win32api==227
+
+# Environment Variables
+os==3.11.0
+
+# System Paths
+sys==3.11.0
+
+# Regular Expressions
+re==3.11.0
+
+# Threading Support
+threading==3.11.0
+
+# Async Support
+asyncio==3.11.0
+
+# Data Serialization
+pickle==3.11.0
+
+# Base64 Encoding
+base64==3.11.0
+
+# Hash Functions
+hashlib==3.11.0
+
+# Random Number Generation
+random==3.11.0
+
+# Mathematical Functions
+math==3.11.0
+
+# Statistical Functions
+statistics==3.11.0
+
+# Collection Types
+collections==3.11.0
+
+# Iterator Tools
+itertools==3.11.0
+
+# Functional Programming
+functools==3.11.0
+
+# Operator Functions
+operator==3.11.0
+
+# Copy Operations
+copy==3.11.0
+
+# Weak References
+weakref==3.11.0
+
+# Garbage Collection
+gc==3.11.0
+
+# System-specific Parameters
+sys==3.11.0
+
+# Operating System Interface
+os==3.11.0
+
+# File and Directory Paths
+pathlib==3.11.0
+
+# Temporary Files
+tempfile==3.11.0
+
+# File Glob
+glob==3.11.0
+
+# CSV File Reading
+csv==3.11.0
+
+# JSON Data
+json==3.11.0
+
+# XML Processing
+xml==3.11.0
+
+# HTML Processing
+html==3.11.0
+
+# URL Processing
+urllib==3.11.0
+
+# HTTP Support
+http==3.11.0
+
+# Socket Support
+socket==3.11.0
+
+# SSL Support
+ssl==3.11.0
+
+# Email Support
+email==3.11.0
+
+# MIME Support
+mimetypes==3.11.0
+
+# Compression
+gzip==3.11.0
+zipfile==3.11.0
+tarfile==3.11.0
+
+# Database Support
+sqlite3==3.11.0
+
+# Logging
+logging==3.11.0
+
+# Configuration Parser
+configparser==3.11.0
+
+# Command Line Arguments
+argparse==3.11.0
+
+# Environment Variables
+getpass==3.11.0
+
+# Platform Information
+platform==3.11.0
+
+# Subprocess Management
+subprocess==3.11.0
+
+# Signal Handling
+signal==3.11.0
+
+# Time Functions
+time==3.11.0
+datetime==3.11.0
+calendar==3.11.0
+
+# Locale Support
+locale==3.11.0
+
+# Unicode Support
+unicodedata==3.11.0
+
+# String Services
+string==3.11.0
+
+# Text Wrapping
+textwrap==3.11.0
+
+# Debugging Support
+pdb==3.11.0
+trace==3.11.0
+traceback==3.11.0
+
+# Unit Testing
+unittest==3.11.0
+
+# Documentation Tools
+doctest==3.11.0
+
+# Profiling
+cProfile==3.11.0
+profile==3.11.0
+
+# Performance Measurement
+timeit==3.11.0

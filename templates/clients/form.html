@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-plus me-2"></i>{{ title }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="clientForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Client Type Toggle -->
+                    <div class="mb-4">
+                        {{ form.type.label(class="form-label") }}
+                        <div class="row">
+                            {% for subfield in form.type %}
+                            <div class="col-md-6">
+                                <div class="form-check form-check-inline">
+                                    {{ subfield(class="form-check-input client-type-radio") }}
+                                    {{ subfield.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if form.type.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.type.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Client Name -->
+                    <div class="mb-3">
+                        <label for="name" class="form-label" id="nameLabel">
+                            Nom complet
+                        </label>
+                        {{ form.name(class="form-control") }}
+                        {% if form.name.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.name.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Dynamic Fields -->
+                    <div id="personFields" class="client-fields">
+                        <div class="mb-3">
+                            <label for="id_number" class="form-label">CIN (Carte d'Identité Nationale)</label>
+                            {{ form.id_number(class="form-control", placeholder="Ex: AB123456") }}
+                            {% if form.id_number.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.id_number.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="vat_number" class="form-label">IF (Identifiant Fiscal)</label>
+                            {{ form.vat_number(class="form-control", placeholder="Ex: 123456789") }}
+                            {% if form.vat_number.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.vat_number.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div id="companyFields" class="client-fields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="id_number" class="form-label">RC (Registre de Commerce)</label>
+                            {{ form.id_number(class="form-control", placeholder="Ex: 12345") }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="vat_number" class="form-label">ICE (Identifiant Commun de l'Entreprise)</label>
+                            {{ form.vat_number(class="form-control", placeholder="Ex: 000123456000001") }}
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('clients.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Retour
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Handle client type change
+    function updateFormFields() {
+        const selectedType = $('input[name="type"]:checked').val();
+        
+        if (selectedType === 'personne') {
+            $('#nameLabel').text('Nom et prénom');
+            $('#personFields').show();
+            $('#companyFields').hide();
+        } else if (selectedType === 'entreprise') {
+            $('#nameLabel').text('Raison sociale');
+            $('#personFields').hide();
+            $('#companyFields').show();
+        }
+    }
+    
+    // Initialize form based on current selection
+    updateFormFields();
+    
+    // Update form when radio button changes
+    $('.client-type-radio').change(function() {
+        updateFormFields();
+    });
+});
+</script>
+{% endblock %}

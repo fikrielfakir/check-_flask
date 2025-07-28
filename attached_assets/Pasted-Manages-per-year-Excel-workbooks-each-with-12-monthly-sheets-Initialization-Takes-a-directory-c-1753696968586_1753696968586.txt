@@ -1,0 +1,145 @@
+Manages per‑year Excel workbooks, each with 12 monthly sheets:
+
+Initialization
+
+Takes a directory (cheques_dir) where files will live, creating it if necessary.
+
+Defines the column headers and month names used throughout.
+
+Creating a new yearly file (create_yearly_file)
+
+Builds a fresh openpyxl workbook, removes the default sheet, then creates one sheet per month.
+
+Calls _setup_sheet_headers to add styled headers (bold white text on blue fill, frozen first row, column widths).
+
+Ensuring a sheet exists (ensure_file_and_sheet_exist)
+
+Checks for cheques_{year}.xlsx; if missing, calls create_yearly_file.
+
+Opens the workbook and, if the requested month‐sheet is absent, creates and styles it.
+
+Adding or updating a cheque (add_or_update_cheque)
+
+Parses the “échéance” date to determine year & month → ensures file/sheet exist.
+
+Searches for a matching cheque (same number & bank) via _find_existing_cheque.
+
+If found, overwrites that row; else appends at the next empty row.
+
+Formats the amount column, alternates row shading, redraws borders, and saves.
+
+Removing a cheque (remove_cheque)
+
+Locates the matching row by number & bank and deletes it.
+
+Inspecting files (get_file_info & list_all_files)
+
+For a given year, returns existence, path, sheet names, counts, file size & modified timestamp.
+
+list_all_files glob‑scans the directory for cheques_*.xlsx, builds a sorted list of info dicts.
+
+Exporting a yearly summary (export_year_summary)
+
+Reads each monthly sheet, counts cheques, sums amounts, tallies by “Reg” type and status (“ENCAISSE” vs “IMPAYE”).
+
+Writes all that into a new resume_{year}.xlsx with styled headers, a “TOTAL” row, and auto‑sized columns.
+
+2. DatabaseManager
+Provides a local SQLite store of all cheques, mirroring much of the Excel functionality:
+
+Initialization
+
+Creates tables cheques, export_history, and settings.
+
+Ensures new columns (recipient_name, status) are added when code evolves.
+
+Sets up indexes on frequently queried columns.
+
+CRUD Operations
+
+insert_cheque, update_cheque, delete_cheque, update_cheque_status, mark_exported.
+
+check_duplicate looks up existing records by cheque number & bank to warn on collisions.
+
+Queries & Filters (get_cheques)
+
+Accepts filters for exported flag, year, month, type (reg), owner name, bank, status.
+
+Returns list of dicts for easy UI consumption.
+
+Statistics & Lookups
+
+get_statistics: total count, sum, average, min/max, counts by reg and status, pending exports, number of years.
+
+get_years and get_banks: distinct lists for populating filter dropdowns.
+
+3. EditChequeDialog
+A modal dialog powered by tkinter.Toplevel to edit an existing cheque:
+
+Builds a form with DateEntry widgets for dates, Entry and Combobox for text fields.
+
+Prefills fields from the passed‑in cheque_data.
+
+On “Save”, validates required fields, parses and formats the amount, then calls db.update_cheque(...).
+
+Displays success or error via messagebox.
+
+4. PDFExporter
+Uses ReportLab to generate a clean PDF listing:
+
+Builds a table with columns: Date, Type, Number, Bank, Owner, Depositor, Amount, Due Date, Status.
+
+Styles the header row (dark blue background, white text), light‑grey row fill, grid lines, centered text.
+
+Dynamically computes column widths to fit an A4 page with 1″ margins.
+
+5. EnhancedChequeManager (Main GUI)
+Glues everything together in a Tkinter window with a modern look:
+
+5.1 Window Setup & Styles
+Sets up a 1600×1000 resizable window, centered on screen, custom icon.
+
+Defines a color palette and uses ttk.Style (“clam” theme) to style labels, buttons, frames.
+
+5.2 Layout: Notebook Tabs
+➕ Nouveau Chèque
+
+A rich form to add a cheque: date, type (CHQ/LCN), number (with duplicate check), bank dropdown, owner & depositor names, amount (with live validation & formatting), due date, invoice info, notes, status.
+
+“Aperçu Excel” preview button.
+
+“Ajouter & Mettre à jour Excel” saves to both DB and Excel, refreshes stats, and clears the form.
+
+📊 Gestionnaire Excel
+
+Lists all yearly files in a Treeview, showing year, file name, size, number of cheques, last modified.
+
+Buttons to refresh, open folder, create a new year, export a summary.
+
+Selecting a file shows detailed stats in a side panel.
+
+🔍 Recherche & Gestion
+
+Advanced filters (year, month, type, bank, owner/depositor, amount range, status).
+
+A results table with contextual actions: edit, delete, export, print, change status, copy details.
+
+📤 Export & Rapports
+
+Choose export format (Excel/PDF/CSV), scope (pending/all/custom), filename, then perform export.
+
+Shows export history from the DB with open/delete actions.
+
+📁 Gestionnaire de Fichiers
+
+Scans the cheques directory and lists every file (Excel, PDF, CSV, DB, etc.) with metadata and quick actions (open, rename, delete, copy path).
+
+Cleanup and backup utilities.
+
+📈 Tableau de Bord Analytique
+
+Monthly Trends: last 12 months’ cheque counts, totals, CHQ vs LCN split, paid/unpaid, average, % evolution.
+
+Bank Analysis: for each bank, total cheques, sum, average, share %, paid/unpaid.
+
+Top Clients: top 10 owners by total amount, with count and last reception date.

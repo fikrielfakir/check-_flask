@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Chèques - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-money-check me-2"></i>Gestion des Chèques</h1>
+    {% if current_user.role in ['admin', 'comptable', 'agent'] %}
+    <a href="{{ url_for('cheques.new') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Nouveau Chèque
+    </a>
+    {% endif %}
+</div>
+
+<!-- Search and Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Rechercher</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search }}" placeholder="N° chèque, client, banque...">
+            </div>
+            <div class="col-md-2">
+                <label for="status" class="form-label">Statut</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">Tous les statuts</option>
+                    <option value="en_attente" {{ 'selected' if status == 'en_attente' }}>EN ATTENTE</option>
+                    <option value="encaisse" {{ 'selected' if status == 'encaisse' }}>ENCAISSÉ</option>
+                    <option value="rejete" {{ 'selected' if status == 'rejete' }}>REJETÉ</option>
+                    <option value="impaye" {{ 'selected' if status == 'impaye' }}>IMPAYÉ</option>
+                    <option value="depose" {{ 'selected' if status == 'depose' }}>DÉPOSÉ</option>
+                    <option value="annule" {{ 'selected' if status == 'annule' }}>ANNULÉ</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="bank_id" class="form-label">Banque</label>
+                <select class="form-select" id="bank_id" name="bank_id">
+                    <option value="">Toutes les banques</option>
+                    {% for bank in banks %}
+                    <option value="{{ bank.id }}" {{ 'selected' if bank_id|string == bank.id|string }}>
+                        {{ bank.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">Date début</label>
+                <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">Date fin</label>
+                <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cheques List -->
+{% if cheques %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>N° Chèque</th>
+                        <th>Client</th>
+                        <th>Banque/Agence</th>
+                        <th>Montant</th>
+                        <th>Date Émission</th>
+                        <th>Échéance</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cheque in cheques %}
+                    <tr class="{{ 'table-warning' if cheque.is_overdue else '' }}">
+                        <td>
+                            <strong>{{ cheque.cheque_number or 'N/A' }}</strong>
+                            {% if cheque.scan_path %}
+                                <i class="fas fa-paperclip text-primary ms-1" title="Scan disponible"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ cheque.client.name }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    <i class="fas {{ 'fa-user' if cheque.client.type == 'personne' else 'fa-building' }} me-1"></i>
+                                    {{ 'Personne' if cheque.client.type == 'personne' else 'Entreprise' }}
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ cheque.branch.bank.name }}</strong>
+                                <br>
+                                <small class="text-muted">{{ cheque.branch.name }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <strong>{{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</strong>
+                            {% if cheque.depositor_name %}
+                                <br>
+                                <small class="text-muted">Déposant: {{ cheque.depositor_name }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ cheque.issue_date.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            {{ cheque.due_date.strftime('%d/%m/%Y') }}
+                            {% if cheque.is_overdue %}
+                                <br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> En retard</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ cheque.status_color }} cheque-status-badge">
+                                {{ cheque.status_text }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if current_user.role in ['admin', 'comptable', 'agent'] %}
+                                <!-- Quick Status Update -->
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><h6 class="dropdown-header">Changer le statut</h6></li>
+                                        {% for status_value, status_label in [
+                                            ('en_attente', 'EN ATTENTE'),
+                                            ('encaisse', 'ENCAISSÉ'),
+                                            ('rejete', 'REJETÉ'),
+                                            ('impaye', 'IMPAYÉ'),
+                                            ('depose', 'DÉPOSÉ'),
+                                            ('annule', 'ANNULÉ')
+                                        ] %}
+                                        {% if status_value != cheque.status %}
+                                        <li>
+                                            <form method="POST" action="{{ url_for('cheques.update_status', id=cheque.id) }}" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <input type="hidden" name="status" value="{{ status_value }}"/>
+                                                <button type="submit" class="dropdown-item">{{ status_label }}</button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                
+                                <a href="{{ url_for('cheques.edit', id=cheque.id) }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                
+                                {% if cheque.scan_path %}
+                                <a href="{{ url_for('static', filename='uploads/' + cheque.scan_path) }}" 
+                                   target="_blank" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% endif %}
+                                
+                                {% if current_user.role == 'admin' %}
+                                <button type="button" class="btn btn-outline-danger btn-sm" 
+                                        data-bs-toggle="modal" data-bs-target="#deleteModal{{ cheque.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Delete Modal -->
+                    {% if current_user.role == 'admin' %}
+                    <div class="modal fade" id="deleteModal{{ cheque.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Confirmer la suppression</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    Êtes-vous sûr de vouloir supprimer le chèque <strong>{{ cheque.cheque_number or 'sans numéro' }}</strong> ?
+                                    Cette action est irréversible.
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <form method="POST" action="{{ url_for('cheques.delete', id=cheque.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Summary -->
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <small class="text-muted">
+                    {{ cheques|length }} chèque{{ 's' if cheques|length > 1 else '' }} trouvé{{ 's' if cheques|length > 1 else '' }}
+                </small>
+            </div>
+            <div class="col-md-6 text-end">
+                {% set total_amount = cheques|sum(attribute='amount')|float %}
+                <small class="text-muted">
+                    Montant total: <strong>{{ "{:,.2f}".format(total_amount) }} MAD</strong>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-money-check fa-3x text-muted mb-3"></i>
+        <h5>Aucun chèque trouvé</h5>
+        <p class="text-muted">
+            {% if search or status or bank_id or date_from or date_to %}
+                Aucun chèque ne correspond à vos critères de recherche.
+            {% else %}
+                Commencez par ajouter des chèques pour gérer vos finances.
+            {% endif %}
+        </p>
+        {% if current_user.role in ['admin', 'comptable', 'agent'] %}
+        <a href="{{ url_for('cheques.new') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Ajouter un chèque
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-submit form when filters change
+$('#status, #bank_id').change(function() {
+    $(this).closest('form').submit();
+});
+</script>
+{% endblock %}
