@@ -118,13 +118,52 @@
                         
                         <!-- Right Column -->
                         <div class="col-md-6">
+                            <!-- Payment Type -->
+                            <div class="mb-3">
+                                {{ form.payment_type.label(class="form-label") }}
+                                {{ form.payment_type(class="form-select") }}
+                                {% if form.payment_type.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.payment_type.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Created Date -->
+                            <div class="mb-3">
+                                {{ form.created_date.label(class="form-label") }}
+                                {{ form.created_date(class="form-control") }}
+                                {% if form.created_date.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.created_date.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
                             <!-- Status -->
                             <div class="mb-3">
                                 {{ form.status.label(class="form-label") }}
-                                {{ form.status(class="form-select") }}
+                                {{ form.status(class="form-select", id="status") }}
                                 {% if form.status.errors %}
                                     <div class="text-danger small mt-1">
                                         {% for error in form.status.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Unpaid Reason (show only if status is IMPAYÉ) -->
+                            <div class="mb-3" id="unpaid-reason-div" style="display: none;">
+                                {{ form.unpaid_reason.label(class="form-label") }}
+                                {{ form.unpaid_reason(class="form-control", rows="3") }}
+                                {% if form.unpaid_reason.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.unpaid_reason.errors %}
                                             <div>{{ error }}</div>
                                         {% endfor %}
                                     </div>

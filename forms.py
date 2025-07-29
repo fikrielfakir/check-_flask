@@ -39,14 +39,24 @@ class ChequeForm(FlaskForm):
     branch_id = SelectField('Banque/Agence', coerce=int, validators=[DataRequired()])
     status = SelectField('Statut',
                         choices=[
-                            ('en_attente', 'EN ATTENTE'),
-                            ('encaisse', 'ENCAISSÉ'),
-                            ('rejete', 'REJETÉ'),
-                            ('impaye', 'IMPAYÉ'),
-                            ('depose', 'DÉPOSÉ'),
-                            ('annule', 'ANNULÉ')
+                            ('EN ATTENTE', 'EN ATTENTE'),
+                            ('ENCAISSÉ', 'ENCAISSÉ'),
+                            ('IMPAYÉ', 'IMPAYÉ')
                         ],
-                        validators=[DataRequired()], default='en_attente')
+                        validators=[DataRequired()], default='EN ATTENTE')
+    
+    payment_type = SelectField('Type de Règlement', 
+                             choices=[
+                                 ('LCN', 'LCN'),
+                                 ('CHQ', 'CHQ'),
+                                 ('ESP', 'ESP'),
+                                 ('VIR', 'VIR'),
+                                 ('VERS', 'VERS')
+                             ],
+                             validators=[DataRequired()], default='CHQ')
+    
+    created_date = DateField('Date de Création', validators=[Optional()])
+    unpaid_reason = TextAreaField('Raison de l\'impayé', validators=[Optional()])
     cheque_number = StringField('Numéro du chèque', validators=[Optional(), Length(max=50)])
     invoice_number = StringField('N° Facture', validators=[Optional(), Length(max=50)])
     invoice_date = DateField('Date de facture', validators=[Optional()])

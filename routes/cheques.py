@@ -113,6 +113,9 @@ def new():
             invoice_date=form.invoice_date.data,
             depositor_name=form.depositor_name.data,
             notes=form.notes.data,
+            payment_type=form.payment_type.data,
+            created_date=form.created_date.data,
+            unpaid_reason=form.unpaid_reason.data if form.status.data == 'IMPAYÉ' else None,
             scan_path=scan_path
         )
         
@@ -168,6 +171,9 @@ def edit(id):
         cheque.invoice_date = form.invoice_date.data
         cheque.depositor_name = form.depositor_name.data
         cheque.notes = form.notes.data
+        cheque.payment_type = form.payment_type.data
+        cheque.created_date = form.created_date.data
+        cheque.unpaid_reason = form.unpaid_reason.data if form.status.data == 'IMPAYÉ' else None
         cheque.updated_at = datetime.utcnow()
         
         db.session.commit()

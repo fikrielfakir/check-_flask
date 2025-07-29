@@ -179,13 +179,16 @@ class Cheque(db.Model):
     due_date = db.Column(db.Date, nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False)
-    status = db.Column(db.String(20), nullable=False, default='en_attente')
+    status = db.Column(db.String(20), nullable=False, default='EN ATTENTE')
     cheque_number = db.Column(db.String(50))
     scan_path = db.Column(db.String(255))
     invoice_number = db.Column(db.String(50))
     invoice_date = db.Column(db.Date)
     depositor_name = db.Column(db.String(200))
     notes = db.Column(db.Text)
+    payment_type = db.Column(db.String(10), default='CHQ')  # LCN, CHQ, ESP, VIR, VERS
+    created_date = db.Column(db.Date)  # User-specified creation date
+    unpaid_reason = db.Column(db.Text)  # Reason for unpaid status
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -215,9 +218,10 @@ class Cheque(db.Model):
     status_history = db.relationship('ChequeStatusHistory', backref='cheque', lazy=True)
     
     __table_args__ = (
-        CheckConstraint(status.in_(['en_attente', 'encaisse', 'rejete', 'impaye', 'depose', 'annule']), 
+        CheckConstraint(status.in_(['EN ATTENTE', 'ENCAISSÉ', 'IMPAYÉ']), 
                        name='check_cheque_status'),
         CheckConstraint(priority.in_(['low', 'normal', 'high', 'urgent']), name='check_priority'),
+        CheckConstraint(payment_type.in_(['LCN', 'CHQ', 'ESP', 'VIR', 'VERS']), name='check_payment_type'),
         Index('idx_cheque_status', 'status'),
         Index('idx_cheque_due_date', 'due_date'),
         Index('idx_cheque_client', 'client_id'),
