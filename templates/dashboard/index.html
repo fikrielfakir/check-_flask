@@ -2,21 +2,32 @@
 
 {% block title %}Tableau de bord - Gestion des Chèques{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-tachometer-alt me-2"></i>Tableau de bord</h1>
-    <small class="text-muted">{{ moment().format('dddd, MMMM Do YYYY') if moment else '' }}</small>
+    <div class="d-flex align-items-center">
+        <select id="languageSelect" class="form-select me-3" style="width: auto;">
+            <option value="fr">Français</option>
+            <option value="ar">العربية</option>
+        </select>
+        <small class="text-muted">{{ moment().format('dddd, MMMM Do YYYY') if moment else '' }}</small>
+    </div>
 </div>
 
 <!-- Statistics Cards -->
 <div class="row mb-4">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card bg-primary text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h6 class="card-title">En Attente</h6>
-                        <h3 class="mb-0">{{ status_stats.get('en_attente', 0) }}</h3>
+                        <h6 class="card-title" data-fr="En Attente" data-ar="في الانتظار">En Attente</h6>
+                        <h3 class="mb-0">{{ status_stats.get('EN ATTENTE', 0) }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-clock fa-2x opacity-75"></i>
@@ -26,13 +37,13 @@
         </div>
     </div>
     
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card bg-success text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h6 class="card-title">Encaissés</h6>
-                        <h3 class="mb-0">{{ status_stats.get('encaisse', 0) }}</h3>
+                        <h6 class="card-title" data-fr="Encaissés" data-ar="محصلة">Encaissés</h6>
+                        <h3 class="mb-0">{{ status_stats.get('ENCAISSÉ', 0) }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-check-circle fa-2x opacity-75"></i>
@@ -42,29 +53,13 @@
         </div>
     </div>
     
-    <div class="col-md-3">
-        <div class="card bg-danger text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Rejetés</h6>
-                        <h3 class="mb-0">{{ status_stats.get('rejete', 0) }}</h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-times-circle fa-2x opacity-75"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card bg-warning text-white">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h6 class="card-title">Impayés</h6>
-                        <h3 class="mb-0">{{ status_stats.get('impaye', 0) }}</h3>
+                        <h6 class="card-title" data-fr="Impayés" data-ar="غير مدفوعة">Impayés</h6>
+                        <h3 class="mb-0">{{ status_stats.get('IMPAYÉ', 0) }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
@@ -105,24 +100,91 @@
     </div>
 </div>
 
-<!-- Top Rejected Clients -->
-{% if rejected_clients %}
+<!-- Charts Row -->
 <div class="row mb-4">
+    <!-- Status Distribution Chart -->
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Top 5 Clients - Chèques Rejetés</h5>
+                <h5 class="mb-0" data-fr="📊 Répartition des Statuts" data-ar="📊 توزيع الحالات">📊 Répartition des Statuts</h5>
             </div>
             <div class="card-body">
-                {% for client_name, count in rejected_clients %}
-                <div class="d-flex justify-content-between mb-2">
-                    <span>{{ client_name[:30] }}{{ '...' if client_name|length > 30 else '' }}</span>
-                    <span class="badge bg-danger">{{ count }} rejet{{ 's' if count > 1 else '' }}</span>
-                </div>
-                {% endfor %}
+                <div id="statusChart" style="height: 400px;"></div>
             </div>
         </div>
     </div>
+    
+    <!-- Monthly Evolution Chart -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0" data-fr="📈 Évolution mensuelle des encaissements" data-ar="📈 التطور الشهري للتحصيلات">📈 Évolution mensuelle des encaissements</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Clients and Bank Analysis -->
+<div class="row mb-4">
+    <!-- Top Clients by Amount -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0" data-fr="💰 Top 5 Clients par Montant" data-ar="💰 أفضل 5 عملاء حسب المبلغ">💰 Top 5 Clients par Montant</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="topClientsChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bank Distribution -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0" data-fr="🏦 Nombre de chèques par banque" data-ar="🏦 عدد الشيكات حسب البنك">🏦 Nombre de chèques par banque</h5>
+            </div>
+            <div class="card-body">
+                <div id="bankChart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Risk Clients Alert -->
+{% if risk_clients %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0" data-fr="⚠️ Clients à risque" data-ar="⚠️ عملاء في خطر">⚠️ Clients à risque</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3" data-fr="Clients ayant ≥ 2 chèques impayés" data-ar="عملاء لديهم ≥ 2 شيكات غير مدفوعة">Clients ayant ≥ 2 chèques impayés</p>
+                <div class="row">
+                    {% for client in risk_clients %}
+                    <div class="col-md-6 mb-3">
+                        <div class="alert alert-danger d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ client.name }}</strong>
+                                <br>
+                                <small>{{ client.unpaid_count }} chèques impayés - {{ "{:,.2f}".format(client.unpaid_amount) }} MAD</small>
+                            </div>
+                            <a href="{{ url_for('clients.view', id=client.id) }}" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
     
     <div class="col-md-6">
         <div class="card">
@@ -197,4 +259,187 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Language switching
+    const languageSelect = document.getElementById('languageSelect');
+    let currentLanguage = 'fr';
+    
+    if (languageSelect) {
+        languageSelect.addEventListener('change', function() {
+            currentLanguage = this.value;
+            updateLanguage();
+        });
+    }
+    
+    function updateLanguage() {
+        const elements = document.querySelectorAll('[data-fr][data-ar]');
+        elements.forEach(element => {
+            if (currentLanguage === 'ar') {
+                element.textContent = element.getAttribute('data-ar');
+                element.style.direction = 'rtl';
+            } else {
+                element.textContent = element.getAttribute('data-fr');
+                element.style.direction = 'ltr';
+            }
+        });
+    }
+    
+    // Status Distribution Donut Chart (Plotly)
+    if (typeof Plotly !== 'undefined' && document.getElementById('statusChart')) {
+        const statusData = [{
+            values: [{{ status_stats.get('EN ATTENTE', 0) }}, {{ status_stats.get('ENCAISSÉ', 0) }}, {{ status_stats.get('IMPAYÉ', 0) }}],
+            labels: ['EN ATTENTE', 'ENCAISSÉ', 'IMPAYÉ'],
+            type: 'pie',
+            hole: 0.4,
+            marker: {
+                colors: ['#0d6efd', '#198754', '#ffc107']
+            },
+            textinfo: 'label+percent',
+            textposition: 'outside'
+        }];
+        
+        const statusLayout = {
+            title: '',
+            showlegend: true,
+            height: 400,
+            margin: { t: 30, b: 30, l: 30, r: 30 }
+        };
+        
+        Plotly.newPlot('statusChart', statusData, statusLayout, {responsive: true});
+    }
+    
+    // Monthly Evolution Chart (Chart.js)
+    if (typeof Chart !== 'undefined') {
+        const monthlyCtx = document.getElementById('monthlyChart');
+        if (monthlyCtx) {
+            new Chart(monthlyCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ monthly_labels | safe }},
+                    datasets: [{
+                        label: 'Montant Encaissé (MAD)',
+                        data: {{ monthly_amounts | safe }},
+                        borderColor: '#198754',
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' MAD';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toLocaleString() + ' MAD';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Top Clients Chart (Chart.js)
+        const topClientsCtx = document.getElementById('topClientsChart');
+        if (topClientsCtx) {
+            new Chart(topClientsCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ top_clients_names | safe }},
+                    datasets: [{
+                        label: 'Montant (MAD)',
+                        data: {{ top_clients_amounts | safe }},
+                        backgroundColor: 'rgba(13, 110, 253, 0.8)',
+                        borderColor: '#0d6efd',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' MAD';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.x.toLocaleString() + ' MAD';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Bank Distribution Chart (Plotly)
+    if (typeof Plotly !== 'undefined' && document.getElementById('bankChart')) {
+        const bankData = [{
+            values: {{ bank_cheque_counts | safe }},
+            labels: {{ bank_names | safe }},
+            type: 'pie',
+            marker: {
+                colors: ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
+            },
+            textinfo: 'label+percent',
+            textposition: 'outside'
+        }];
+        
+        const bankLayout = {
+            title: '',
+            showlegend: true,
+            height: 300,
+            margin: { t: 30, b: 30, l: 30, r: 30 }
+        };
+        
+        Plotly.newPlot('bankChart', bankData, bankLayout, {responsive: true});
+    }
+    
+    // Status Filter for Recent Cheques
+    const statusFilter = document.getElementById('statusFilter');
+    const tableRows = document.querySelectorAll('#recentChequesTable tr');
+    
+    if (statusFilter && tableRows.length > 0) {
+        statusFilter.addEventListener('change', function() {
+            const selectedStatus = this.value;
+            
+            tableRows.forEach(row => {
+                const rowStatus = row.getAttribute('data-status');
+                if (selectedStatus === '' || rowStatus === selectedStatus) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+</script>
 {% endblock %}
