@@ -20,21 +20,26 @@ csrf = CSRFProtect()
 def create_app():
     app = Flask(__name__)
     
-    # Configuration for offline desktop application
-    app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
+    # Configuration for Replit environment
+    app.secret_key = os.environ.get("SESSION_SECRET", "KSr8293NEv711HU16ZIr14Hxp13hv_ghVJVJgAgxkwo")
     
-    # Use local SQLite database for offline operation  
-    # Override DATABASE_URL for local development - use SQLite instead of PostgreSQL
-    db_path = os.path.join(os.getcwd(), "data", "cheques.db")
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    # Use PostgreSQL database for Replit environment with SQLite fallback for development
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    else:
+        # Fallback to SQLite for local development
+        db_path = os.path.join(os.getcwd(), "data", "cheques.db")
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 300,
         "pool_pre_ping": True,
     }
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["WTF_CSRF_ENABLED"] = True
-    app.config["UPLOAD_FOLDER"] = os.path.join(os.getcwd(), "data", "uploads")
+    # Configure folders for uploads and exports
+    app.config["UPLOAD_FOLDER"] = os.path.join(os.getcwd(), "uploads")
     app.config["EXCEL_FOLDER"] = os.path.join(os.getcwd(), "data", "excel")
     app.config["EXPORTS_FOLDER"] = os.path.join(os.getcwd(), "data", "exports")
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
