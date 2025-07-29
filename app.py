@@ -74,6 +74,7 @@ def create_app():
     from routes.exports import exports_bp
     from routes.excel_manager import excel_manager_bp
     from routes.analytics import analytics_bp
+    from routes.advanced_analytics import advanced_analytics_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/')
@@ -83,6 +84,7 @@ def create_app():
     app.register_blueprint(exports_bp, url_prefix='/exports')
     app.register_blueprint(excel_manager_bp, url_prefix='/excel')
     app.register_blueprint(analytics_bp, url_prefix='/analytics')
+    app.register_blueprint(advanced_analytics_bp, url_prefix='/advanced-analytics')
     
     with app.app_context():
         # Import models to ensure they're registered

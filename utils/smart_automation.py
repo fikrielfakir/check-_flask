@@ -1,706 +1,630 @@
 """
-Smart Automation Features for Cheque Management System
-Implements automated workflows, notifications, and AI-powered features.
+Smart Automation System for Cheque Management
+Implements AI-powered automation, duplicate detection, and workflow management
 """
 
-import os
-import logging
-import sqlite3
-from datetime import datetime, timedelta, date
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass
-from enum import Enum
+import numpy as np
+import pandas as pd
+from datetime import datetime, timedelta
+from sqlalchemy import func, and_, or_
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from difflib import SequenceMatcher
 import json
+import re
 import hashlib
-import difflib
-from collections import defaultdict
+from threading import Thread
+import time
 
-# Automation Models
-@dataclass
-class AutomationRule:
-    """Automation rule configuration"""
-    id: str
-    name: str
-    trigger_type: str
-    trigger_conditions: Dict[str, Any]
-    actions: List[Dict[str, Any]]
-    active: bool
-    created_date: datetime
-    last_executed: Optional[datetime]
 
-@dataclass
-class NotificationTemplate:
-    """Notification template structure"""
-    id: str
-    name: str
-    type: str  # sms, email, system
-    template: str
-    variables: List[str]
-    active: bool
-
-@dataclass
-class DuplicateMatch:
-    """Duplicate detection match result"""
-    cheque1_id: int
-    cheque2_id: int
-    similarity_score: float
-    matching_fields: List[str]
-    confidence_level: str
-    suggested_action: str
-
-class SmartAutomation:
-    """Smart automation engine for cheque management"""
+class SmartAutomationEngine:
+    """Comprehensive automation engine with AI capabilities"""
     
-    def __init__(self, db_path: str):
-        """Initialize smart automation engine"""
-        self.db_path = db_path
-        self.logger = logging.getLogger(__name__)
-        self.setup_automation_tables()
-    
-    def get_db_connection(self) -> sqlite3.Connection:
-        """Get database connection with row factory"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-    
-    def setup_automation_tables(self):
-        """Setup automation-related database tables"""
-        try:
-            conn = self.get_db_connection()
-            cursor = conn.cursor()
-            
-            # Automation rules table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS automation_rules (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    trigger_type TEXT NOT NULL,
-                    trigger_conditions TEXT NOT NULL,
-                    actions TEXT NOT NULL,
-                    active BOOLEAN DEFAULT 1,
-                    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_executed TIMESTAMP NULL
-                )
-            """)
-            
-            # Notification templates table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS notification_templates (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    template TEXT NOT NULL,
-                    variables TEXT NOT NULL,
-                    active BOOLEAN DEFAULT 1,
-                    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Automation logs table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS automation_logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    rule_id TEXT NOT NULL,
-                    execution_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    status TEXT NOT NULL,
-                    details TEXT,
-                    affected_records INTEGER DEFAULT 0
-                )
-            """)
-            
-            # Duplicate detection results table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS duplicate_detections (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    cheque1_id INTEGER NOT NULL,
-                    cheque2_id INTEGER NOT NULL,
-                    similarity_score REAL NOT NULL,
-                    matching_fields TEXT NOT NULL,
-                    confidence_level TEXT NOT NULL,
-                    suggested_action TEXT NOT NULL,
-                    detection_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    resolved BOOLEAN DEFAULT 0,
-                    resolution_action TEXT NULL
-                )
-            """)
-            
-            conn.commit()
-            conn.close()
-            
-            # Initialize default rules and templates
-            self._initialize_default_automation()
-            
-        except Exception as e:
-            self.logger.error(f"Error setting up automation tables: {str(e)}")
-    
-    def _initialize_default_automation(self):
-        """Initialize default automation rules and templates"""
-        try:
-            # Default automation rules
-            default_rules = [
-                {
-                    'id': 'due_date_reminder',
-                    'name': 'Rappel échéance chèque',
-                    'trigger_type': 'schedule',
-                    'trigger_conditions': {'schedule': 'daily', 'time': '08:00'},
-                    'actions': [
-                        {'type': 'notification', 'template': 'due_reminder', 'recipients': 'assigned_users'},
-                        {'type': 'status_update', 'condition': 'overdue', 'new_status': 'OVERDUE'}
-                    ],
-                    'active': True
-                },
-                {
-                    'id': 'bounce_alert',
-                    'name': 'Alerte chèque rejeté',
-                    'trigger_type': 'status_change',
-                    'trigger_conditions': {'status': 'REJETE'},
-                    'actions': [
-                        {'type': 'notification', 'template': 'bounce_alert', 'recipients': 'admin'},
-                        {'type': 'client_risk_update', 'increment': 10}
-                    ],
-                    'active': True
-                },
-                {
-                    'id': 'duplicate_detection',
-                    'name': 'Détection automatique de doublons',
-                    'trigger_type': 'cheque_creation',
-                    'trigger_conditions': {'similarity_threshold': 0.85},
-                    'actions': [
-                        {'type': 'duplicate_check', 'action': 'flag_and_notify'},
-                        {'type': 'notification', 'template': 'duplicate_alert', 'recipients': 'data_admin'}
-                    ],
-                    'active': True
-                },
-                {
-                    'id': 'performance_optimization',
-                    'name': 'Optimisation automatique des performances',
-                    'trigger_type': 'schedule',
-                    'trigger_conditions': {'schedule': 'weekly', 'day': 'sunday', 'time': '02:00'},
-                    'actions': [
-                        {'type': 'database_cleanup', 'action': 'optimize_indexes'},
-                        {'type': 'cache_refresh', 'action': 'clear_old_cache'},
-                        {'type': 'backup_creation', 'action': 'weekly_backup'}
-                    ],
-                    'active': True
-                }
-            ]
-            
-            # Default notification templates
-            default_templates = [
-                {
-                    'id': 'due_reminder',
-                    'name': 'Rappel échéance chèque',
-                    'type': 'system',
-                    'template': 'Le chèque #{cheque_number} de {client_name} arrive à échéance le {due_date}. Montant: {amount} MAD',
-                    'variables': ['cheque_number', 'client_name', 'due_date', 'amount']
-                },
-                {
-                    'id': 'bounce_alert',
-                    'name': 'Alerte chèque rejeté',
-                    'type': 'system',
-                    'template': 'ALERTE: Le chèque #{cheque_number} de {client_name} a été rejeté. Montant: {amount} MAD. Raison: {reason}',
-                    'variables': ['cheque_number', 'client_name', 'amount', 'reason']
-                },
-                {
-                    'id': 'duplicate_alert',
-                    'name': 'Alerte doublon détecté',
-                    'type': 'system',
-                    'template': 'Doublon potentiel détecté: Chèques #{cheque1_number} et #{cheque2_number}. Similarité: {similarity}%',
-                    'variables': ['cheque1_number', 'cheque2_number', 'similarity']
-                },
-                {
-                    'id': 'client_risk_alert',
-                    'name': 'Alerte risque client',
-                    'type': 'system',
-                    'template': 'ATTENTION: Le client {client_name} présente un risque élevé. Taux de rejet: {bounce_rate}%',
-                    'variables': ['client_name', 'bounce_rate']
-                }
-            ]
-            
-            # Insert default rules and templates
-            conn = self.get_db_connection()
-            cursor = conn.cursor()
-            
-            for rule in default_rules:
-                cursor.execute("""
-                    INSERT OR IGNORE INTO automation_rules 
-                    (id, name, trigger_type, trigger_conditions, actions, active)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    rule['id'], rule['name'], rule['trigger_type'],
-                    json.dumps(rule['trigger_conditions']),
-                    json.dumps(rule['actions']),
-                    rule['active']
-                ))
-            
-            for template in default_templates:
-                cursor.execute("""
-                    INSERT OR IGNORE INTO notification_templates
-                    (id, name, type, template, variables, active)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    template['id'], template['name'], template['type'],
-                    template['template'], json.dumps(template['variables']), True
-                ))
-            
-            conn.commit()
-            conn.close()
-            
-        except Exception as e:
-            self.logger.error(f"Error initializing default automation: {str(e)}")
-    
-    def detect_advanced_duplicates(self, similarity_threshold: float = 0.8) -> List[DuplicateMatch]:
-        """
-        Advanced duplicate detection with machine learning-like similarity
+    def __init__(self, db_session):
+        self.db = db_session
+        self.vectorizer = TfidfVectorizer(stop_words='english')
+        self.similarity_threshold = 0.85
         
-        Args:
-            similarity_threshold: Minimum similarity score for duplicate detection
-            
-        Returns:
-            List of DuplicateMatch objects
-        """
-        try:
-            conn = self.get_db_connection()
-            cursor = conn.cursor()
-            
-            # Get all cheques with detailed information
-            cursor.execute("""
-                SELECT 
-                    c.id, c.cheque_number, c.amount, c.issue_date, c.due_date,
-                    c.depositor_name, c.notes, c.status,
-                    cl.name as client_name, cl.phone, cl.email,
-                    b.name as bank_name, br.name as branch_name
-                FROM cheques c
-                JOIN clients cl ON c.client_id = cl.id
-                JOIN branches br ON c.branch_id = br.id
-                JOIN banks b ON br.bank_id = b.id
-                ORDER BY c.id
-            """)
-            
-            cheques = [dict(row) for row in cursor.fetchall()]
-            conn.close()
-            
-            duplicates = []
-            processed_pairs = set()
-            
-            for i, cheque1 in enumerate(cheques):
-                for j, cheque2 in enumerate(cheques[i+1:], i+1):
-                    pair_key = tuple(sorted([cheque1['id'], cheque2['id']]))
-                    if pair_key in processed_pairs:
-                        continue
+    def detect_duplicate_cheques(self, batch_size=100):
+        """Advanced duplicate detection using ML algorithms"""
+        from models import Cheque
+        
+        # Get recent cheques for analysis
+        recent_cheques = self.db.query(Cheque).filter(
+            Cheque.created_at >= datetime.now() - timedelta(days=365)
+        ).limit(batch_size * 10).all()
+        
+        if len(recent_cheques) < 2:
+            return {'duplicates': [], 'message': 'Insufficient data for duplicate detection'}
+        
+        duplicates = []
+        processed_pairs = set()
+        
+        for i, cheque1 in enumerate(recent_cheques):
+            for j, cheque2 in enumerate(recent_cheques[i+1:], i+1):
+                pair_key = tuple(sorted([cheque1.id, cheque2.id]))
+                if pair_key in processed_pairs:
+                    continue
+                processed_pairs.add(pair_key)
+                
+                similarity_score = self._calculate_cheque_similarity(cheque1, cheque2)
+                
+                if similarity_score >= self.similarity_threshold:
+                    duplicates.append({
+                        'cheque1_id': cheque1.id,
+                        'cheque2_id': cheque2.id,
+                        'cheque1_number': cheque1.cheque_number,
+                        'cheque2_number': cheque2.cheque_number,
+                        'similarity_score': round(similarity_score, 3),
+                        'matching_fields': self._identify_matching_fields(cheque1, cheque2),
+                        'client1': cheque1.client.name,
+                        'client2': cheque2.client.name,
+                        'amount1': float(cheque1.amount),
+                        'amount2': float(cheque2.amount),
+                        'confidence': self._calculate_duplicate_confidence(cheque1, cheque2, similarity_score)
+                    })
                     
-                    similarity_result = self._calculate_advanced_similarity(cheque1, cheque2)
-                    
-                    if similarity_result['score'] >= similarity_threshold:
-                        duplicates.append(DuplicateMatch(
-                            cheque1_id=cheque1['id'],
-                            cheque2_id=cheque2['id'],
-                            similarity_score=similarity_result['score'],
-                            matching_fields=similarity_result['matching_fields'],
-                            confidence_level=similarity_result['confidence'],
-                            suggested_action=similarity_result['suggested_action']
-                        ))
-                        
-                        processed_pairs.add(pair_key)
-            
-            # Save to database
-            self._save_duplicate_detections(duplicates)
-            
-            return duplicates
-            
-        except Exception as e:
-            self.logger.error(f"Error in advanced duplicate detection: {str(e)}")
-            return []
-    
-    def _calculate_advanced_similarity(self, cheque1: Dict, cheque2: Dict) -> Dict[str, Any]:
-        """Calculate advanced similarity between two cheques"""
-        matching_fields = []
-        similarity_scores = []
-        weights = {
-            'cheque_number': 0.3,
-            'amount': 0.25,
-            'client_name': 0.2,
-            'bank_info': 0.1,
-            'dates': 0.1,
-            'additional_info': 0.05
+                    # Update cheques with duplicate flag
+                    cheque1.duplicate_detected = True
+                    cheque1.duplicate_score = similarity_score
+                    cheque2.duplicate_detected = True
+                    cheque2.duplicate_score = similarity_score
+        
+        self.db.commit()
+        
+        return {
+            'duplicates': duplicates,
+            'total_analyzed': len(recent_cheques),
+            'duplicate_pairs_found': len(duplicates),
+            'high_confidence_duplicates': [d for d in duplicates if d['confidence'] > 0.9]
         }
+    
+    def auto_assign_cheques(self, assignment_strategy='balanced'):
+        """Automatically assign cheques to users based on workload and expertise"""
+        from models import Cheque, User
         
-        # Cheque number similarity
-        num_sim = self._string_similarity(str(cheque1.get('cheque_number', '')), 
-                                        str(cheque2.get('cheque_number', '')))
-        if num_sim > 0.8:
-            matching_fields.append('cheque_number')
-        similarity_scores.append(num_sim * weights['cheque_number'])
+        # Get unassigned cheques
+        unassigned_cheques = self.db.query(Cheque).filter(
+            Cheque.assigned_user_id.is_(None),
+            Cheque.status.in_(['en_attente', 'depose'])
+        ).all()
         
-        # Amount similarity (exact or very close)
-        amount1 = float(cheque1.get('amount', 0))
-        amount2 = float(cheque2.get('amount', 0))
-        if amount1 > 0 and amount2 > 0:
-            amount_diff = abs(amount1 - amount2) / max(amount1, amount2)
-            amount_sim = max(0, 1 - amount_diff)
-            if amount_sim > 0.95:
-                matching_fields.append('amount')
-            similarity_scores.append(amount_sim * weights['amount'])
+        # Get available users
+        available_users = self.db.query(User).filter(
+            User.is_active == True,
+            User.role.in_(['manager', 'employee'])
+        ).all()
         
-        # Client name similarity
-        client_sim = self._string_similarity(cheque1.get('client_name', ''), 
-                                           cheque2.get('client_name', ''))
-        if client_sim > 0.8:
-            matching_fields.append('client_name')
-        similarity_scores.append(client_sim * weights['client_name'])
+        if not available_users or not unassigned_cheques:
+            return {'assigned': 0, 'message': 'No assignments made'}
         
-        # Bank information similarity
-        bank_sim = self._string_similarity(
-            f"{cheque1.get('bank_name', '')} {cheque1.get('branch_name', '')}",
-            f"{cheque2.get('bank_name', '')} {cheque2.get('branch_name', '')}"
-        )
-        if bank_sim > 0.7:
-            matching_fields.append('bank_info')
-        similarity_scores.append(bank_sim * weights['bank_info'])
+        assignments = []
+        
+        for cheque in unassigned_cheques:
+            best_user = self._select_best_user_for_cheque(
+                cheque, available_users, assignment_strategy
+            )
+            
+            if best_user:
+                cheque.assigned_user_id = best_user.id
+                assignments.append({
+                    'cheque_id': cheque.id,
+                    'assigned_to': best_user.username,
+                    'assignment_reason': self._get_assignment_reason(cheque, best_user)
+                })
+        
+        self.db.commit()
+        
+        return {
+            'assignments': assignments,
+            'total_assigned': len(assignments),
+            'unassigned_remaining': len(unassigned_cheques) - len(assignments)
+        }
+    
+    def auto_prioritize_cheques(self):
+        """Automatically prioritize cheques based on risk factors"""
+        from models import Cheque
+        
+        # Get active cheques
+        active_cheques = self.db.query(Cheque).filter(
+            Cheque.status.in_(['en_attente', 'depose'])
+        ).all()
+        
+        priority_updates = []
+        
+        for cheque in active_cheques:
+            new_priority = self._calculate_cheque_priority(cheque)
+            
+            if cheque.priority != new_priority:
+                old_priority = cheque.priority
+                cheque.priority = new_priority
+                
+                priority_updates.append({
+                    'cheque_id': cheque.id,
+                    'old_priority': old_priority,
+                    'new_priority': new_priority,
+                    'priority_factors': self._get_priority_factors(cheque)
+                })
+        
+        self.db.commit()
+        
+        return {
+            'updates': priority_updates,
+            'total_updated': len(priority_updates),
+            'priority_distribution': self._get_priority_distribution(active_cheques)
+        }
+    
+    def auto_send_reminders(self, test_mode=False):
+        """Send automated reminders to clients and staff"""
+        from models import Cheque, Client, User, ClientCommunication
+        from utils.notifications import NotificationService
+        
+        notification_service = NotificationService(self.db)
+        reminders_sent = []
+        
+        # Client payment reminders (3 days before due date)
+        upcoming_due = self.db.query(Cheque).filter(
+            and_(
+                Cheque.status == 'en_attente',
+                Cheque.due_date == datetime.now().date() + timedelta(days=3)
+            )
+        ).all()
+        
+        for cheque in upcoming_due:
+            if cheque.client.phone or cheque.client.email:
+                reminder_sent = notification_service.send_payment_reminder(
+                    cheque, test_mode=test_mode
+                )
+                if reminder_sent:
+                    reminders_sent.append({
+                        'type': 'payment_reminder',
+                        'cheque_id': cheque.id,
+                        'client_id': cheque.client.id,
+                        'method': 'sms' if cheque.client.phone else 'email'
+                    })
+        
+        # Overdue notifications
+        overdue_cheques = self.db.query(Cheque).filter(
+            and_(
+                Cheque.status.in_(['en_attente', 'depose']),
+                Cheque.due_date < datetime.now().date()
+            )
+        ).all()
+        
+        for cheque in overdue_cheques:
+            if cheque.assigned_user_id:
+                notification_service.send_overdue_notification(
+                    cheque, test_mode=test_mode
+                )
+                reminders_sent.append({
+                    'type': 'overdue_notification',
+                    'cheque_id': cheque.id,
+                    'user_id': cheque.assigned_user_id
+                })
+        
+        return {
+            'reminders_sent': reminders_sent,
+            'total_sent': len(reminders_sent),
+            'payment_reminders': len([r for r in reminders_sent if r['type'] == 'payment_reminder']),
+            'overdue_notifications': len([r for r in reminders_sent if r['type'] == 'overdue_notification'])
+        }
+    
+    def auto_calculate_penalties(self):
+        """Automatically calculate and apply penalties for overdue cheques"""
+        from models import Cheque
+        
+        overdue_cheques = self.db.query(Cheque).filter(
+            and_(
+                Cheque.status.in_(['en_attente', 'depose']),
+                Cheque.due_date < datetime.now().date(),
+                or_(Cheque.penalty_amount.is_(None), Cheque.penalty_amount == 0)
+            )
+        ).all()
+        
+        penalties_applied = []
+        
+        for cheque in overdue_cheques:
+            days_overdue = (datetime.now().date() - cheque.due_date).days
+            penalty_amount = self._calculate_penalty_amount(cheque, days_overdue)
+            
+            if penalty_amount > 0:
+                cheque.penalty_amount = penalty_amount
+                penalties_applied.append({
+                    'cheque_id': cheque.id,
+                    'days_overdue': days_overdue,
+                    'penalty_amount': float(penalty_amount),
+                    'original_amount': float(cheque.amount)
+                })
+        
+        self.db.commit()
+        
+        return {
+            'penalties_applied': penalties_applied,
+            'total_penalties': len(penalties_applied),
+            'total_penalty_amount': sum(p['penalty_amount'] for p in penalties_applied)
+        }
+    
+    def auto_risk_assessment_update(self):
+        """Automatically update client risk assessments"""
+        from models import Client
+        from utils.advanced_analytics import AdvancedAnalyticsEngine
+        
+        analytics = AdvancedAnalyticsEngine(self.db)
+        
+        # Get clients that need risk assessment update
+        update_threshold = datetime.now() - timedelta(days=30)
+        clients_to_update = self.db.query(Client).filter(
+            or_(
+                Client.last_risk_assessment.is_(None),
+                Client.last_risk_assessment < update_threshold
+            )
+        ).all()
+        
+        updates = []
+        
+        for client in clients_to_update:
+            old_risk_level = client.risk_level
+            old_risk_score = client.risk_score
+            
+            # Recalculate risk score
+            new_risk_score = client.calculate_risk_score()
+            
+            if old_risk_level != client.risk_level or abs(old_risk_score - new_risk_score) > 5:
+                updates.append({
+                    'client_id': client.id,
+                    'client_name': client.name,
+                    'old_risk_level': old_risk_level,
+                    'new_risk_level': client.risk_level,
+                    'old_risk_score': old_risk_score,
+                    'new_risk_score': new_risk_score,
+                    'score_change': new_risk_score - old_risk_score
+                })
+        
+        self.db.commit()
+        
+        return {
+            'updates': updates,
+            'total_updated': len(updates),
+            'clients_assessed': len(clients_to_update),
+            'high_risk_increases': len([u for u in updates if u['score_change'] > 10])
+        }
+    
+    def schedule_automated_tasks(self):
+        """Schedule and execute automated tasks"""
+        scheduled_tasks = [
+            {'name': 'duplicate_detection', 'frequency': 'daily', 'last_run': None},
+            {'name': 'auto_assignment', 'frequency': 'hourly', 'last_run': None},
+            {'name': 'priority_update', 'frequency': 'daily', 'last_run': None},
+            {'name': 'send_reminders', 'frequency': 'daily', 'last_run': None},
+            {'name': 'penalty_calculation', 'frequency': 'daily', 'last_run': None},
+            {'name': 'risk_assessment', 'frequency': 'weekly', 'last_run': None}
+        ]
+        
+        results = {}
+        
+        for task in scheduled_tasks:
+            if self._should_run_task(task):
+                try:
+                    if task['name'] == 'duplicate_detection':
+                        results[task['name']] = self.detect_duplicate_cheques()
+                    elif task['name'] == 'auto_assignment':
+                        results[task['name']] = self.auto_assign_cheques()
+                    elif task['name'] == 'priority_update':
+                        results[task['name']] = self.auto_prioritize_cheques()
+                    elif task['name'] == 'send_reminders':
+                        results[task['name']] = self.auto_send_reminders()
+                    elif task['name'] == 'penalty_calculation':
+                        results[task['name']] = self.auto_calculate_penalties()
+                    elif task['name'] == 'risk_assessment':
+                        results[task['name']] = self.auto_risk_assessment_update()
+                    
+                    task['last_run'] = datetime.now()
+                    results[task['name']]['status'] = 'success'
+                    
+                except Exception as e:
+                    results[task['name']] = {
+                        'status': 'error',
+                        'error': str(e)
+                    }
+        
+        return {
+            'scheduled_tasks': scheduled_tasks,
+            'execution_results': results,
+            'tasks_executed': len([t for t in results.values() if t.get('status') == 'success'])
+        }
+    
+    # Helper methods
+    def _calculate_cheque_similarity(self, cheque1, cheque2):
+        """Calculate similarity score between two cheques"""
+        similarity_factors = []
+        
+        # Amount similarity (exact match gets high score)
+        if cheque1.amount == cheque2.amount:
+            similarity_factors.append(1.0)
+        else:
+            amount_diff = abs(float(cheque1.amount) - float(cheque2.amount))
+            max_amount = max(float(cheque1.amount), float(cheque2.amount))
+            amount_similarity = max(0, 1 - (amount_diff / max_amount))
+            similarity_factors.append(amount_similarity * 0.8)
+        
+        # Client similarity
+        if cheque1.client_id == cheque2.client_id:
+            similarity_factors.append(1.0)
+        else:
+            client_name_similarity = SequenceMatcher(
+                None, cheque1.client.name.lower(), cheque2.client.name.lower()
+            ).ratio()
+            similarity_factors.append(client_name_similarity * 0.6)
         
         # Date similarity
-        date_sim = self._date_similarity(cheque1.get('issue_date'), cheque2.get('issue_date'))
-        if date_sim > 0.8:
-            matching_fields.append('dates')
-        similarity_scores.append(date_sim * weights['dates'])
+        date_diff = abs((cheque1.issue_date - cheque2.issue_date).days)
+        date_similarity = max(0, 1 - (date_diff / 30))  # 30 days max difference
+        similarity_factors.append(date_similarity * 0.5)
         
-        # Additional information similarity
-        additional_sim = self._string_similarity(
-            f"{cheque1.get('depositor_name', '')} {cheque1.get('notes', '')}",
-            f"{cheque2.get('depositor_name', '')} {cheque2.get('notes', '')}"
-        )
-        if additional_sim > 0.6:
-            matching_fields.append('additional_info')
-        similarity_scores.append(additional_sim * weights['additional_info'])
+        # Cheque number similarity
+        if cheque1.cheque_number and cheque2.cheque_number:
+            number_similarity = SequenceMatcher(
+                None, cheque1.cheque_number, cheque2.cheque_number
+            ).ratio()
+            similarity_factors.append(number_similarity * 0.7)
         
-        # Calculate final score
-        final_score = sum(similarity_scores)
+        # Bank/branch similarity
+        if cheque1.branch_id == cheque2.branch_id:
+            similarity_factors.append(0.8)
         
-        # Determine confidence and suggested action
-        if final_score >= 0.95:
-            confidence = 'very_high'
-            suggested_action = 'merge_automatically'
-        elif final_score >= 0.85:
-            confidence = 'high'
-            suggested_action = 'flag_for_review'
-        elif final_score >= 0.75:
-            confidence = 'medium'
-            suggested_action = 'manual_verification'
+        return sum(similarity_factors) / len(similarity_factors) if similarity_factors else 0
+    
+    def _identify_matching_fields(self, cheque1, cheque2):
+        """Identify which fields match between two cheques"""
+        matching_fields = []
+        
+        if cheque1.amount == cheque2.amount:
+            matching_fields.append('amount')
+        if cheque1.client_id == cheque2.client_id:
+            matching_fields.append('client')
+        if cheque1.branch_id == cheque2.branch_id:
+            matching_fields.append('branch')
+        if cheque1.cheque_number == cheque2.cheque_number:
+            matching_fields.append('cheque_number')
+        if abs((cheque1.issue_date - cheque2.issue_date).days) <= 1:
+            matching_fields.append('issue_date')
+        
+        return matching_fields
+    
+    def _calculate_duplicate_confidence(self, cheque1, cheque2, similarity_score):
+        """Calculate confidence level for duplicate detection"""
+        confidence = similarity_score
+        
+        # Boost confidence for exact matches
+        if cheque1.amount == cheque2.amount and cheque1.client_id == cheque2.client_id:
+            confidence = min(1.0, confidence + 0.1)
+        
+        # Reduce confidence for different banks
+        if cheque1.branch_id != cheque2.branch_id:
+            confidence *= 0.9
+        
+        return round(confidence, 3)
+    
+    def _select_best_user_for_cheque(self, cheque, available_users, strategy='balanced'):
+        """Select the best user to assign a cheque to"""
+        if not available_users:
+            return None
+        
+        if strategy == 'balanced':
+            # Balance workload across users
+            user_workloads = {}
+            for user in available_users:
+                workload = len([c for c in user.assigned_cheques if c.status in ['en_attente', 'depose']])
+                user_workloads[user] = workload
+            
+            return min(user_workloads.keys(), key=user_workloads.get)
+        
+        elif strategy == 'expertise':
+            # Assign based on user expertise (simplified)
+            if float(cheque.amount) > 50000:  # High-value cheques to managers
+                managers = [u for u in available_users if u.role == 'manager']
+                return managers[0] if managers else available_users[0]
+        
+        return available_users[0]  # Default assignment
+    
+    def _get_assignment_reason(self, cheque, user):
+        """Get reason for assignment"""
+        if user.role == 'manager' and float(cheque.amount) > 50000:
+            return 'High value cheque assigned to manager'
+        elif cheque.client.risk_level == 'high':
+            return 'High risk client requires experienced handler'
         else:
-            confidence = 'low'
-            suggested_action = 'monitor'
+            return 'Balanced workload distribution'
+    
+    def _calculate_cheque_priority(self, cheque):
+        """Calculate priority level for a cheque"""
+        priority_score = 0
         
+        # Amount factor
+        if float(cheque.amount) > 100000:
+            priority_score += 3
+        elif float(cheque.amount) > 50000:
+            priority_score += 2
+        elif float(cheque.amount) > 10000:
+            priority_score += 1
+        
+        # Due date factor
+        days_to_due = (cheque.due_date - datetime.now().date()).days
+        if days_to_due < 0:  # Overdue
+            priority_score += 4
+        elif days_to_due <= 3:
+            priority_score += 3
+        elif days_to_due <= 7:
+            priority_score += 2
+        
+        # Client risk factor
+        if cheque.client.risk_level == 'high':
+            priority_score += 2
+        elif cheque.client.risk_level == 'medium':
+            priority_score += 1
+        
+        # Convert score to priority level
+        if priority_score >= 6:
+            return 'urgent'
+        elif priority_score >= 4:
+            return 'high'
+        elif priority_score >= 2:
+            return 'normal'
+        else:
+            return 'low'
+    
+    def _get_priority_factors(self, cheque):
+        """Get factors that influenced priority calculation"""
+        factors = []
+        
+        if float(cheque.amount) > 50000:
+            factors.append('high_amount')
+        if cheque.is_overdue:
+            factors.append('overdue')
+        elif (cheque.due_date - datetime.now().date()).days <= 3:
+            factors.append('due_soon')
+        if cheque.client.risk_level == 'high':
+            factors.append('high_risk_client')
+        
+        return factors
+    
+    def _get_priority_distribution(self, cheques):
+        """Get distribution of priorities"""
+        priorities = [c.priority for c in cheques]
         return {
-            'score': final_score,
-            'matching_fields': matching_fields,
-            'confidence': confidence,
-            'suggested_action': suggested_action
+            'urgent': priorities.count('urgent'),
+            'high': priorities.count('high'),
+            'normal': priorities.count('normal'),
+            'low': priorities.count('low')
         }
     
-    def _string_similarity(self, str1: str, str2: str) -> float:
-        """Calculate string similarity using difflib"""
-        if not str1 or not str2:
-            return 0.0
+    def _calculate_penalty_amount(self, cheque, days_overdue):
+        """Calculate penalty amount for overdue cheque"""
+        base_amount = float(cheque.amount)
+        daily_penalty_rate = 0.001  # 0.1% per day
         
-        return difflib.SequenceMatcher(None, str1.lower().strip(), str2.lower().strip()).ratio()
-    
-    def _date_similarity(self, date1: str, date2: str) -> float:
-        """Calculate date similarity"""
-        if not date1 or not date2:
-            return 0.0
+        # Progressive penalty rates
+        if days_overdue <= 30:
+            penalty_rate = daily_penalty_rate
+        elif days_overdue <= 60:
+            penalty_rate = daily_penalty_rate * 1.5
+        else:
+            penalty_rate = daily_penalty_rate * 2
         
-        try:
-            d1 = datetime.strptime(date1, '%Y-%m-%d').date()
-            d2 = datetime.strptime(date2, '%Y-%m-%d').date()
-            
-            diff_days = abs((d1 - d2).days)
-            
-            if diff_days == 0:
-                return 1.0
-            elif diff_days <= 1:
-                return 0.9
-            elif diff_days <= 7:
-                return 0.7
-            elif diff_days <= 30:
-                return 0.5
-            else:
-                return 0.2
-                
-        except ValueError:
-            return 0.0
+        penalty = base_amount * penalty_rate * days_overdue
+        return min(penalty, base_amount * 0.1)  # Cap at 10% of original amount
     
-    def _save_duplicate_detections(self, duplicates: List[DuplicateMatch]):
-        """Save duplicate detection results to database"""
-        try:
-            conn = self.get_db_connection()
-            cursor = conn.cursor()
-            
-            for duplicate in duplicates:
-                cursor.execute("""
-                    INSERT OR REPLACE INTO duplicate_detections
-                    (cheque1_id, cheque2_id, similarity_score, matching_fields, 
-                     confidence_level, suggested_action, detection_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    duplicate.cheque1_id, duplicate.cheque2_id, duplicate.similarity_score,
-                    json.dumps(duplicate.matching_fields), duplicate.confidence_level,
-                    duplicate.suggested_action, datetime.now()
-                ))
-            
-            conn.commit()
-            conn.close()
-            
-            self.logger.info(f"Saved {len(duplicates)} duplicate detection results")
-            
-        except Exception as e:
-            self.logger.error(f"Error saving duplicate detections: {str(e)}")
-    
-    def execute_automation_rule(self, rule_id: str) -> Dict[str, Any]:
-        """
-        Execute a specific automation rule
+    def _should_run_task(self, task):
+        """Determine if a scheduled task should run"""
+        if not task['last_run']:
+            return True
         
-        Args:
-            rule_id: ID of the automation rule to execute
+        now = datetime.now()
+        time_diff = now - task['last_run']
+        
+        if task['frequency'] == 'hourly':
+            return time_diff.total_seconds() >= 3600
+        elif task['frequency'] == 'daily':
+            return time_diff.days >= 1
+        elif task['frequency'] == 'weekly':
+            return time_diff.days >= 7
+        
+        return False
+
+
+class WorkflowManager:
+    """Manage custom workflow chains and business rules"""
+    
+    def __init__(self, db_session):
+        self.db = db_session
+        self.workflow_rules = self._load_workflow_rules()
+    
+    def execute_workflow(self, cheque_id, action):
+        """Execute workflow action on a cheque"""
+        from models import Cheque, ChequeStatusHistory
+        
+        cheque = self.db.query(Cheque).get(cheque_id)
+        if not cheque:
+            return {'error': 'Cheque not found'}
+        
+        # Check if action is allowed for current status
+        allowed_actions = self.workflow_rules.get(cheque.status, [])
+        if action not in allowed_actions:
+            return {'error': f'Action {action} not allowed for status {cheque.status}'}
+        
+        # Execute the action
+        old_status = cheque.status
+        new_status = self._get_new_status(action)
+        
+        if new_status:
+            # Update cheque status
+            cheque.status = new_status
             
-        Returns:
-            Dictionary with execution results
-        """
-        try:
-            conn = self.get_db_connection()
-            cursor = conn.cursor()
+            # Record status history
+            history = ChequeStatusHistory(
+                cheque_id=cheque.id,
+                old_status=old_status,
+                new_status=new_status,
+                changed_at=datetime.now()
+            )
+            self.db.add(history)
             
-            # Get rule details
-            cursor.execute("""
-                SELECT * FROM automation_rules WHERE id = ? AND active = 1
-            """, (rule_id,))
+            # Execute post-action hooks
+            self._execute_post_action_hooks(cheque, action, old_status, new_status)
             
-            rule_data = cursor.fetchone()
-            if not rule_data:
-                return {'success': False, 'error': 'Rule not found or inactive'}
-            
-            rule = dict(rule_data)
-            trigger_conditions = json.loads(rule['trigger_conditions'])
-            actions = json.loads(rule['actions'])
-            
-            execution_results = []
-            affected_records = 0
-            
-            # Execute each action
-            for action in actions:
-                action_result = self._execute_action(action, trigger_conditions)
-                execution_results.append(action_result)
-                affected_records += action_result.get('affected_records', 0)
-            
-            # Update last executed timestamp
-            cursor.execute("""
-                UPDATE automation_rules 
-                SET last_executed = CURRENT_TIMESTAMP 
-                WHERE id = ?
-            """, (rule_id,))
-            
-            # Log execution
-            cursor.execute("""
-                INSERT INTO automation_logs 
-                (rule_id, status, details, affected_records)
-                VALUES (?, ?, ?, ?)
-            """, (
-                rule_id, 'success', 
-                json.dumps(execution_results), 
-                affected_records
-            ))
-            
-            conn.commit()
-            conn.close()
+            self.db.commit()
             
             return {
                 'success': True,
-                'rule_id': rule_id,
-                'execution_results': execution_results,
-                'affected_records': affected_records
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error executing automation rule {rule_id}: {str(e)}")
-            
-            # Log error
-            try:
-                conn = self.get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO automation_logs 
-                    (rule_id, status, details, affected_records)
-                    VALUES (?, ?, ?, ?)
-                """, (rule_id, 'error', str(e), 0))
-                conn.commit()
-                conn.close()
-            except:
-                pass
-            
-            return {'success': False, 'error': str(e)}
-    
-    def _execute_action(self, action: Dict[str, Any], conditions: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a specific automation action"""
-        action_type = action.get('type')
-        
-        try:
-            if action_type == 'notification':
-                return self._execute_notification_action(action, conditions)
-            elif action_type == 'status_update':
-                return self._execute_status_update_action(action, conditions)
-            elif action_type == 'duplicate_check':
-                return self._execute_duplicate_check_action(action, conditions)
-            elif action_type == 'database_cleanup':
-                return self._execute_database_cleanup_action(action, conditions)
-            elif action_type == 'client_risk_update':
-                return self._execute_client_risk_update_action(action, conditions)
-            else:
-                return {'success': False, 'error': f'Unknown action type: {action_type}'}
-                
-        except Exception as e:
-            return {'success': False, 'error': str(e), 'action_type': action_type}
-    
-    def _execute_notification_action(self, action: Dict[str, Any], conditions: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute notification action"""
-        # This would integrate with SMS/email services in production
-        template_id = action.get('template')
-        recipients = action.get('recipients', 'admin')
-        
-        # For now, just log the notification
-        self.logger.info(f"Notification sent: template={template_id}, recipients={recipients}")
-        
-        return {
-            'success': True,
-            'action_type': 'notification',
-            'template_id': template_id,
-            'recipients': recipients,
-            'affected_records': 1
-        }
-    
-    def _execute_status_update_action(self, action: Dict[str, Any], conditions: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute status update action"""
-        try:
-            conn = self.get_db_connection()
-            cursor = conn.cursor()
-            
-            condition = action.get('condition', 'overdue')
-            new_status = action.get('new_status', 'OVERDUE')
-            
-            if condition == 'overdue':
-                # Update overdue cheques
-                cursor.execute("""
-                    UPDATE cheques 
-                    SET status = ?, notes = COALESCE(notes, '') || ' [Auto-updated: Overdue]'
-                    WHERE due_date < date('now') AND status = 'EN_ATTENTE'
-                """, (new_status,))
-            
-            affected_rows = cursor.rowcount
-            conn.commit()
-            conn.close()
-            
-            return {
-                'success': True,
-                'action_type': 'status_update',
-                'condition': condition,
+                'old_status': old_status,
                 'new_status': new_status,
-                'affected_records': affected_rows
+                'cheque_id': cheque_id
             }
-            
-        except Exception as e:
-            return {'success': False, 'error': str(e), 'action_type': 'status_update'}
-    
-    def _execute_duplicate_check_action(self, action: Dict[str, Any], conditions: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute duplicate check action"""
-        try:
-            threshold = conditions.get('similarity_threshold', 0.85)
-            duplicates = self.detect_advanced_duplicates(threshold)
-            
-            return {
-                'success': True,
-                'action_type': 'duplicate_check',
-                'duplicates_found': len(duplicates),
-                'affected_records': len(duplicates)
-            }
-            
-        except Exception as e:
-            return {'success': False, 'error': str(e), 'action_type': 'duplicate_check'}
-    
-    def _execute_database_cleanup_action(self, action: Dict[str, Any], conditions: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute database cleanup action"""
-        try:
-            conn = self.get_db_connection()
-            cursor = conn.cursor()
-            
-            cleanup_action = action.get('action', 'optimize_indexes')
-            
-            if cleanup_action == 'optimize_indexes':
-                cursor.execute("VACUUM")
-                cursor.execute("ANALYZE")
-                cursor.execute("REINDEX")
-            
-            conn.commit()
-            conn.close()
-            
-            return {
-                'success': True,
-                'action_type': 'database_cleanup',
-                'cleanup_action': cleanup_action,
-                'affected_records': 1
-            }
-            
-        except Exception as e:
-            return {'success': False, 'error': str(e), 'action_type': 'database_cleanup'}
-    
-    def _execute_client_risk_update_action(self, action: Dict[str, Any], conditions: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute client risk update action"""
-        # This would update client risk scores in a production system
-        increment = action.get('increment', 10)
         
+        return {'error': 'Invalid action'}
+    
+    def _load_workflow_rules(self):
+        """Load workflow rules configuration"""
         return {
-            'success': True,
-            'action_type': 'client_risk_update',
-            'risk_increment': increment,
-            'affected_records': 1
+            'en_attente': ['deposit', 'reject', 'cancel'],
+            'depose': ['clear', 'bounce', 'cancel'],
+            'encaisse': ['reverse'],
+            'rejete': ['reprocess', 'cancel'],
+            'impaye': ['reprocess', 'cancel'],
+            'annule': []
         }
     
-    def get_automation_status(self) -> Dict[str, Any]:
-        """Get overall automation system status"""
-        try:
-            conn = self.get_db_connection()
-            cursor = conn.cursor()
-            
-            # Get active rules count
-            cursor.execute("SELECT COUNT(*) as active_rules FROM automation_rules WHERE active = 1")
-            active_rules = cursor.fetchone()['active_rules']
-            
-            # Get recent executions
-            cursor.execute("""
-                SELECT COUNT(*) as recent_executions 
-                FROM automation_logs 
-                WHERE execution_time >= datetime('now', '-24 hours')
-            """)
-            recent_executions = cursor.fetchone()['recent_executions']
-            
-            # Get duplicate detections
-            cursor.execute("""
-                SELECT COUNT(*) as pending_duplicates 
-                FROM duplicate_detections 
-                WHERE resolved = 0
-            """)
-            pending_duplicates = cursor.fetchone()['pending_duplicates']
-            
-            conn.close()
-            
-            return {
-                'active_rules': active_rules,
-                'recent_executions': recent_executions,
-                'pending_duplicates': pending_duplicates,
-                'system_status': 'active',
-                'last_check': datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error getting automation status: {str(e)}")
-            return {
-                'system_status': 'error',
-                'error': str(e)
-            }
+    def _get_new_status(self, action):
+        """Map action to new status"""
+        action_map = {
+            'deposit': 'depose',
+            'clear': 'encaisse',
+            'bounce': 'rejete',
+            'reject': 'rejete',
+            'cancel': 'annule',
+            'reprocess': 'en_attente',
+            'reverse': 'impaye'
+        }
+        return action_map.get(action)
+    
+    def _execute_post_action_hooks(self, cheque, action, old_status, new_status):
+        """Execute post-action business logic"""
+        # Update client exposure
+        if new_status == 'encaisse':
+            cheque.client.current_exposure -= float(cheque.amount)
+        elif old_status == 'encaisse' and new_status in ['rejete', 'impaye']:
+            cheque.client.current_exposure += float(cheque.amount)
+        
+        # Update bounce rate if cheque bounced
+        if new_status == 'rejete':
+            total_cheques = len(cheque.client.cheques)
+            bounced_cheques = len([c for c in cheque.client.cheques if c.status == 'rejete'])
+            cheque.client.bounce_rate = bounced_cheques / total_cheques if total_cheques > 0 else 0
+        
+        # Set processing dates
+        if new_status == 'depose':
+            cheque.deposit_date = datetime.now().date()
+        elif new_status == 'encaisse':
+            cheque.clearance_date = datetime.now().date()
+        elif new_status == 'rejete':
+            cheque.rejection_date = datetime.now().date()
