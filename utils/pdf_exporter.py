@@ -315,9 +315,9 @@ class PDFExporter:
         """Convert status code to readable text"""
         status_map = {
             'en_attente': 'EN ATTENTE',
-            'encaisse': 'ENCAISSÉ',
+            'encaisse': 'ENCAISSE',
             'rejete': 'REJETÉ',
-            'impaye': 'IMPAYÉ',
+            'impaye': 'IMPAYE',
             'depose': 'DÉPOSÉ',
             'annule': 'ANNULÉ'
         }

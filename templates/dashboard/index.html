@@ -43,7 +43,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title" data-fr="Encaissés" data-ar="محصلة">Encaissés</h6>
-                        <h3 class="mb-0">{{ status_stats.get('ENCAISSÉ', 0) }}</h3>
+                        <h3 class="mb-0">{{ status_stats.get('ENCAISSE', 0) }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-check-circle fa-2x opacity-75"></i>
@@ -59,7 +59,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title" data-fr="Impayés" data-ar="غير مدفوعة">Impayés</h6>
-                        <h3 class="mb-0">{{ status_stats.get('IMPAYÉ', 0) }}</h3>
+                        <h3 class="mb-0">{{ status_stats.get('IMPAYE', 0) }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
@@ -291,8 +291,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Status Distribution Donut Chart (Plotly)
     if (typeof Plotly !== 'undefined' && document.getElementById('statusChart')) {
         const statusData = [{
-            values: [{{ status_stats.get('EN ATTENTE', 0) }}, {{ status_stats.get('ENCAISSÉ', 0) }}, {{ status_stats.get('IMPAYÉ', 0) }}],
-            labels: ['EN ATTENTE', 'ENCAISSÉ', 'IMPAYÉ'],
+            values: [{{ status_stats.get('EN ATTENTE', 0) }}, {{ status_stats.get('ENCAISSE', 0) }}, {{ status_stats.get('IMPAYE', 0) }}],
+            labels: ['EN ATTENTE', 'ENCAISSE', 'IMPAYE'],
             type: 'pie',
             hole: 0.4,
             marker: {

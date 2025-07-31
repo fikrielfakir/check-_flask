@@ -43,7 +43,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title" data-fr="Encaissés" data-ar="محصلة">Encaissés</h6>
-                        <h3 class="mb-0">{{ status_stats.get('ENCAISSÉ', 0) }}</h3>
+                        <h3 class="mb-0">{{ status_stats.get('ENCAISSE', 0) }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-check-circle fa-2x opacity-75"></i>
@@ -59,7 +59,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title" data-fr="Impayés" data-ar="غير مدفوعة">Impayés</h6>
-                        <h3 class="mb-0">{{ status_stats.get('IMPAYÉ', 0) }}</h3>
+                        <h3 class="mb-0">{{ status_stats.get('IMPAYE', 0) }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
@@ -196,8 +196,8 @@
                     <select id="statusFilter" class="form-select form-select-sm me-2" style="width: auto;">
                         <option value="">Tous les statuts</option>
                         <option value="EN ATTENTE">EN ATTENTE</option>
-                        <option value="ENCAISSÉ">ENCAISSÉ</option>
-                        <option value="IMPAYÉ">IMPAYÉ</option>
+                        <option value="ENCAISSE">ENCAISSE</option>
+                        <option value="IMPAYE">IMPAYE</option>
                     </select>
                     <a href="{{ url_for('cheques.index') }}" class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-list"></i> Voir tout
@@ -228,9 +228,9 @@
                                 <td>
                                     {% if cheque.status == 'EN ATTENTE' %}
                                         <span class="badge bg-primary">{{ cheque.status }}</span>
-                                    {% elif cheque.status == 'ENCAISSÉ' %}
+                                    {% elif cheque.status == 'ENCAISSE' %}
                                         <span class="badge bg-success">{{ cheque.status }}</span>
-                                    {% elif cheque.status == 'IMPAYÉ' %}
+                                    {% elif cheque.status == 'IMPAYE' %}
                                         <span class="badge bg-warning">{{ cheque.status }}</span>
                                     {% endif %}
                                 </td>
@@ -306,8 +306,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Status Distribution Donut Chart (Plotly)
     const statusData = [{
-        values: [{{ status_stats.get('EN ATTENTE', 0) }}, {{ status_stats.get('ENCAISSÉ', 0) }}, {{ status_stats.get('IMPAYÉ', 0) }}],
-        labels: ['EN ATTENTE', 'ENCAISSÉ', 'IMPAYÉ'],
+        values: [{{ status_stats.get('EN ATTENTE', 0) }}, {{ status_stats.get('ENCAISSE', 0) }}, {{ status_stats.get('IMPAYE', 0) }}],
+        labels: ['EN ATTENTE', 'ENCAISSE', 'IMPAYE'],
         type: 'pie',
         hole: 0.4,
         marker: {

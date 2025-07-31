@@ -4,6 +4,7 @@ from wtforms import StringField, TextAreaField, SelectField, DecimalField, DateF
 from wtforms.validators import DataRequired, Email, Optional, Length, NumberRange
 from wtforms.widgets import TextArea
 from models import Bank, Branch, Client
+from wtforms import RadioField 
 
 class LoginForm(FlaskForm):
     username = StringField('Nom d\'utilisateur', validators=[DataRequired()])
@@ -21,7 +22,7 @@ class BranchForm(FlaskForm):
     email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
 
 class ClientForm(FlaskForm):
-    type = SelectField('Type de client', 
+    type = RadioField('Type de client', 
                       choices=[('personne', 'Personne physique'), ('entreprise', 'Entreprise')],
                       validators=[DataRequired()])
     name = StringField('Nom/Raison sociale', validators=[DataRequired(), Length(min=2, max=200)])
@@ -40,8 +41,8 @@ class ChequeForm(FlaskForm):
     status = SelectField('Statut',
                         choices=[
                             ('EN ATTENTE', 'EN ATTENTE'),
-                            ('ENCAISSÉ', 'ENCAISSÉ'),
-                            ('IMPAYÉ', 'IMPAYÉ')
+                            ('ENCAISSE', 'ENCAISSE'),
+                            ('IMPAYE', 'IMPAYE')
                         ],
                         validators=[DataRequired()], default='EN ATTENTE')
     

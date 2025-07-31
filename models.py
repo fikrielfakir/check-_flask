@@ -46,14 +46,93 @@ class Bank(db.Model):
     __tablename__ = 'banks'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), nullable=False, index=True)
+    code = db.Column(db.String(10), unique=True, index=True)
+    swift_code = db.Column(db.String(11), index=True)
+    icon_url = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationship
+    # Relationships
     branches = db.relationship('Branch', backref='bank', lazy=True, cascade='all, delete-orphan')
     
+    # Fixed: Access cheques through branches instead of direct relationship
+    @property
+    def cheques(self):
+        """Get all cheques for this bank through its branches"""
+        from sqlalchemy.orm import joinedload
+        cheques = []
+        for branch in self.branches:
+            cheques.extend(branch.cheques)
+        return cheques
+    
     def __repr__(self):
-        return f'<Bank {self.name}>'
+        return f'<Bank {self.name} ({self.code})>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'swift_code': self.swift_code,
+            'icon_url': self.icon_url,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+# Predefined list of Moroccan banks
+MOROCCAN_BANKS = [
+    {
+        "name": "Attijariwafa Bank",
+        "code": "AWB",
+        "swift_code": "BCMAMAMC",
+        "icon_url": "/static/icons/banks/attijariwafa.png"
+    },
+    {
+        "name": "Banque Populaire",
+        "code": "BCP",
+        "swift_code": "BCPOMAMC",
+        "icon_url": "/static/icons/banks/banque_populaire.png"
+    },
+    {
+        "name": "BMCE Bank of Africa",
+        "code": "BOA",
+        "swift_code": "BMCEAMMC",
+        "icon_url": "/static/icons/banks/bmce.png"
+    },
+    {
+        "name": "Crédit Agricole du Maroc",
+        "code": "CAM",
+        "swift_code": "ACMAMAMC",
+        "icon_url": "/static/icons/banks/credit_agricole.png"
+    },
+    {
+        "name": "CIH Bank",
+        "code": "CIH",
+        "swift_code": "CIHBMAMC",
+        "icon_url": "/static/icons/banks/cih.png"
+    },
+    {
+        "name": "Société Générale Maroc",
+        "code": "SGMB",
+        "swift_code": "SGMBMAMC",
+        "icon_url": "/static/icons/banks/societe_generale.png"
+    },
+    {
+        "name": "Al Barid Bank",
+        "code": "ABB",
+        "swift_code": "BPEIMAMC",
+        "icon_url": "/static/icons/banks/albarid.png"
+    },
+    {
+        "name": "Crédit du Maroc",
+        "code": "CDM",
+        "swift_code": "CDMAMAMC",
+        "icon_url": "/static/icons/banks/credit_maroc.png"
+    }
+]
 
 class Branch(db.Model):
     __tablename__ = 'branches'
@@ -218,7 +297,7 @@ class Cheque(db.Model):
     status_history = db.relationship('ChequeStatusHistory', backref='cheque', lazy=True)
     
     __table_args__ = (
-        CheckConstraint(status.in_(['EN ATTENTE', 'ENCAISSÉ', 'IMPAYÉ']), 
+        CheckConstraint(status.in_(['EN ATTENTE', 'ENCAISSE', 'IMPAYE']), 
                        name='check_cheque_status'),
         CheckConstraint(priority.in_(['low', 'normal', 'high', 'urgent']), name='check_priority'),
         CheckConstraint(payment_type.in_(['LCN', 'CHQ', 'ESP', 'VIR', 'VERS']), name='check_payment_type'),
@@ -276,11 +355,8 @@ class Cheque(db.Model):
     def status_text(self):
         texts = {
             'en_attente': 'EN ATTENTE',
-            'encaisse': 'ENCAISSÉ',
-            'rejete': 'REJETÉ',
-            'impaye': 'IMPAYÉ',
-            'depose': 'DÉPOSÉ',
-            'annule': 'ANNULÉ'
+            'encaisse': 'ENCAISSE',
+            'rejete': 'REJETE',
         }
         return texts.get(self.status, self.status.upper())
     

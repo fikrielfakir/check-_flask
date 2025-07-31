@@ -97,17 +97,17 @@ def create_app():
         from models import User
         from werkzeug.security import generate_password_hash
         
-        admin_user = User.query.filter_by(username='admin').first()
+        admin_user = User.query.filter_by(username='manal').first()
         if not admin_user:
             admin_user = User(
-                username='admin',
-                email='admin@example.com',
-                password_hash=generate_password_hash('admin123'),
+                username='manal',
+                email='manal@cedesa.com',
+                password_hash=generate_password_hash('manalcedesa'),
                 role='admin'
             )
             db.session.add(admin_user)
             db.session.commit()
-            logging.info("Default admin user created (username: admin, password: admin123)")
+            logging.info("Default admin user created (username: manal, password: manalcedesa)")
         else:
             logging.info("Admin user already exists")
     

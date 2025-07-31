@@ -29,6 +29,7 @@ def index():
     search = request.args.get('search', '')
     status = request.args.get('status', '')
     bank_id = request.args.get('bank_id', '')
+    branch_id = request.args.get('branch_id', '')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     
@@ -50,6 +51,9 @@ def index():
     if bank_id:
         query = query.filter(Branch.bank_id == bank_id)
     
+    if branch_id:
+        query = query.filter(Cheque.branch_id == branch_id)
+    
     if date_from:
         try:
             date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
@@ -68,13 +72,16 @@ def index():
     
     # Get banks for filter dropdown
     banks = Bank.query.all()
+    branches = Branch.query.all()
     
     return render_template('cheques/index.html', 
                          cheques=cheques,
                          banks=banks,
+                         branches=branches,
                          search=search,
                          status=status,
                          bank_id=bank_id,
+                         branch_id=branch_id,
                          date_from=date_from,
                          date_to=date_to)
 
@@ -115,7 +122,7 @@ def new():
             notes=form.notes.data,
             payment_type=form.payment_type.data,
             created_date=form.created_date.data,
-            unpaid_reason=form.unpaid_reason.data if form.status.data == 'IMPAYÉ' else None,
+            unpaid_reason=form.unpaid_reason.data if form.status.data == 'IMPAYE' else None,
             scan_path=scan_path
         )
         
@@ -173,7 +180,7 @@ def edit(id):
         cheque.notes = form.notes.data
         cheque.payment_type = form.payment_type.data
         cheque.created_date = form.created_date.data
-        cheque.unpaid_reason = form.unpaid_reason.data if form.status.data == 'IMPAYÉ' else None
+        cheque.unpaid_reason = form.unpaid_reason.data if form.status.data == 'IMPAYE' else None
         cheque.updated_at = datetime.utcnow()
         
         db.session.commit()
@@ -212,21 +219,33 @@ def delete(id):
 def update_status(id):
     if not check_access():
         return redirect(url_for('cheques.index'))
-    
+
     cheque = Cheque.query.get_or_404(id)
     new_status = request.form.get('status')
-    
-    if new_status in ['en_attente', 'encaisse', 'rejete', 'impaye', 'depose', 'annule']:
-        cheque.status = new_status
+
+    current_app.logger.info(f"Submitted status: {new_status}")
+
+    # Normalization map
+    status_map = {
+        'en_attente': 'EN ATTENTE',
+        'encaisse': 'ENCAISSE',
+        'impaye': 'IMPAYE'
+    }
+
+    # Normalize status input
+    normalized_status = status_map.get(new_status.strip().lower()) if new_status else None
+
+    if normalized_status:
+        cheque.status = normalized_status
         cheque.updated_at = datetime.utcnow()
         db.session.commit()
-        
-        # Update Excel file
+
+        # Update Excel
         excel_manager = ExcelManager()
         excel_manager.add_or_update_cheque(cheque)
-        
+
         flash(f'Statut du chèque mis à jour: {cheque.status_text}', 'success')
     else:
         flash('Statut invalide.', 'danger')
-    
+
     return redirect(url_for('cheques.index'))

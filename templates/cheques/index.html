@@ -25,12 +25,9 @@
                 <label for="status" class="form-label">Statut</label>
                 <select class="form-select" id="status" name="status">
                     <option value="">Tous les statuts</option>
-                    <option value="en_attente" {{ 'selected' if status == 'en_attente' }}>EN ATTENTE</option>
-                    <option value="encaisse" {{ 'selected' if status == 'encaisse' }}>ENCAISSÉ</option>
-                    <option value="rejete" {{ 'selected' if status == 'rejete' }}>REJETÉ</option>
-                    <option value="impaye" {{ 'selected' if status == 'impaye' }}>IMPAYÉ</option>
-                    <option value="depose" {{ 'selected' if status == 'depose' }}>DÉPOSÉ</option>
-                    <option value="annule" {{ 'selected' if status == 'annule' }}>ANNULÉ</option>
+                    <option value="EN_ATTENTE" {{ 'selected' if status == 'EN_ATTENTE' }}>EN ATTENTE</option>
+                    <option value="ENCAISSE" {{ 'selected' if status == 'ENCAISSE' }}>ENCAISSE</option>
+                    <option value="IMPAYE" {{ 'selected' if status == 'IMPAYE' }}>IMPAYE</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -44,6 +41,18 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-md-2">
+                <label for="branch_id" class="form-label">Agence</label>
+                <select class="form-select" id="branch_id" name="branch_id">
+                    <option value="">Toutes les agences</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}" {{ 'selected' if branch_id|string == branch.id|string }}>
+                        {{ branch.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <div class="col-md-2">
                 <label for="date_from" class="form-label">Date début</label>
                 <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
@@ -65,7 +74,7 @@
 {% if cheques %}
 <div class="card">
     <div class="card-body">
-        <div class="table-responsive">
+        <div class="table-responsive" style="overflow: visible !important;">
             <table class="table table-hover">
                 <thead>
                     <tr>
@@ -135,12 +144,9 @@
                                     <ul class="dropdown-menu">
                                         <li><h6 class="dropdown-header">Changer le statut</h6></li>
                                         {% for status_value, status_label in [
-                                            ('en_attente', 'EN ATTENTE'),
-                                            ('encaisse', 'ENCAISSÉ'),
-                                            ('rejete', 'REJETÉ'),
-                                            ('impaye', 'IMPAYÉ'),
-                                            ('depose', 'DÉPOSÉ'),
-                                            ('annule', 'ANNULÉ')
+                                            ('EN_ATTENTE', 'EN ATTENTE'),
+                                            ('ENCAISSE', 'ENCAISSE'),
+                                            ('IMPAYE', 'IMPAYE'),
                                         ] %}
                                         {% if status_value != cheque.status %}
                                         <li>
@@ -154,7 +160,6 @@
                                         {% endfor %}
                                     </ul>
                                 </div>
-                                
                                 <a href="{{ url_for('cheques.edit', id=cheque.id) }}" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-edit"></i>
                                 </a>
@@ -249,6 +254,9 @@
 <script>
 // Auto-submit form when filters change
 $('#status, #bank_id').change(function() {
+    $(this).closest('form').submit();
+});
+$('#status, #bank_id, #branch_id').change(function() {
     $(this).closest('form').submit();
 });
 </script>
