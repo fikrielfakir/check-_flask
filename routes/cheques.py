@@ -22,6 +22,23 @@ def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def check_duplicate_cheque(cheque_number, branch_id, client_id, exclude_id=None):
+    """Check if a cheque with same number, branch and client already exists"""
+    if not cheque_number:
+        return None
+    
+    query = Cheque.query.filter(
+        Cheque.cheque_number == cheque_number,
+        Cheque.branch_id == branch_id,
+        Cheque.client_id == client_id
+    )
+    
+    # Exclude current cheque when editing
+    if exclude_id:
+        query = query.filter(Cheque.id != exclude_id)
+    
+    return query.first()
+
 @cheques_bp.route('/')
 @login_required
 def index():
@@ -94,6 +111,21 @@ def new():
     form = ChequeForm()
     
     if form.validate_on_submit():
+        # Check for duplicate cheque
+        existing_cheque = check_duplicate_cheque(
+            form.cheque_number.data,
+            form.branch_id.data,
+            form.client_id.data
+        )
+        
+        if existing_cheque:
+            client_name = existing_cheque.client.name if existing_cheque.client else "Client inconnu"
+            branch_name = existing_cheque.branch.name if existing_cheque.branch else "Agence inconnue"
+            bank_name = existing_cheque.branch.bank.name if existing_cheque.branch and existing_cheque.branch.bank else "Banque inconnue"
+            
+            flash(f'Un chèque avec le numéro "{form.cheque_number.data}" existe déjà pour le client "{client_name}" dans l\'agence "{branch_name}" de la banque "{bank_name}".', 'warning')
+            return render_template('cheques/form.html', form=form, title='Nouveau Chèque')
+        
         # Handle file upload
         scan_path = None
         if form.scan.data:
@@ -129,11 +161,15 @@ def new():
         db.session.add(cheque)
         db.session.commit()
         
-        # Update Excel file
+        # Automatically update Excel file
         excel_manager = ExcelManager()
-        excel_manager.add_or_update_cheque(cheque)
+        excel_sync_success = excel_manager.add_or_update_cheque(cheque)
         
-        flash('Chèque ajouté avec succès!', 'success')
+        if excel_sync_success:
+            flash('Chèque ajouté avec succès et synchronisé avec Excel!', 'success')
+        else:
+            flash('Chèque ajouté avec succès, mais erreur de synchronisation Excel.', 'warning')
+        
         return redirect(url_for('cheques.index'))
     
     return render_template('cheques/form.html', form=form, title='Nouveau Chèque')
@@ -148,6 +184,22 @@ def edit(id):
     form = ChequeForm(obj=cheque)
     
     if form.validate_on_submit():
+        # Check for duplicate cheque (excluding current cheque)
+        existing_cheque = check_duplicate_cheque(
+            form.cheque_number.data,
+            form.branch_id.data,
+            form.client_id.data,
+            exclude_id=id
+        )
+        
+        if existing_cheque:
+            client_name = existing_cheque.client.name if existing_cheque.client else "Client inconnu"
+            branch_name = existing_cheque.branch.name if existing_cheque.branch else "Agence inconnue"
+            bank_name = existing_cheque.branch.bank.name if existing_cheque.branch and existing_cheque.branch.bank else "Banque inconnue"
+            
+            flash(f'Un autre chèque avec le numéro "{form.cheque_number.data}" existe déjà pour le client "{client_name}" dans l\'agence "{branch_name}" de la banque "{bank_name}".', 'warning')
+            return render_template('cheques/form.html', form=form, title='Modifier Chèque', cheque=cheque)
+        
         # Handle file upload
         if form.scan.data:
             file = form.scan.data
@@ -185,11 +237,15 @@ def edit(id):
         
         db.session.commit()
         
-        # Update Excel file
+        # Automatically update Excel file
         excel_manager = ExcelManager()
-        excel_manager.add_or_update_cheque(cheque)
+        excel_sync_success = excel_manager.add_or_update_cheque(cheque)
         
-        flash('Chèque modifié avec succès!', 'success')
+        if excel_sync_success:
+            flash('Chèque modifié avec succès et synchronisé avec Excel!', 'success')
+        else:
+            flash('Chèque modifié avec succès, mais erreur de synchronisation Excel.', 'warning')
+        
         return redirect(url_for('cheques.index'))
     
     return render_template('cheques/form.html', form=form, title='Modifier Chèque', cheque=cheque)
@@ -208,6 +264,15 @@ def delete(id):
         file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cheque.scan_path)
         if os.path.exists(file_path):
             os.remove(file_path)
+    
+    # Remove from Excel before deleting from database
+    excel_manager = ExcelManager()
+    if cheque.cheque_number and cheque.branch:
+        excel_manager.remove_cheque_from_excel(
+            cheque.cheque_number, 
+            cheque.branch.bank.name,
+            cheque.due_date.year
+        )
     
     db.session.delete(cheque)
     db.session.commit()
@@ -240,11 +305,15 @@ def update_status(id):
         cheque.updated_at = datetime.utcnow()
         db.session.commit()
 
-        # Update Excel
+        # Automatically update Excel file
         excel_manager = ExcelManager()
-        excel_manager.add_or_update_cheque(cheque)
+        excel_sync_success = excel_manager.add_or_update_cheque(cheque)
+        
+        if excel_sync_success:
+            flash(f'Statut du chèque mis à jour et synchronisé avec Excel: {cheque.status_text}', 'success')
+        else:
+            flash(f'Statut du chèque mis à jour: {cheque.status_text} (Erreur sync Excel)', 'warning')
 
-        flash(f'Statut du chèque mis à jour: {cheque.status_text}', 'success')
     else:
         flash('Statut invalide.', 'danger')
 

@@ -42,12 +42,14 @@ def create_app():
     app.config["UPLOAD_FOLDER"] = os.path.join(os.getcwd(), "uploads")
     app.config["EXCEL_FOLDER"] = os.path.join(os.getcwd(), "data", "excel")
     app.config["EXPORTS_FOLDER"] = os.path.join(os.getcwd(), "data", "exports")
+    app.config["DATA_FOLDER"] = os.path.join(os.getcwd(), "data")
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
     
     # Ensure all directories exist
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     os.makedirs(app.config["EXCEL_FOLDER"], exist_ok=True)
     os.makedirs(app.config["EXPORTS_FOLDER"], exist_ok=True)
+    os.makedirs(app.config["DATA_FOLDER"], exist_ok=True)
     
     # Initialize extensions
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)

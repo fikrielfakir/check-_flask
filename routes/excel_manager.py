@@ -72,44 +72,20 @@ def sync_database_to_excel():
     """Synchronize database cheques to Excel files"""
     try:
         excel_dir = current_app.config['EXCEL_FOLDER']
-        excel_manager = ExcelYearlyManager(excel_dir)
+        from utils.cheque_excel_sync import ChequeExcelSync
+        
+        sync_manager = ChequeExcelSync(excel_dir)
         
         # Get all cheques from database
         cheques = Cheque.query.all()
         
-        sync_count = 0
-        error_count = 0
+        # Perform bulk synchronization
+        sync_results = sync_manager.bulk_sync_all_cheques()
         
-        for cheque in cheques:
-            try:
-                # Prepare cheque data for Excel
-                cheque_data = {
-                    'date_emission': cheque.issue_date.strftime('%d/%m/%Y') if cheque.issue_date else '',
-                    'type': 'CHQ' if not hasattr(cheque, 'cheque_type') else getattr(cheque, 'cheque_type', 'CHQ'),
-                    'numero': cheque.cheque_number or '',
-                    'banque': cheque.branch.bank.name if cheque.branch and cheque.branch.bank else '',
-                    'proprietaire': cheque.client.name if cheque.client else '',
-                    'deposant': cheque.depositor_name or '',
-                    'montant': float(cheque.amount),
-                    'echeance_date': cheque.due_date,
-                    'statut': cheque.status_text,
-                    'notes': cheque.notes or ''
-                }
-                
-                # Add to Excel
-                if excel_manager.add_or_update_cheque(cheque_data):
-                    sync_count += 1
-                else:
-                    error_count += 1
-                    
-            except Exception as e:
-                logging.error(f"Error syncing cheque {cheque.id}: {str(e)}")
-                error_count += 1
-        
-        if error_count == 0:
-            flash(f'Synchronisation réussie: {sync_count} chèques synchronisés.', 'success')
+        if sync_results['failed_syncs'] == 0:
+            flash(f'Synchronisation réussie: {sync_results["successful_syncs"]} chèques synchronisés.', 'success')
         else:
-            flash(f'Synchronisation partielle: {sync_count} réussies, {error_count} erreurs.', 'warning')
+            flash(f'Synchronisation partielle: {sync_results["successful_syncs"]} réussies, {sync_results["failed_syncs"]} erreurs.', 'warning')
         
         return redirect(url_for('excel_manager.excel_dashboard'))
     

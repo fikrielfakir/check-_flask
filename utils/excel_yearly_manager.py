@@ -27,7 +27,7 @@ class ExcelYearlyManager:
         # Define column headers for consistency
         self.headers = [
             'Date', 'Type', 'Numéro', 'Banque', 'Propriétaire', 
-            'Déposant', 'Montant', 'Date échéance', 'Statut', 'Notes'
+            'Déposant', 'Montant', 'devise','Date échéance', 'Statut', 'Notes'
         ]
         
         # French month names
@@ -71,6 +71,24 @@ class ExcelYearlyManager:
         Args:
             worksheet: openpyxl worksheet object
         """
+        # Updated headers to match the new format
+        self.headers = [
+            "Date d'émission",
+            "Type de Règlement", 
+            "Numéro du chèque",
+            "Banque/Agence",
+            "Client",
+            "Nom du déposant",
+            "Montant",
+            "Devise",
+            "Date d'échéance",
+            "Date de Création",
+            "Statut",
+            "N° Facture",
+            "Date de facture",
+            "Notes"
+        ]
+        
         # Header styling
         header_font = Font(bold=True, color="FFFFFF")
         header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
@@ -92,18 +110,22 @@ class ExcelYearlyManager:
             cell.alignment = header_alignment
             cell.border = thin_border
         
-        # Set column widths
+        # Set column widths - Updated for new columns
         column_widths = {
-            'A': 12,  # Date
-            'B': 8,   # Type
-            'C': 15,  # Numéro
-            'D': 20,  # Banque
-            'E': 25,  # Propriétaire
-            'F': 25,  # Déposant
-            'G': 15,  # Montant
-            'H': 15,  # Date échéance
-            'I': 12,  # Statut
-            'J': 30   # Notes
+            'A': 12,  # Date d'émission
+            'B': 12,  # Type de Règlement
+            'C': 15,  # Numéro du chèque
+            'D': 25,  # Banque/Agence
+            'E': 25,  # Client
+            'F': 20,  # Nom du déposant
+            'G': 12,  # Montant
+            'H': 8,   # Devise
+            'I': 12,  # Date d'échéance
+            'J': 12,  # Date de Création
+            'K': 12,  # Statut
+            'L': 15,  # N° Facture
+            'M': 12,  # Date de facture
+            'N': 30   # Notes
         }
         
         for col_letter, width in column_widths.items():
@@ -162,6 +184,10 @@ class ExcelYearlyManager:
                 - statut: status
                 - notes: notes
                 - date_emission: issue date
+                - devise: currency
+                - date_creation: creation date
+                - numero_facture: invoice number
+                - date_facture: invoice date
         """
         try:
             # Parse due date to determine year and month
@@ -179,7 +205,7 @@ class ExcelYearlyManager:
             # Check for existing cheque
             existing_row = self._find_existing_cheque(ws, cheque_data.get('numero'), cheque_data.get('banque'))
             
-            # Prepare row data
+            # Prepare row data - Updated to match new format
             row_data = [
                 cheque_data.get('date_emission', ''),
                 cheque_data.get('type', 'CHQ'),
@@ -188,8 +214,12 @@ class ExcelYearlyManager:
                 cheque_data.get('propriétaire', ''),
                 cheque_data.get('deposant', ''),
                 cheque_data.get('montant', 0),
+                cheque_data.get('devise', 'MAD'),
                 cheque_data.get('echeance_date', ''),
+                cheque_data.get('date_creation', ''),
                 cheque_data.get('statut', 'EN_ATTENTE'),
+                cheque_data.get('numero_facture', ''),
+                cheque_data.get('date_facture', ''),
                 cheque_data.get('notes', '')
             ]
             
@@ -272,8 +302,12 @@ class ExcelYearlyManager:
                 cell.border = thin_border
                 
                 # Format amount column (G) as currency
-                if col == 7:  # Montant column
+                if col == 7:  # Montant column (G)
                     cell.number_format = '#,##0.00'
+                
+                # Center align date and status columns
+                if col in [1, 2, 8, 9, 10, 11, 12, 13]:  # Date and status columns
+                    cell.alignment = Alignment(horizontal="center")
     
     def remove_cheque(self, numero, banque, year=None):
         """
