@@ -33,7 +33,7 @@ This is a Flask-based web application for managing checks and financial transact
 - Built notification system with customizable templates
 - Added automated workflow management and optimization features
 
-### ✓ Replit Environment Migration (July 2025)
+### ✓ Replit Environment Migration (August 2025)
 - Successfully migrated from Replit Agent to standard Replit environment
 - Configured PostgreSQL database integration with SQLite fallback
 - Enhanced security with proper client/server separation
@@ -42,6 +42,15 @@ This is a Flask-based web application for managing checks and financial transact
 - Built executive dashboards with real-time analytics
 - Implemented AI-powered automation and workflow management
 - Added audit logging for compliance and security tracking
+
+### ✓ Deposit Bank Field Enhancement (August 2025)
+- Added new "Banque de dépôts – Agence" field to cheque management system
+- Updated database model with deposit_branch_id foreign key relationship
+- Enhanced ChequeForm with dynamic deposit bank selection dropdown
+- Updated cheque creation/editing templates with new field integration
+- Optimized Excel synchronization to include deposit bank information
+- Created ExcelTracker model for robust sheet/row mapping system
+- Implemented comprehensive optimized sync system preventing duplicate entries
 
 ## User Preferences
 
