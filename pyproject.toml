@@ -35,4 +35,5 @@ dependencies = [
     "celery>=5.5.3",
     "scikit-learn>=1.7.1",
     "phonenumbers>=9.0.10",
+    "pywebview>=5.4",
 ]
