@@ -12,6 +12,18 @@
                 </h5>
             </div>
             <div class="card-body">
+                <!-- Duplicate Warning Alert -->
+                <div id="duplicateAlert" class="alert alert-danger d-none" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span id="duplicateMessage"></span>
+                </div>
+                
+                <!-- Warning Alert for same cheque number in branch -->
+                <div id="warningAlert" class="alert alert-warning d-none" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <span id="warningMessage"></span>
+                </div>
+                
                 <form method="POST" enctype="multipart/form-data" id="chequeForm">
                     {{ form.hidden_tag() }}
                     
@@ -85,7 +97,7 @@
                                     <input type="text" class="form-control" id="clientSearch" 
                                            placeholder="Commencer à taper pour rechercher un client..."
                                            autocomplete="off">
-                                    {{ form.client_id(style="display: none;") }}
+                                    {{ form.client_id(style="display: none;", class="duplicate-check-field") }}
                                     <div id="clientSuggestions" class="dropdown-menu w-100" style="display: none;"></div>
                                 </div>
                                 <div class="mt-2">
@@ -105,7 +117,7 @@
                             <!-- Bank/Branch Selection -->
                             <div class="mb-3">
                                 {{ form.branch_id.label(class="form-label") }}
-                                {{ form.branch_id(class="form-select") }}
+                                {{ form.branch_id(class="form-select duplicate-check-field") }}
                                 {% if form.branch_id.errors %}
                                     <div class="text-danger small mt-1">
                                         {% for error in form.branch_id.errors %}
@@ -174,10 +186,24 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- Cheque Number -->
+                            <!-- Cheque Number with Real-time Validation -->
                             <div class="mb-3">
                                 {{ form.cheque_number.label(class="form-label") }}
-                                {{ form.cheque_number(class="form-control") }}
+                                <div class="input-group">
+                                    {{ form.cheque_number(class="form-control duplicate-check-field", id="cheque_number") }}
+                                    <div class="input-group-text" id="chequeNumberStatus">
+                                        <i class="fas fa-circle text-muted" id="statusIcon"></i>
+                                    </div>
+                                </div>
+                                <div class="form-text">
+                                    <small id="chequeNumberHelp" class="text-muted">
+                                        La vérification des doublons se fait automatiquement
+                                    </small>
+                                </div>
+                                <!-- Add this div for duplicate message -->
+                                <div id="duplicateMessageContainer" class="small mt-1" style="display: none;">
+                                    <span id="duplicateMessageText" class="text-danger"></span>
+                                </div>
                                 {% if form.cheque_number.errors %}
                                     <div class="text-danger small mt-1">
                                         {% for error in form.cheque_number.errors %}
@@ -271,7 +297,7 @@
                         <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Retour
                         </a>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
                             <i class="fas fa-save me-2"></i>Enregistrer
                         </button>
                     </div>
@@ -328,11 +354,175 @@
         </div>
     </div>
 </div>
+
+<!-- Confirmation Modal for Warnings -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    Confirmation requise
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmationMessage"></p>
+                <p class="text-muted small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Cette vérification permet d'éviter les confusions avec des chèques existants.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-warning" id="confirmSubmitBtn">
+                    <i class="fas fa-check me-1"></i>Continuer quand même
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 $(document).ready(function() {
+    let duplicateCheckTimeout;
+    let hasDuplicate = false;
+    let hasWarning = false;
+    let isCheckingDuplicate = false;
+    
+    // Function to check for duplicates
+    // Function to check for duplicates
+function checkDuplicates() {
+    const chequeNumber = $('#cheque_number').val().trim();
+    const branchId = $('#branch_id').val();
+    const clientId = $('#client_id').val();
+    
+    // Clear previous alerts and messages
+    $('#duplicateAlert').addClass('d-none');
+    $('#warningAlert').addClass('d-none');
+    $('#duplicateMessageContainer').hide();
+    hasDuplicate = false;
+    hasWarning = false;
+    
+    // Reset status icon
+    updateStatusIcon('checking');
+    
+    if (!chequeNumber || !branchId || !clientId) {
+        updateStatusIcon('neutral');
+        return;
+    }
+    
+    isCheckingDuplicate = true;
+    
+    const data = {
+        cheque_number: chequeNumber,
+        branch_id: branchId,
+        client_id: clientId
+        {% if cheque is defined %}
+        , exclude_id: {{ cheque.id }}
+        {% endif %}
+    };
+    
+    $.ajax({
+        url: '{{ url_for("cheques.check_duplicate_ajax") }}',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': $('input[name="csrf_token"]').val()
+        },
+        data: JSON.stringify(data)
+    })
+    .done(function(response) {
+        if (response.is_duplicate) {
+            hasDuplicate = true;
+            $('#duplicateMessage').text(response.error_message);
+            $('#duplicateAlert').removeClass('d-none');
+            // Show message below input
+            $('#duplicateMessageText').text(response.error_message);
+            $('#duplicateMessageContainer').show();
+            updateStatusIcon('error');
+            $('#submitBtn').prop('disabled', true);
+        } else if (response.has_warning) {
+            hasWarning = true;
+            $('#warningMessage').text(response.warning_message);
+            $('#warningAlert').removeClass('d-none');
+            // Show message below input for warnings too if you want
+            $('#duplicateMessageText').text(response.warning_message);
+            $('#duplicateMessageContainer').show();
+            updateStatusIcon('warning');
+            $('#submitBtn').prop('disabled', false);
+        } else {
+            updateStatusIcon('success');
+            $('#submitBtn').prop('disabled', false);
+            $('#duplicateMessageContainer').hide();
+        }
+    })
+    .fail(function() {
+        updateStatusIcon('neutral');
+        $('#submitBtn').prop('disabled', false);
+    })
+    .always(function() {
+        isCheckingDuplicate = false;
+    });
+}
+    
+    // Function to update status icon
+    function updateStatusIcon(status) {
+        const icon = $('#statusIcon');
+        icon.removeClass('text-muted text-success text-warning text-danger fa-circle fa-spinner fa-spin fa-check fa-exclamation-triangle fa-times');
+        
+        switch(status) {
+            case 'checking':
+                icon.addClass('fa-spinner fa-spin text-primary');
+                break;
+            case 'success':
+                icon.addClass('fa-check text-success');
+                break;
+            case 'warning':
+                icon.addClass('fa-exclamation-triangle text-warning');
+                break;
+            case 'error':
+                icon.addClass('fa-times text-danger');
+                break;
+            default:
+                icon.addClass('fa-circle text-muted');
+        }
+    }
+    
+    // Debounced duplicate checking
+    $('.duplicate-check-field').on('input change', function() {
+        clearTimeout(duplicateCheckTimeout);
+        duplicateCheckTimeout = setTimeout(checkDuplicates, 500);
+    });
+    
+    // Form submission handling
+    $('#chequeForm').on('submit', function(e) {
+        if (hasDuplicate) {
+            e.preventDefault();
+            return false;
+        }
+        
+        if (hasWarning && !$('#confirmationModal').hasClass('show')) {
+            e.preventDefault();
+            $('#confirmationMessage').text($('#warningMessage').text());
+            $('#confirmationModal').modal('show');
+            return false;
+        }
+        
+        // Allow normal submission
+        return true;
+    });
+    
+    // Confirmation modal submit
+    $('#confirmSubmitBtn').on('click', function() {
+        $('#confirmationModal').modal('hide');
+        // Temporarily bypass warning check
+        hasWarning = false;
+        $('#chequeForm').submit();
+    });
+    
     // Client autocomplete
     let clientTimeout;
     $('#clientSearch').on('input', function() {
@@ -381,7 +571,7 @@ $(document).ready(function() {
         const clientId = $(this).data('id');
         const clientName = $(this).find('strong').text();
         
-        $('#client_id').val(clientId);
+        $('#client_id').val(clientId).trigger('change');
         $('#clientSearch').val(clientName);
         $('#clientSuggestions').hide();
     });
@@ -392,6 +582,22 @@ $(document).ready(function() {
             $('#clientSuggestions').hide();
         }
     });
+    
+    // Status change handling for unpaid reason
+    $('#status').on('change', function() {
+        const status = $(this).val();
+        if (status === 'IMPAYE') {
+            $('#unpaid-reason-div').show();
+        } else {
+            $('#unpaid-reason-div').hide();
+            $('#unpaid_reason').val('');
+        }
+    });
+    
+    // Initialize unpaid reason visibility
+    if ($('#status').val() === 'IMPAYE') {
+        $('#unpaid-reason-div').show();
+    }
     
     // New client modal type change
     $('input[name="type"]').change(function() {
@@ -437,7 +643,7 @@ $(document).ready(function() {
                 text: data.name,
                 selected: true
             });
-            $('#client_id').append(option);
+            $('#client_id').append(option).trigger('change');
             $('#clientSearch').val(data.name);
             
             // Close modal and reset form
@@ -462,7 +668,14 @@ $(document).ready(function() {
     {% if cheque is defined %}
     $('#client_id').val({{ cheque.client_id }});
     $('#clientSearch').val('{{ cheque.client.name }}');
+    // Initial duplicate check for edit mode
+    setTimeout(checkDuplicates, 100);
     {% endif %}
+    
+    // Initial check on page load if all fields are filled
+    if ($('#cheque_number').val() && $('#branch_id').val() && $('#client_id').val()) {
+        setTimeout(checkDuplicates, 100);
+    }
 });
 </script>
 {% endblock %}

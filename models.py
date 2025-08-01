@@ -259,7 +259,7 @@ class Cheque(db.Model):
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False)
     status = db.Column(db.String(20), nullable=False, default='EN ATTENTE')
-    cheque_number = db.Column(db.String(50))
+    cheque_number = db.Column(db.String(50), unique=True, nullable=False)
     scan_path = db.Column(db.String(255))
     invoice_number = db.Column(db.String(50))
     invoice_date = db.Column(db.Date)

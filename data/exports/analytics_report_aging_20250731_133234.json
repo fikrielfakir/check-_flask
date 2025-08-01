@@ -1,0 +1,13 @@
+{
+  "aging_analysis": [
+    {
+      "status": "EN ATTENTE",
+      "avg_days": -76.0,
+      "min_days": -152,
+      "max_days": 0,
+      "total_cheques": 2,
+      "total_amount": 6768.0,
+      "percentage": 100.0
+    }
+  ]
+}
