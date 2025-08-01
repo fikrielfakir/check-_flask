@@ -38,6 +38,7 @@ class ChequeForm(FlaskForm):
     due_date = DateField('Date d\'échéance', validators=[DataRequired()])
     client_id = SelectField('Client', coerce=int, validators=[DataRequired()])
     branch_id = SelectField('Banque/Agence', coerce=int, validators=[DataRequired()])
+    deposit_branch_id = SelectField('Banque de dépôts - Agence', coerce=int, validators=[Optional()])
     status = SelectField('Statut',
                         choices=[
                             ('EN ATTENTE', 'EN ATTENTE'),
@@ -76,6 +77,12 @@ class ChequeForm(FlaskForm):
         ]
         
         # Populate branch choices
-        self.branch_id.choices = [(0, 'Sélectionner une agence...')] + [
+        branch_choices = [(0, 'Sélectionner une agence...')] + [
+            (branch.id, branch.display_name) for branch in Branch.query.join(Bank).order_by(Bank.name, Branch.name).all()
+        ]
+        self.branch_id.choices = branch_choices
+        
+        # Populate deposit branch choices (same as branch choices but optional)
+        self.deposit_branch_id.choices = [(0, 'Sélectionner une banque de dépôts (optionnel)...')] + [
             (branch.id, branch.display_name) for branch in Branch.query.join(Bank).order_by(Bank.name, Branch.name).all()
         ]

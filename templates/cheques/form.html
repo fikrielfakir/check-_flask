@@ -126,6 +126,27 @@
                                     </div>
                                 {% endif %}
                             </div>
+                            
+                            <!-- Deposit Bank/Branch Selection -->
+                            <div class="mb-3">
+                                {{ form.deposit_branch_id.label(class="form-label") }}
+                                {{ form.deposit_branch_id(class="form-select") }}
+                                {% if form.deposit_branch_id.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.deposit_branch_id.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                                {% if form.deposit_branch_id.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.deposit_branch_id.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
                         
                         <!-- Right Column -->

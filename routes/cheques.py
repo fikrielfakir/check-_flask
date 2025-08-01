@@ -199,6 +199,7 @@ def new():
                 due_date=form.due_date.data,
                 client_id=form.client_id.data,
                 branch_id=form.branch_id.data,
+                deposit_branch_id=form.deposit_branch_id.data if form.deposit_branch_id.data and form.deposit_branch_id.data != 0 else None,
                 status=form.status.data,
                 cheque_number=form.cheque_number.data.strip() if form.cheque_number.data else None,
                 invoice_number=form.invoice_number.data,
@@ -285,6 +286,7 @@ def edit(id):
             cheque.due_date = form.due_date.data
             cheque.client_id = form.client_id.data
             cheque.branch_id = form.branch_id.data
+            cheque.deposit_branch_id = form.deposit_branch_id.data if form.deposit_branch_id.data and form.deposit_branch_id.data != 0 else None
             cheque.status = form.status.data
             cheque.cheque_number = form.cheque_number.data.strip() if form.cheque_number.data else None
             cheque.invoice_number = form.invoice_number.data

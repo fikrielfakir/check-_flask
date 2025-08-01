@@ -11,12 +11,13 @@ class ExcelManager:
         self.upload_dir = Path("data/excel")
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         
-        # Excel headers - Updated to match the form fields
+        # Excel headers - Updated to include deposit bank field
         self.headers = [
             "Date d'émission",
             "Type de Règlement", 
             "Numéro du chèque",
             "Banque/Agence",
+            "Banque de dépôts - Agence",
             "Client",
             "Nom du déposant",
             "Montant",
@@ -148,6 +149,7 @@ class ExcelManager:
             cheque.payment_type or 'CHQ',
             cheque.cheque_number or '',
             f"{cheque.branch.bank.name} - {cheque.branch.name}" if cheque.branch else '',
+            f"{cheque.deposit_branch.bank.name} - {cheque.deposit_branch.name}" if cheque.deposit_branch else '',
             cheque.client.name if cheque.client else '',
             cheque.depositor_name or '',
             float(cheque.amount),
@@ -157,7 +159,7 @@ class ExcelManager:
             cheque.status or 'EN ATTENTE',
             cheque.invoice_number or '',
             cheque.invoice_date.strftime('%d/%m/%Y') if cheque.invoice_date else '',
-            cheque.notes or ''
+            cheque.notes or '' ''
         ]
     
     def _write_cheque_row(self, sheet, row_num, data):

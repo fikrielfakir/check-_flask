@@ -88,6 +88,7 @@ class ChequeExcelSync:
             'type': cheque.payment_type or 'CHQ',
             'numero': cheque.cheque_number or '',
             'banque': f"{cheque.branch.bank.name} - {cheque.branch.name}" if cheque.branch else '',
+            'banque_depot': f"{cheque.deposit_branch.bank.name} - {cheque.deposit_branch.name}" if cheque.deposit_branch else '',
             'propriétaire': cheque.client.name if cheque.client else '',
             'deposant': cheque.depositor_name or '',
             'montant': float(cheque.amount),

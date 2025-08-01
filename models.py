@@ -146,8 +146,8 @@ class Branch(db.Model):
     email = db.Column(db.String(120))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationship
-    cheques = db.relationship('Cheque', backref='branch', lazy=True)
+    # Relationships
+    cheques = db.relationship('Cheque', foreign_keys='Cheque.branch_id', backref='branch', lazy=True)
     
     def __repr__(self):
         return f'<Branch {self.bank.name} - {self.name}>'
@@ -258,6 +258,7 @@ class Cheque(db.Model):
     due_date = db.Column(db.Date, nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False)
+    deposit_branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)  # Banque de dépôts - Agence
     status = db.Column(db.String(20), nullable=False, default='EN ATTENTE')
     cheque_number = db.Column(db.String(50), unique=True, nullable=False)
     scan_path = db.Column(db.String(255))
@@ -295,6 +296,7 @@ class Cheque(db.Model):
     
     # Relationships
     status_history = db.relationship('ChequeStatusHistory', backref='cheque', lazy=True)
+    deposit_branch = db.relationship('Branch', foreign_keys=[deposit_branch_id], backref='deposit_cheques')
     
     __table_args__ = (
         CheckConstraint(status.in_(['EN ATTENTE', 'ENCAISSE', 'IMPAYE']), 
@@ -417,6 +419,30 @@ class ChequeStatusHistory(db.Model):
         Index('idx_status_history_cheque', 'cheque_id'),
         Index('idx_status_history_date', 'changed_at'),
     )
+
+# Excel tracking model for optimized synchronization
+class ChequeExcelMapping(db.Model):
+    __tablename__ = 'cheque_excel_mappings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cheque_id = db.Column(db.Integer, db.ForeignKey('cheques.id'), nullable=False, unique=True)
+    excel_file_path = db.Column(db.String(255), nullable=False)
+    sheet_name = db.Column(db.String(50), nullable=False)
+    row_number = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    cheque = db.relationship('Cheque', backref='excel_mapping', lazy=True)
+    
+    __table_args__ = (
+        Index('idx_excel_mapping_cheque', 'cheque_id'),
+        Index('idx_excel_mapping_file', 'excel_file_path'),
+        Index('idx_excel_mapping_sheet', 'sheet_name'),
+    )
+    
+    def __repr__(self):
+        return f'<ChequeExcelMapping cheque_id={self.cheque_id} sheet={self.sheet_name} row={self.row_number}>'
 
 class ClientCommunication(db.Model):
     __tablename__ = 'client_communications'

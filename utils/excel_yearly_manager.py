@@ -205,12 +205,13 @@ class ExcelYearlyManager:
             # Check for existing cheque
             existing_row = self._find_existing_cheque(ws, cheque_data.get('numero'), cheque_data.get('banque'))
             
-            # Prepare row data - Updated to match new format
+            # Prepare row data - Updated to include deposit bank field
             row_data = [
                 cheque_data.get('date_emission', ''),
                 cheque_data.get('type', 'CHQ'),
                 cheque_data.get('numero', ''),
                 cheque_data.get('banque', ''),
+                cheque_data.get('banque_depot', ''),  # New deposit bank field
                 cheque_data.get('propriétaire', ''),
                 cheque_data.get('deposant', ''),
                 cheque_data.get('montant', 0),
