@@ -7,6 +7,8 @@ from app import db
 from datetime import datetime, date
 import os
 from utils.excel_manager import ExcelManager
+from utils.optimized_excel_sync import OptimizedExcelSync
+from pathlib import Path
 
 cheques_bp = Blueprint('cheques', __name__)
 
@@ -106,8 +108,8 @@ def index():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     
-    # Build query
-    query = Cheque.query.join(Client).join(Branch).join(Bank)
+    # Build query with explicit joins to handle multiple foreign keys
+    query = Cheque.query.join(Client).join(Branch, Cheque.branch_id == Branch.id).join(Bank)
     
     if search:
         query = query.filter(
@@ -215,9 +217,10 @@ def new():
             db.session.add(cheque)
             db.session.commit()
             
-            # Automatically update Excel file
-            excel_manager = ExcelManager()
-            excel_sync_success = excel_manager.add_or_update_cheque(cheque)
+            # Automatically update Excel file with optimized sync
+            excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+            optimized_sync = OptimizedExcelSync(excel_folder)
+            excel_sync_success = optimized_sync.sync_cheque(cheque, 'create')
             
             if excel_sync_success:
                 flash('Chèque ajouté avec succès et synchronisé avec Excel!', 'success')
@@ -300,9 +303,10 @@ def edit(id):
             
             db.session.commit()
             
-            # Automatically update Excel file
-            excel_manager = ExcelManager()
-            excel_sync_success = excel_manager.add_or_update_cheque(cheque)
+            # Automatically update Excel file with optimized sync
+            excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+            optimized_sync = OptimizedExcelSync(excel_folder)
+            excel_sync_success = optimized_sync.sync_cheque(cheque, 'update')
             
             if excel_sync_success:
                 flash('Chèque modifié avec succès et synchronisé avec Excel!', 'success')
@@ -334,14 +338,10 @@ def delete(id):
             if os.path.exists(file_path):
                 os.remove(file_path)
         
-        # Remove from Excel before deleting from database
-        excel_manager = ExcelManager()
-        if cheque.cheque_number and cheque.branch:
-            excel_manager.remove_cheque_from_excel(
-                cheque.cheque_number, 
-                cheque.branch.bank.name,
-                cheque.due_date.year
-            )
+        # Remove from Excel before deleting from database with optimized sync
+        excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+        optimized_sync = OptimizedExcelSync(excel_folder)
+        optimized_sync.sync_cheque(cheque, 'delete')
         
         db.session.delete(cheque)
         db.session.commit()

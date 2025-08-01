@@ -1,0 +1,46 @@
+ need to optimize the automatic Excel synchronization feature for my Cheque Management Application with the following requirements:
+
+Create New Cheque:
+
+When a new cheque is created in the application, it should be automatically added to the correct Excel file and sheet (e.g., monthly sheets like January, February, etc.).
+
+The system should record the exact sheet name and row number where this cheque is inserted.
+
+Update Existing Cheque:
+
+When an existing cheque is updated, the system must locate the exact original sheet and row in the Excel file where this cheque was first recorded.
+
+The update must overwrite only that row’s data in the original sheet without moving or duplicating the cheque entry elsewhere.
+
+For example, if a cheque was initially stored in the May sheet, any update to this cheque must reflect in the same May sheet and same row in the Excel file.
+
+Sheet & Row Tracking:
+
+Implement a mechanism to remember and store the mapping between each cheque and its original sheet name and row position for future synchronization.
+
+This mapping must be stored persistently (in a database or metadata file) to ensure updates always sync correctly.
+
+Multi-Sheet Handling:
+
+The Excel workbook contains multiple sheets per month (or other categories). The synchronization must handle all sheets without mixing data.
+
+New cheques should be added to the correct monthly sheet based on the cheque date or category.
+
+Prevent Duplicate Entries:
+
+Ensure that synchronization logic does not create duplicate cheque records in any sheet.
+
+Updates should only modify existing entries.
+
+Real-Time & Batch Sync:
+
+Support both real-time synchronization when a cheque is created or edited, and batch synchronization if multiple changes happen offline or at once.
+
+Error Handling & Data Integrity:
+
+Add error handling to prevent data loss or corruption during synchronization.
+
+Validate cheque data before syncing to Excel.
+
+Goal:
+Build a robust, efficient, and error-free Excel synchronization system that keeps all cheque data perfectly aligned with the original Excel sheets where they were first recorded, maintaining historical accuracy and preventing duplication.
