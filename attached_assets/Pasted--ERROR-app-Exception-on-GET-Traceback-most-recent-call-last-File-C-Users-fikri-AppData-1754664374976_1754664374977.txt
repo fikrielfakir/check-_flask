@@ -1,0 +1,129 @@
+
+ERROR:app:Exception on / [GET]
+Traceback (most recent call last):
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\engine\base.py", line 1963, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\engine\default.py", line 943, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such column: cheques.presentation_date
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\flask_login\utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\fikri\Desktop\check-flask2\check-flask\routes\dashboard.py", line 44, in index
+    ).count()
+      ~~~~~^^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\orm\query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\orm\query.py", line 2835, in scalar
+    ret = self.one()
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\orm\query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+        statement, params or {}, execution_options=execution_options
+    )
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\engine\base.py", line 1415, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\sql\elements.py", line 523, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\engine\base.py", line 1637, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\engine\base.py", line 1842, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\engine\base.py", line 1982, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\engine\base.py", line 2351, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\engine\base.py", line 1963, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\fikri\AppData\Roaming\Python\Python313\site-packages\sqlalchemy\engine\default.py", line 943, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such column: cheques.presentation_date
+[SQL: SELECT count(*) AS count_1
+FROM (SELECT cheques.id AS cheques_id, cheques.amount AS cheques_amount, cheques.currency AS cheques_currency, cheques.issue_date AS cheques_issue_date, cheques.due_date AS cheques_due_date, cheques.client_id AS cheques_client_id, cheques.branch_id AS cheques_branch_id, cheques.deposit_branch_id AS cheques_deposit_branch_id, cheques.status AS cheques_status, cheques.cheque_number AS cheques_cheque_number, cheques.scan_path AS cheques_scan_path, cheques.invoice_number AS cheques_invoice_number, cheques.invoice_date AS cheques_invoice_date, cheques.depositor_name AS cheques_depositor_name, cheques.notes AS cheques_notes, cheques.payment_type AS cheques_payment_type, cheques.created_date AS cheques_created_date, cheques.unpaid_reason AS cheques_unpaid_reason, cheques.created_at AS cheques_created_at, cheques.updated_at AS cheques_updated_at, cheques.assigned_user_id AS cheques_assigned_user_id, cheques.priority AS cheques_priority, cheques.processing_time AS cheques_processing_time, cheques.bounce_reason AS cheques_bounce_reason, cheques.commission_rate AS cheques_commission_rate, cheques.commission_amount AS cheques_commission_amount, cheques.penalty_amount AS cheques_penalty_amount, cheques.deposit_date AS cheques_deposit_date, cheques.clearance_date AS cheques_clearance_date, cheques.rejection_date AS cheques_rejection_date, cheques.ocr_confidence AS cheques_ocr_confidence, cheques.auto_extracted_data AS cheques_auto_extracted_data, cheques.duplicate_detected AS cheques_duplicate_detected, cheques.duplicate_score AS cheques_duplicate_score, cheques.presentation_date AS cheques_presentation_date, cheques.rejection_reason AS cheques_rejection_reason, cheques.rejection_notice_path AS cheques_rejection_notice_path, cheques.retry_count AS cheques_retry_count, cheques.last_retry_date AS cheques_last_retry_date, cheques.next_retry_date AS cheques_next_retry_date, cheques.recovery_method AS cheques_recovery_method, cheques.recovery_date AS cheques_recovery_date, cheques.recovery_amount AS cheques_recovery_amount, cheques.legal_action_initiated AS cheques_legal_action_initiated, cheques.legal_file_reference AS cheques_legal_file_reference, cheques.court_case_reference AS cheques_court_case_reference, cheques.lawyer_name AS cheques_lawyer_name, cheques.legal_notes AS cheques_legal_notes
+FROM cheques
+WHERE cheques.due_date < ? AND cheques.status IN (?)) AS anon_1]
+[parameters: ('2025-08-08', 'EN ATTENTE')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:werkzeug:127.0.0.1 - - [08/Aug/2025 15:45:32] "GET / HTTP/1.1" 500 -
