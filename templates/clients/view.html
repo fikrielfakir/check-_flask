@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Détails Client - {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>
+            <i class="fas {{ 'fa-user' if client.type == 'personne' else 'fa-building' }} me-2"></i>
+            Détails du Client: {{ client.name }}
+        </h1>
+        <div>
+            <a href="{{ url_for('clients.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Retour
+            </a>
+            {% if current_user.role in ['admin', 'comptable', 'agent'] %}
+            <a href="{{ url_for('clients.edit', id=client.id) }}" class="btn btn-primary ms-2">
+                <i class="fas fa-edit me-1"></i> Modifier
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Client Info -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Informations du Client</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Type:</strong> 
+                                <span class="badge bg-{{ 'primary' if client.type == 'personne' else 'info' }}">
+                                    {{ client_types[client.type].display }}
+                                </span>
+                            </p>
+                            
+                            {% if client.id_number %}
+                            <p><strong>{{ client_types[client.type].id_field }}:</strong> {{ client.id_number }}</p>
+                            {% endif %}
+                            
+                            {% if client.vat_number %}
+                            <p><strong>{{ client_types[client.type].vat_field }}:</strong> {{ client.vat_number }}</p>
+                            {% endif %}
+                            
+                            <p><strong>Créé le:</strong> {{ client.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            {% if client.phone %}
+                            <p><strong>Téléphone:</strong> {{ client.phone }}</p>
+                            {% endif %}
+                            
+                            {% if client.email %}
+                            <p><strong>Email:</strong> {{ client.email }}</p>
+                            {% endif %}
+                            
+                            {% if client.address or client.city %}
+                            <p><strong>Adresse:</strong> 
+                                {{ client.address or '' }}<br>
+                                {{ client.city or '' }} {{ client.postal_code or '' }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cheques Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-money-check me-2"></i>
+                        Chèques associés ({{ cheques.total }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if cheques.items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Numéro</th>
+                                    <th>Montant</th>
+                                    <th>Date échéance</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cheque in cheques.items %}
+                                <tr>
+                                    <td>{{ cheque.cheque_number or 'N/A' }}</td>
+                                    <td>{{ "{:,.2f}".format(cheque.amount) }} MAD</td>
+                                    <td>{{ cheque.due_date.strftime('%d/%m/%Y') if cheque.due_date else 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ cheque.status_color }}">
+                                            {{ cheque.status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav aria-label="Cheques pagination">
+                        <ul class="pagination">
+                            {% if cheques.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('clients.view', id=client.id, page=cheques.prev_num) }}">
+                                    Précédent
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in cheques.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=3) %}
+                                {% if page_num %}
+                                    <li class="page-item {{ 'active' if page_num == cheques.page }}">
+                                        <a class="page-link" href="{{ url_for('clients.view', id=client.id, page=page_num) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if cheques.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('clients.view', id=client.id, page=cheques.next_num) }}">
+                                    Suivant
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-money-check fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Aucun chèque associé à ce client</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Stats Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Statistiques
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>Total des chèques</h6>
+                        <p class="fs-4">{{ cheques_query.count() }}</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Montant total</h6>
+                        <p class="fs-4">{{ "{:,.2f}".format(client.total_cheques_amount) }} MAD</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>En attente</h6>
+                        <p class="fs-4">{{ client.pending_cheques_count }}</p>
+                    </div>
+                    
+                    <div>
+                        <h6>Niveau de risque</h6>
+                        <span class="badge bg-{{ 'success' if client.risk_level == 'low' else 'warning' if client.risk_level == 'medium' else 'danger' }}">
+                            {{ client.risk_level|upper }}
+                        </span>
+                        <small class="text-muted d-block mt-1">
+                            Score: {{ client.risk_score|round(1) }}/100
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Card -->
+            {% if current_user.role == 'admin' %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <button class="btn btn-outline-danger w-100 mb-2" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="fas fa-trash me-1"></i> Supprimer
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+{% if current_user.role == 'admin' %}
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Êtes-vous sûr de vouloir supprimer ce client ?
+                {% if not can_delete %}
+                <div class="alert alert-warning mt-2">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Ce client a des associations ({{ reason }})
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{{ url_for('clients.delete', id=client.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-danger" {{ 'disabled' if not can_delete }}>
+                        Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

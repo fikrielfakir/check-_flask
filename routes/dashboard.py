@@ -90,12 +90,16 @@ def index():
     top_clients_amounts = [float(amount) for _, amount in top_clients]
     
     # -------------------------
-    # 6. Bank distribution
+    # 6. Bank distribution (FIXED - specify explicit join conditions)
     # -------------------------
     bank_data = db.session.query(
         Bank.name,
         func.count(Cheque.id).label('cheque_count')
-    ).select_from(Bank).join(Branch).join(Cheque).group_by(Bank.id, Bank.name).order_by(
+    ).join(
+        Branch, Bank.id == Branch.bank_id
+    ).join(
+        Cheque, Branch.id == Cheque.branch_id  # Specify which foreign key to use
+    ).group_by(Bank.id, Bank.name).order_by(
         func.count(Cheque.id).desc()
     ).all()
     
@@ -126,16 +130,28 @@ def index():
         })
     
     # -------------------------
-    # 8. Recent cheques
+    # 8. Recent cheques (FIXED - use explicit joins for better performance)
     # -------------------------
-    recent_cheques = Cheque.query.order_by(
+    recent_cheques = db.session.query(Cheque).join(
+        Client, Cheque.client_id == Client.id
+    ).join(
+        Branch, Cheque.branch_id == Branch.id
+    ).join(
+        Bank, Branch.bank_id == Bank.id
+    ).order_by(
         Cheque.created_at.desc()
     ).limit(15).all()
     
     # -------------------------
-    # 9. Alert cheques (overdue or due soon)
+    # 9. Alert cheques (overdue or due soon) - FIXED
     # -------------------------
-    alert_cheques = Cheque.query.filter(
+    alert_cheques = db.session.query(Cheque).join(
+        Client, Cheque.client_id == Client.id
+    ).join(
+        Branch, Cheque.branch_id == Branch.id
+    ).join(
+        Bank, Branch.bank_id == Bank.id
+    ).filter(
         or_(
             and_(Cheque.due_date < today, Cheque.status == 'EN ATTENTE'),
             and_(

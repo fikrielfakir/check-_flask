@@ -12,6 +12,7 @@ from io import StringIO
 from datetime import datetime
 from functools import wraps
 import time
+from models import Client, Cheque  # Make sure Cheque is imported
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -231,57 +232,8 @@ class ClientService:
         except Exception as e:
             logger.error(f"Unexpected error checking duplicate client: {e}")
             return "Erreur inattendue lors de la vérification"
-    
-    @staticmethod
-    @monitor_performance
-    def safe_check_client_relationships(client):
-        """
-        Safely check if a client has any related records that would prevent deletion
-        Returns (can_delete: bool, reason: str, related_count: dict)
-        """
-        try:
-            issues = []
-            related_counts = {}
-            
-            # Check cheques with error handling
-            if hasattr(client, 'cheques'):
-                try:
-                    cheques_count = db.session.query(func.count()).select_from(
-                        text('cheques')
-                    ).filter(text('client_id = :client_id')).params(
-                        client_id=client.id
-                    ).scalar() or 0
-                    
-                    related_counts['cheques'] = cheques_count
-                    if cheques_count > 0:
-                        issues.append(f"{cheques_count} chèque(s)")
-                except Exception as e:
-                    logger.warning(f"Error checking cheques for client {client.id}: {e}")
-                    issues.append("chèques (vérification impossible)")
-                    related_counts['cheques'] = 'unknown'
-            
-            # Add other relationship checks here
-            # Example for invoices:
-            # if hasattr(client, 'invoices'):
-            #     try:
-            #         invoices_count = client.invoices.count()
-            #         related_counts['invoices'] = invoices_count
-            #         if invoices_count > 0:
-            #             issues.append(f"{invoices_count} facture(s)")
-            #     except Exception as e:
-            #         logger.warning(f"Error checking invoices for client {client.id}: {e}")
-            #         issues.append("factures (vérification impossible)")
-            #         related_counts['invoices'] = 'unknown'
-            
-            if issues:
-                return False, f"Client associé à: {', '.join(issues)}", related_counts
-            
-            return True, "", related_counts
-            
-        except Exception as e:
-            logger.error(f"Error checking client relationships for {client.id}: {e}")
             return False, "Erreur lors de la vérification des associations", {}
-    
+
     @staticmethod
     @monitor_performance
     def create_client(data):
@@ -506,7 +458,6 @@ def edit(id):
                          title='Modifier Client', 
                          client=client,
                          client_types=CLIENT_TYPES)
-
 @clients_bp.route('/<int:id>/view')
 @login_required
 @monitor_performance
@@ -521,23 +472,24 @@ def view(id):
         
         # Get client's cheques with optimized query
         cheques = None
-        if hasattr(client, 'cheques'):
-            try:
-                cheques = client.cheques.order_by(text('created_at DESC')).paginate(
-                    page=page, per_page=per_page, error_out=False
-                )
-            except Exception as e:
-                logger.warning(f"Error loading cheques for client {id}: {e}")
+        try:
+            # Correct way to query related cheques with ordering
+            cheques = Cheque.query.filter_by(client_id=client.id)\
+                                 .order_by(Cheque.created_at.desc())\
+                                 .paginate(page=page, per_page=per_page, error_out=False)
+        except Exception as e:
+            logger.warning(f"Error loading cheques for client {id}: {e}")
+            flash("Erreur lors du chargement des chèques associés", "warning")
         
         # Get relationship summary
         can_delete, reason, related_counts = ClientService.safe_check_client_relationships(client)
         
         return render_template('clients/view.html', 
-                             client=client, 
-                             cheques=cheques,
-                             can_delete=can_delete,
-                             related_counts=related_counts,
-                             client_types=CLIENT_TYPES)
+                            client=client, 
+                            cheques=cheques,
+                            can_delete=can_delete,
+                            related_counts=related_counts,
+                            client_types=CLIENT_TYPES)
         
     except Exception as e:
         logger.error(f"Error viewing client {id}: {e}")

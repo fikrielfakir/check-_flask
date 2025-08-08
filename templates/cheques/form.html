@@ -3,327 +3,296 @@
 {% block title %}{{ title }} - Gestion des Chèques{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-10">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-money-check me-2"></i>{{ title }}
-                </h5>
+<div class="container">
+    <div class="form-card">
+        <div class="form-header">
+            <h1><i class="fas fa-money-check me-2"></i>{{ title }}</h1>
+            <p>Gestion complète des chèques clients</p>
+        </div>
+        
+        <div class="form-body">
+            <!-- Alerts -->
+            <div id="duplicateAlert" class="alert alert-danger d-none">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="duplicateMessage"></span>
             </div>
-            <div class="card-body">
-                <!-- Duplicate Warning Alert -->
-                <div id="duplicateAlert" class="alert alert-danger d-none" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <span id="duplicateMessage"></span>
-                </div>
+            
+            <div id="warningAlert" class="alert alert-warning d-none">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="warningMessage"></span>
+            </div>
+            
+            <form method="POST" enctype="multipart/form-data" id="chequeForm">
+                {{ form.hidden_tag() }}
                 
-                <!-- Warning Alert for same cheque number in branch -->
-                <div id="warningAlert" class="alert alert-warning d-none" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i>
-                    <span id="warningMessage"></span>
-                </div>
-                
-                <form method="POST" enctype="multipart/form-data" id="chequeForm">
-                    {{ form.hidden_tag() }}
-                    
-                    <div class="row">
-                        <!-- Left Column -->
-                        <div class="col-md-6">
-                            <!-- Amount and Currency -->
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <div class="mb-3">
-                                        {{ form.amount.label(class="form-label") }}
-                                        {{ form.amount(class="form-control", step="0.01") }}
-                                        {% if form.amount.errors %}
-                                            <div class="text-danger small mt-1">
-                                                {% for error in form.amount.errors %}
-                                                    <div>{{ error }}</div>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
+                <div class="form-grid">
+                    <!-- Left Column -->
+                    <div class="form-section">
+                        <h3 class="section-title"><i class="fas fa-money-bill-wave"></i> Montant et dates</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                {{ form.amount.label }}
+                                <div class="input-with-icon">
+                                    {{ form.amount(class="form-control", step="0.01") }}
+                                    <span class="input-icon">MAD</span>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        {{ form.currency.label(class="form-label") }}
-                                        {{ form.currency(class="form-select") }}
-                                        {% if form.currency.errors %}
-                                            <div class="text-danger small mt-1">
-                                                {% for error in form.currency.errors %}
-                                                    <div>{{ error }}</div>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Dates -->
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        {{ form.issue_date.label(class="form-label") }}
-                                        {{ form.issue_date(class="form-control") }}
-                                        {% if form.issue_date.errors %}
-                                            <div class="text-danger small mt-1">
-                                                {% for error in form.issue_date.errors %}
-                                                    <div>{{ error }}</div>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        {{ form.due_date.label(class="form-label") }}
-                                        {{ form.due_date(class="form-control") }}
-                                        {% if form.due_date.errors %}
-                                            <div class="text-danger small mt-1">
-                                                {% for error in form.due_date.errors %}
-                                                    <div>{{ error }}</div>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Client Selection with Autocomplete -->
-                            <div class="mb-3">
-                                {{ form.client_id.label(class="form-label") }}
-                                <div class="position-relative">
-                                    <input type="text" class="form-control" id="clientSearch" 
-                                           placeholder="Commencer à taper pour rechercher un client..."
-                                           autocomplete="off">
-                                    {{ form.client_id(style="display: none;", class="duplicate-check-field") }}
-                                    <div id="clientSuggestions" class="dropdown-menu w-100" style="display: none;"></div>
-                                </div>
-                                <div class="mt-2">
-                                    <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#newClientModal">
-                                        <i class="fas fa-user-plus me-1"></i>Nouveau Client
-                                    </button>
-                                </div>
-                                {% if form.client_id.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.client_id.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
+                                {% if form.amount.errors %}
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        {{ form.amount.errors[0] }}
                                     </div>
                                 {% endif %}
                             </div>
                             
-                            <!-- Bank/Branch Selection -->
-                            <div class="mb-3">
-                                {{ form.branch_id.label(class="form-label") }}
-                                {{ form.branch_id(class="form-select duplicate-check-field") }}
-                                {% if form.branch_id.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.branch_id.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Deposit Bank/Branch Selection -->
-                            <div class="mb-3">
-                                {{ form.deposit_branch_id.label(class="form-label") }}
-                                {{ form.deposit_branch_id(class="form-select") }}
-                                {% if form.deposit_branch_id.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.deposit_branch_id.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                                {% if form.deposit_branch_id.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.deposit_branch_id.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
+                            <div class="form-group">
+                                {{ form.currency.label }}
+                                {{ form.currency(class="form-select") }}
+                                {% if form.currency.errors %}
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        {{ form.currency.errors[0] }}
                                     </div>
                                 {% endif %}
                             </div>
                         </div>
                         
-                        <!-- Right Column -->
-                        <div class="col-md-6">
-                            <!-- Payment Type -->
-                            <div class="mb-3">
-                                {{ form.payment_type.label(class="form-label") }}
-                                {{ form.payment_type(class="form-select") }}
-                                {% if form.payment_type.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.payment_type.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
+                        <div class="form-row equal">
+                            <div class="form-group">
+                                {{ form.issue_date.label }}
+                                {{ form.issue_date(class="form-control") }}
+                                {% if form.issue_date.errors %}
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        {{ form.issue_date.errors[0] }}
                                     </div>
                                 {% endif %}
                             </div>
                             
-                            <!-- Created Date -->
-                            <div class="mb-3">
-                                {{ form.created_date.label(class="form-label") }}
-                                {{ form.created_date(class="form-control") }}
-                                {% if form.created_date.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.created_date.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
+                            <div class="form-group">
+                                {{ form.due_date.label }}
+                                {{ form.due_date(class="form-control") }}
+                                {% if form.due_date.errors %}
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        {{ form.due_date.errors[0] }}
                                     </div>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Status -->
-                            <div class="mb-3">
-                                {{ form.status.label(class="form-label") }}
-                                {{ form.status(class="form-select", id="status") }}
-                                {% if form.status.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.status.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                <div class="form-text">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Les modifications seront automatiquement synchronisées avec Excel
-                                </div>
-                            </div>
-                            
-                            <!-- Unpaid Reason (show only if status is IMPAYE) -->
-                            <div class="mb-3" id="unpaid-reason-div" style="display: none;">
-                                {{ form.unpaid_reason.label(class="form-label") }}
-                                {{ form.unpaid_reason(class="form-control", rows="3") }}
-                                {% if form.unpaid_reason.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.unpaid_reason.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Cheque Number with Real-time Validation -->
-                            <div class="mb-3">
-                                {{ form.cheque_number.label(class="form-label") }}
-                                <div class="input-group">
-                                    {{ form.cheque_number(class="form-control duplicate-check-field", id="cheque_number") }}
-                                    <div class="input-group-text" id="chequeNumberStatus">
-                                        <i class="fas fa-circle text-muted" id="statusIcon"></i>
-                                    </div>
-                                </div>
-                                <div class="form-text">
-                                    <small id="chequeNumberHelp" class="text-muted">
-                                        La vérification des doublons se fait automatiquement
-                                    </small>
-                                </div>
-                                <!-- Add this div for duplicate message -->
-                                <div id="duplicateMessageContainer" class="small mt-1" style="display: none;">
-                                    <span id="duplicateMessageText" class="text-danger"></span>
-                                </div>
-                                {% if form.cheque_number.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.cheque_number.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Depositor Name -->
-                            <div class="mb-3">
-                                {{ form.depositor_name.label(class="form-label") }}
-                                {{ form.depositor_name(class="form-control") }}
-                                {% if form.depositor_name.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.depositor_name.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Invoice Info -->
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        {{ form.invoice_number.label(class="form-label") }}
-                                        {{ form.invoice_number(class="form-control") }}
-                                        {% if form.invoice_number.errors %}
-                                            <div class="text-danger small mt-1">
-                                                {% for error in form.invoice_number.errors %}
-                                                    <div>{{ error }}</div>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        {{ form.invoice_date.label(class="form-label") }}
-                                        {{ form.invoice_date(class="form-control") }}
-                                        {% if form.invoice_date.errors %}
-                                            <div class="text-danger small mt-1">
-                                                {% for error in form.invoice_date.errors %}
-                                                    <div>{{ error }}</div>
-                                                {% endfor %}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- File Upload -->
-                            <div class="mb-3">
-                                {{ form.scan.label(class="form-label") }}
-                                {{ form.scan(class="form-control") }}
-                                {% if form.scan.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.scan.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                <div class="form-text">Formats acceptés: JPG, PNG, PDF (Max: 16MB)</div>
-                                {% if cheque is defined and cheque.scan_path %}
-                                <div class="mt-2">
-                                    <a href="{{ url_for('static', filename='uploads/' + cheque.scan_path) }}" 
-                                       target="_blank" class="btn btn-sm btn-outline-info">
-                                        <i class="fas fa-eye me-1"></i>Voir le scan actuel
-                                    </a>
-                                </div>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Notes -->
-                    <div class="mb-3">
-                        {{ form.notes.label(class="form-label") }}
-                        {{ form.notes(class="form-control", rows="3") }}
-                        {% if form.notes.errors %}
-                            <div class="text-danger small mt-1">
-                                {% for error in form.notes.errors %}
-                                    <div>{{ error }}</div>
-                                {% endfor %}
+                    <!-- Right Column -->
+                    <div class="form-section">
+                        <h3 class="section-title"><i class="fas fa-info-circle"></i> Informations chèque</h3>
+                        
+                        <div class="form-group">
+                            {{ form.payment_type.label }}
+                            {{ form.payment_type(class="form-select") }}
+                            {% if form.payment_type.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.payment_type.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.status.label }}
+                            {{ form.status(class="form-select", id="status") }}
+                            {% if form.status.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.status.errors[0] }}
+                                </div>
+                            {% endif %}
+                            <div class="form-help">
+                                <i class="fas fa-info-circle"></i>
+                                Les modifications seront automatiquement synchronisées avec Excel
                             </div>
-                        {% endif %}
+                        </div>
+                        
+                        <div class="form-group" id="unpaid-reason-div" style="display: none;">
+                            {{ form.unpaid_reason.label }}
+                            {{ form.unpaid_reason(class="form-control", rows="3") }}
+                            {% if form.unpaid_reason.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.unpaid_reason.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
                     
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-2"></i>Retour
-                        </a>
-                        <button type="submit" class="btn btn-primary" id="submitBtn">
-                            <i class="fas fa-save me-2"></i>Enregistrer
-                        </button>
+                    <!-- Middle Column -->
+                    <div class="form-section">
+                        <h3 class="section-title"><i class="fas fa-user-tie"></i> Client</h3>
+                        
+                        <div class="form-group">
+                            {{ form.client_id.label }}
+                            <div class="client-search-container">
+                                <input type="text" class="form-control" id="clientSearch" 
+                                       placeholder="Rechercher un client...">
+                                {{ form.client_id(style="display: none;", class="duplicate-check-field") }}
+                                <div id="clientSuggestions" class="suggestions-dropdown" style="display: none;"></div>
+                            </div>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-outline btn-sm" data-bs-toggle="modal" data-bs-target="#newClientModal">
+                                    <i class="fas fa-user-plus"></i> Nouveau Client
+                                </button>
+                            </div>
+                            {% if form.client_id.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.client_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.depositor_name.label }}
+                            {{ form.depositor_name(class="form-control") }}
+                            {% if form.depositor_name.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.depositor_name.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
-                </form>
-            </div>
+                    
+                    <!-- Fourth Column -->
+                    <div class="form-section">
+                        <h3 class="section-title"><i class="fas fa-university"></i> Banque</h3>
+                        
+                        <div class="form-group">
+                            {{ form.branch_id.label }}
+                            {{ form.branch_id(class="form-select duplicate-check-field") }}
+                            {% if form.branch_id.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.branch_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.deposit_branch_id.label }}
+                            {{ form.deposit_branch_id(class="form-select") }}
+                            {% if form.deposit_branch_id.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.deposit_branch_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.cheque_number.label }}
+                            <div class="input-with-icon">
+                                {{ form.cheque_number(class="form-control duplicate-check-field", id="cheque_number") }}
+                                <span class="input-icon status-icon" id="statusIcon">
+                                    <i class="fas fa-circle text-muted"></i>
+                                </span>
+                            </div>
+                            <div class="form-help">
+                                La vérification des doublons se fait automatiquement
+                            </div>
+                            <div id="duplicateMessageContainer" class="duplicate-message" style="display: none;">
+                                <span id="duplicateMessageText"></span>
+                            </div>
+                            {% if form.cheque_number.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.cheque_number.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Invoice Section -->
+                    <div class="form-section">
+                        <h3 class="section-title"><i class="fas fa-file-invoice"></i> Facture</h3>
+                        
+                        <div class="form-row equal">
+                            <div class="form-group">
+                                {{ form.invoice_number.label }}
+                                {{ form.invoice_number(class="form-control") }}
+                                {% if form.invoice_number.errors %}
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        {{ form.invoice_number.errors[0] }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                {{ form.invoice_date.label }}
+                                {{ form.invoice_date(class="form-control") }}
+                                {% if form.invoice_date.errors %}
+                                    <div class="error-message">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        {{ form.invoice_date.errors[0] }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- File Upload Section -->
+                    <div class="form-section">
+                        <h3 class="section-title"><i class="fas fa-file-upload"></i> Scan du chèque</h3>
+                        
+                        <div class="form-group">
+                            <div class="file-upload-area">
+                                {{ form.scan(class="form-control") }}
+                                <div class="mt-2">
+                                    <i class="fas fa-cloud-upload-alt fa-2x"></i>
+                                    <p>Glissez-déposez votre fichier ou cliquez pour sélectionner</p>
+                                    <small class="text-muted">Formats acceptés: JPG, PNG, PDF (Max: 16MB)</small>
+                                </div>
+                            </div>
+                            {% if form.scan.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.scan.errors[0] }}
+                                </div>
+                            {% endif %}
+                            {% if cheque is defined and cheque.scan_path %}
+                            <div class="mt-2">
+                                <a href="{{ url_for('static', filename='uploads/' + cheque.scan_path) }}" 
+                                   target="_blank" class="btn btn-outline btn-sm">
+                                    <i class="fas fa-eye"></i> Voir le scan actuel
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Notes Section -->
+                    <div class="notes-section">
+                        <div class="form-group">
+                            {{ form.notes.label }}
+                            {{ form.notes(class="form-control", rows="3") }}
+                            {% if form.notes.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.notes.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Retour
+                    </a>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -338,31 +307,31 @@
             </div>
             <div class="modal-body">
                 <form id="newClientForm">
-                    <div class="mb-3">
+                    <div class="form-group">
                         <label class="form-label">Type de client</label>
-                        <div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="type" id="typePersonne" value="personne" checked>
-                                <label class="form-check-label" for="typePersonne">Personne physique</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="type" id="typeEntreprise" value="entreprise">
-                                <label class="form-check-label" for="typeEntreprise">Entreprise</label>
-                            </div>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="type" value="personne" checked>
+                                Personne physique
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="type" value="entreprise">
+                                Entreprise
+                            </label>
                         </div>
                     </div>
                     
-                    <div class="mb-3">
+                    <div class="form-group">
                         <label for="clientName" class="form-label" id="clientNameLabel">Nom et prénom</label>
                         <input type="text" class="form-control" id="clientName" name="name" required>
                     </div>
                     
-                    <div class="mb-3">
+                    <div class="form-group">
                         <label for="clientIdNumber" class="form-label" id="clientIdLabel">CIN</label>
                         <input type="text" class="form-control" id="clientIdNumber" name="id_number">
                     </div>
                     
-                    <div class="mb-3">
+                    <div class="form-group">
                         <label for="clientVatNumber" class="form-label" id="clientVatLabel">IF</label>
                         <input type="text" class="form-control" id="clientVatNumber" name="vat_number">
                     </div>
@@ -376,7 +345,7 @@
     </div>
 </div>
 
-<!-- Confirmation Modal for Warnings -->
+<!-- Confirmation Modal -->
 <div class="modal fade" id="confirmationModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -414,84 +383,81 @@ $(document).ready(function() {
     let isCheckingDuplicate = false;
     
     // Function to check for duplicates
-    // Function to check for duplicates
-function checkDuplicates() {
-    const chequeNumber = $('#cheque_number').val().trim();
-    const branchId = $('#branch_id').val();
-    const clientId = $('#client_id').val();
-    
-    // Clear previous alerts and messages
-    $('#duplicateAlert').addClass('d-none');
-    $('#warningAlert').addClass('d-none');
-    $('#duplicateMessageContainer').hide();
-    hasDuplicate = false;
-    hasWarning = false;
-    
-    // Reset status icon
-    updateStatusIcon('checking');
-    
-    if (!chequeNumber || !branchId || !clientId) {
-        updateStatusIcon('neutral');
-        return;
-    }
-    
-    isCheckingDuplicate = true;
-    
-    const data = {
-        cheque_number: chequeNumber,
-        branch_id: branchId,
-        client_id: clientId
-        {% if cheque is defined %}
-        , exclude_id: {{ cheque.id }}
-        {% endif %}
-    };
-    
-    $.ajax({
-        url: '{{ url_for("cheques.check_duplicate_ajax") }}',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': $('input[name="csrf_token"]').val()
-        },
-        data: JSON.stringify(data)
-    })
-    .done(function(response) {
-        if (response.is_duplicate) {
-            hasDuplicate = true;
-            $('#duplicateMessage').text(response.error_message);
-            $('#duplicateAlert').removeClass('d-none');
-            // Show message below input
-            $('#duplicateMessageText').text(response.error_message);
-            $('#duplicateMessageContainer').show();
-            updateStatusIcon('error');
-            $('#submitBtn').prop('disabled', true);
-        } else if (response.has_warning) {
-            hasWarning = true;
-            $('#warningMessage').text(response.warning_message);
-            $('#warningAlert').removeClass('d-none');
-            // Show message below input for warnings too if you want
-            $('#duplicateMessageText').text(response.warning_message);
-            $('#duplicateMessageContainer').show();
-            updateStatusIcon('warning');
-            $('#submitBtn').prop('disabled', false);
-        } else {
-            updateStatusIcon('success');
-            $('#submitBtn').prop('disabled', false);
-            $('#duplicateMessageContainer').hide();
+    function checkDuplicates() {
+        const chequeNumber = $('#cheque_number').val().trim();
+        const branchId = $('#branch_id').val();
+        const clientId = $('#client_id').val();
+        
+        // Clear previous alerts and messages
+        $('#duplicateAlert').addClass('d-none');
+        $('#warningAlert').addClass('d-none');
+        $('#duplicateMessageContainer').hide();
+        hasDuplicate = false;
+        hasWarning = false;
+        
+        // Reset status icon
+        updateStatusIcon('checking');
+        
+        if (!chequeNumber || !branchId || !clientId) {
+            updateStatusIcon('neutral');
+            return;
         }
-    })
-    .fail(function() {
-        updateStatusIcon('neutral');
-        $('#submitBtn').prop('disabled', false);
-    })
-    .always(function() {
-        isCheckingDuplicate = false;
-    });
-}
+        
+        isCheckingDuplicate = true;
+        
+        const data = {
+            cheque_number: chequeNumber,
+            branch_id: branchId,
+            client_id: clientId
+            {% if cheque is defined %}
+            , exclude_id: {{ cheque.id }}
+            {% endif %}
+        };
+        
+        $.ajax({
+            url: '{{ url_for("cheques.check_duplicate_ajax") }}',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': $('input[name="csrf_token"]').val()
+            },
+            data: JSON.stringify(data)
+        })
+        .done(function(response) {
+            if (response.is_duplicate) {
+                hasDuplicate = true;
+                $('#duplicateMessage').text(response.error_message);
+                $('#duplicateAlert').removeClass('d-none');
+                $('#duplicateMessageText').text(response.error_message);
+                $('#duplicateMessageContainer').show();
+                updateStatusIcon('error');
+                $('#submitBtn').prop('disabled', true);
+            } else if (response.has_warning) {
+                hasWarning = true;
+                $('#warningMessage').text(response.warning_message);
+                $('#warningAlert').removeClass('d-none');
+                $('#duplicateMessageText').text(response.warning_message);
+                $('#duplicateMessageContainer').show();
+                updateStatusIcon('warning');
+                $('#submitBtn').prop('disabled', false);
+            } else {
+                updateStatusIcon('success');
+                $('#submitBtn').prop('disabled', false);
+                $('#duplicateMessageContainer').hide();
+            }
+        })
+        .fail(function() {
+            updateStatusIcon('neutral');
+            $('#submitBtn').prop('disabled', false);
+        })
+        .always(function() {
+            isCheckingDuplicate = false;
+        });
+    }
     
     // Function to update status icon
     function updateStatusIcon(status) {
-        const icon = $('#statusIcon');
+        const icon = $('#statusIcon i');
         icon.removeClass('text-muted text-success text-warning text-danger fa-circle fa-spinner fa-spin fa-check fa-exclamation-triangle fa-times');
         
         switch(status) {
@@ -532,14 +498,12 @@ function checkDuplicates() {
             return false;
         }
         
-        // Allow normal submission
         return true;
     });
     
     // Confirmation modal submit
     $('#confirmSubmitBtn').on('click', function() {
         $('#confirmationModal').modal('hide');
-        // Temporarily bypass warning check
         hasWarning = false;
         $('#chequeForm').submit();
     });
@@ -565,16 +529,14 @@ function checkDuplicates() {
                     if (data.length > 0) {
                         data.forEach(function(client) {
                             const item = $(`
-                                <a class="dropdown-item client-suggestion" href="#" data-id="${client.id}">
-                                    <div>
-                                        <strong>${client.name}</strong>
-                                        <br>
-                                        <small class="text-muted">
-                                            ${client.type === 'personne' ? 'Personne' : 'Entreprise'}
-                                            ${client.id_number ? ' - ' + client.id_number : ''}
-                                        </small>
-                                    </div>
-                                </a>
+                                <div class="suggestion-item" data-id="${client.id}">
+                                    <strong>${client.name}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        ${client.type === 'personne' ? 'Personne' : 'Entreprise'}
+                                        ${client.id_number ? ' - ' + client.id_number : ''}
+                                    </small>
+                                </div>
                             `);
                             suggestions.append(item);
                         });
@@ -587,7 +549,7 @@ function checkDuplicates() {
     });
     
     // Handle client selection
-    $(document).on('click', '.client-suggestion', function(e) {
+    $(document).on('click', '.suggestion-item', function(e) {
         e.preventDefault();
         const clientId = $(this).data('id');
         const clientName = $(this).find('strong').text();
@@ -658,7 +620,6 @@ function checkDuplicates() {
             data: JSON.stringify(formData)
         })
         .done(function(data) {
-            // Add to form
             const option = $('<option>', {
                 value: data.id,
                 text: data.name,
@@ -667,12 +628,19 @@ function checkDuplicates() {
             $('#client_id').append(option).trigger('change');
             $('#clientSearch').val(data.name);
             
-            // Close modal and reset form
             $('#newClientModal').modal('hide');
             $('#newClientForm')[0].reset();
             $('input[name="type"][value="personne"]').prop('checked', true);
             
-            alert('Client créé avec succès!');
+            // Show success notification
+            const successAlert = $(`
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    Client créé avec succès!
+                </div>
+            `);
+            $('.form-body').prepend(successAlert);
+            setTimeout(() => successAlert.fadeOut(), 3000);
         })
         .fail(function(xhr) {
             const error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur lors de la création du client';
@@ -685,15 +653,32 @@ function checkDuplicates() {
         $('#issue_date').val(new Date().toISOString().split('T')[0]);
     }
     
-    // Preselect client if editing
+    // File upload drag and drop
+    const fileUploadArea = $('.file-upload-area');
+    const fileInput = $('.file-upload-area input[type="file"]');
+    
+    fileUploadArea.on('dragover', function(e) {
+        e.preventDefault();
+        fileUploadArea.addClass('dragover');
+    });
+    
+    fileUploadArea.on('dragleave', function() {
+        fileUploadArea.removeClass('dragover');
+    });
+    
+    fileUploadArea.on('drop', function(e) {
+        e.preventDefault();
+        fileUploadArea.removeClass('dragover');
+        fileInput[0].files = e.originalEvent.dataTransfer.files;
+    });
+    
+    // Initial checks
     {% if cheque is defined %}
     $('#client_id').val({{ cheque.client_id }});
     $('#clientSearch').val('{{ cheque.client.name }}');
-    // Initial duplicate check for edit mode
     setTimeout(checkDuplicates, 100);
     {% endif %}
     
-    // Initial check on page load if all fields are filled
     if ($('#cheque_number').val() && $('#branch_id').val() && $('#client_id').val()) {
         setTimeout(checkDuplicates, 100);
     }

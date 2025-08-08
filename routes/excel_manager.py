@@ -345,27 +345,40 @@ def cleanup_excel_files():
         logging.error(f"Error during cleanup: {str(e)}")
         flash(f'Erreur lors du nettoyage: {str(e)}', 'error')
         return redirect(url_for('excel_manager.excel_dashboard'))
-
 @excel_manager_bp.route('/excel/open_folder')
 @login_required
 def open_excel_folder():
-    """Open Excel folder in file explorer (Windows)"""
+    """Open Excel folder in file explorer (cross-platform)"""
     try:
-        excel_dir = current_app.config['EXCEL_FOLDER']
+        excel_dir = os.path.abspath(current_app.config['EXCEL_FOLDER'])
         
-        # For Windows
-        import subprocess
+        # Create directory if it doesn't exist
+        os.makedirs(excel_dir, exist_ok=True)
+        
+        # Cross-platform folder opening
         import platform
+        import subprocess
+        import webbrowser
         
         if platform.system() == 'Windows':
-            subprocess.run(['explorer', excel_dir], check=True)
-            flash('Dossier Excel ouvert dans l\'explorateur.', 'success')
-        else:
-            flash('Fonctionnalité disponible uniquement sous Windows.', 'warning')
+            try:
+                # Try using explorer first
+                subprocess.run(['explorer', excel_dir], check=True)
+            except subprocess.CalledProcessError:
+                # Fallback to webbrowser if explorer fails
+                webbrowser.open(f"file://{excel_dir}")
+        elif platform.system() == 'Darwin':  # macOS
+            subprocess.run(['open', excel_dir], check=True)
+        else:  # Linux and others
+            try:
+                subprocess.run(['xdg-open', excel_dir], check=True)
+            except FileNotFoundError:
+                webbrowser.open(f"file://{excel_dir}")
         
+        flash('Dossier Excel ouvert avec succès', 'success')
         return redirect(url_for('excel_manager.excel_dashboard'))
     
     except Exception as e:
-        logging.error(f"Error opening folder: {str(e)}")
-        flash(f'Erreur lors de l\'ouverture du dossier: {str(e)}', 'error')
+        current_app.logger.error(f"Error opening Excel folder: {str(e)}", exc_info=True)
+        flash(f'Erreur lors de l\'ouverture du dossier Excel: {str(e)}', 'error')
         return redirect(url_for('excel_manager.excel_dashboard'))

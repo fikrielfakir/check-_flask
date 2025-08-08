@@ -9,6 +9,7 @@ import os
 from utils.excel_manager import ExcelManager
 from utils.optimized_excel_sync import OptimizedExcelSync
 from pathlib import Path
+from models import ChequeStatusHistory  # Add this import
 
 cheques_bp = Blueprint('cheques', __name__)
 
@@ -358,43 +359,73 @@ def delete(id):
 @login_required
 def update_status(id):
     if not check_access():
+        flash('Accès non autorisé', 'danger')
         return redirect(url_for('cheques.index'))
 
-    cheque = Cheque.query.get_or_404(id)
-    new_status = request.form.get('status')
-
-    current_app.logger.info(f"Submitted status: {new_status}")
-
-    # Normalization map
-    status_map = {
-        'en_attente': 'EN ATTENTE',
-        'encaisse': 'ENCAISSE',
-        'impaye': 'IMPAYE'
-    }
-
-    # Normalize status input
-    normalized_status = status_map.get(new_status.strip().lower()) if new_status else None
-
-    if normalized_status:
-        try:
-            cheque.status = normalized_status
-            cheque.updated_at = datetime.utcnow()
-            db.session.commit()
-
-            # Automatically update Excel file
-            excel_manager = ExcelManager()
-            excel_sync_success = excel_manager.add_or_update_cheque(cheque)
-            
-            if excel_sync_success:
-                flash(f'Statut du chèque mis à jour et synchronisé avec Excel: {cheque.status_text}', 'success')
-            else:
-                flash(f'Statut du chèque mis à jour: {cheque.status_text} (Erreur sync Excel)', 'warning')
+    try:
+        cheque = Cheque.query.get_or_404(id)
+        new_status = request.form.get('status', '').strip().upper()
         
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error updating cheque status: {str(e)}")
-            flash('Erreur lors de la mise à jour du statut.', 'error')
-    else:
-        flash('Statut invalide.', 'danger')
+        current_app.logger.info(f"Status update requested for cheque {id}: {new_status}")
 
-    return redirect(url_for('cheques.index'))
+        # Define valid status transitions
+        valid_statuses = {
+            'EN_ATTENTE': 'EN ATTENTE',
+            'ENCAISSE': 'ENCAISSE', 
+            'IMPAYE': 'IMPAYE',
+            'DEPOSE': 'DÉPOSÉ',
+            'ANNULE': 'ANNULÉ'
+        }
+
+        # Validate status
+        if new_status not in valid_statuses:
+            flash('Statut invalide', 'danger')
+            current_app.logger.error(f"Invalid status provided: {new_status}")
+            return redirect(url_for('cheques.index'))
+
+        # Record status change history before updating
+        status_history = ChequeStatusHistory(
+            cheque_id=cheque.id,
+            old_status=cheque.status,
+            new_status=new_status,
+            changed_by=current_user.id,
+            notes=f"Changement de statut via l'interface"
+        )
+        db.session.add(status_history)
+
+        # Update cheque status
+        cheque.status = new_status
+        cheque.updated_at = datetime.utcnow()
+        
+        # Handle special status cases
+        if new_status == 'IMPAYE':
+            cheque.rejection_date = datetime.utcnow().date()
+        elif new_status == 'ENCAISSE':
+            cheque.clearance_date = datetime.utcnow().date()
+
+        db.session.commit()
+        current_app.logger.info(f"Cheque {id} status updated to {new_status}")
+
+        # Excel synchronization with proper error handling
+        try:
+            excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+            optimized_sync = OptimizedExcelSync(excel_folder)
+            sync_result = optimized_sync.sync_cheque(cheque, 'update')
+            
+            if not sync_result:
+                current_app.logger.warning(f"Excel sync failed for cheque {id}")
+                flash(f"Statut mis à jour mais échec de synchronisation Excel", 'warning')
+            else:
+                flash(f"Statut mis à jour avec succès: {valid_statuses[new_status]}", 'success')
+                
+        except Exception as e:
+            current_app.logger.error(f"Excel sync error for cheque {id}: {str(e)}", exc_info=True)
+            flash(f"Statut mis à jour mais erreur de synchronisation Excel", 'warning')
+
+        return redirect(url_for('cheques.index'))
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating status for cheque {id}: {str(e)}", exc_info=True)
+        flash('Erreur technique lors de la mise à jour du statut', 'danger')
+        return redirect(url_for('cheques.index'))

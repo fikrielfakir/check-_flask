@@ -1,65 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}{{ title }} - Gestion des Chèques{% endblock %}
+{% block title %}{{ title }} - إدارة الشيكات{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">
                     <i class="fas fa-university me-2"></i>{{ title }}
                 </h5>
             </div>
             <div class="card-body">
-                <form method="POST">
+                <!-- Display current icon if editing -->
+                {% if bank and bank.icon_url %}
+                <div class="text-center mb-3">
+                    <img src="{{ bank.icon_url }}" alt="{{ bank.name }}" class="img-thumbnail" style="max-height: 80px;">
+                    <p class="text-muted small mt-1">الأيقونة الحالية</p>
+                </div>
+                {% endif %}
+
+                <form method="POST" enctype="multipart/form-data">
                     {{ form.hidden_tag() }}
                     
-                    {% if bank is defined or branch is defined %}
-                        <!-- Show bank name if editing branch -->
-                        {% if branch is defined %}
-                        <div class="mb-3">
-                            <label class="form-label">Banque</label>
-                            <input type="text" class="form-control" value="{{ branch.bank.name }}" readonly>
-                        </div>
-                        {% endif %}
-                    {% endif %}
-                    
+                    <!-- اسم البنك -->
                     <div class="mb-3">
-                        {{ form.name.label(class="form-label") }}
-                        {{ form.name(class="form-control") }}
+                        {{ form.name.label(class="form-label fw-bold") }}
+                        {{ form.name(class="form-control form-control-lg", placeholder="مثال: البنك الشعبي المغربي") }}
                         {% if form.name.errors %}
                             <div class="text-danger small mt-1">
                                 {% for error in form.name.errors %}
-                                    <div>{{ error }}</div>
+                                    <div><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</div>
                                 {% endfor %}
                             </div>
                         {% endif %}
                     </div>
-                    
-                    <!-- Branch-specific fields -->
-                    {% if form.address is defined %}
-                    <div class="mb-3">
-                        {{ form.address.label(class="form-label") }}
-                        {{ form.address(class="form-control", rows="3") }}
-                        {% if form.address.errors %}
-                            <div class="text-danger small mt-1">
-                                {% for error in form.address.errors %}
-                                    <div>{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
+
+                    <!-- كود البنك -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                {{ form.postal_code.label(class="form-label") }}
-                                {{ form.postal_code(class="form-control") }}
-                                {% if form.postal_code.errors %}
+                                {{ form.code.label(class="form-label fw-bold") }}
+                                {{ form.code(class="form-control", placeholder="مثال: BCP", style="text-transform: uppercase;") }}
+                                {% if form.code.errors %}
                                     <div class="text-danger small mt-1">
-                                        {% for error in form.postal_code.errors %}
-                                            <div>{{ error }}</div>
+                                        {% for error in form.code.errors %}
+                                            <div><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</div>
                                         {% endfor %}
                                     </div>
                                 {% endif %}
@@ -67,43 +53,201 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                {{ form.phone.label(class="form-label") }}
-                                {{ form.phone(class="form-control") }}
-                                {% if form.phone.errors %}
+                                {{ form.swift_code.label(class="form-label fw-bold") }}
+                                {{ form.swift_code(class="form-control", placeholder="مثال: BCPOMAMC") }}
+                                {% if form.swift_code.errors %}
                                     <div class="text-danger small mt-1">
-                                        {% for error in form.phone.errors %}
-                                            <div>{{ error }}</div>
+                                        {% for error in form.swift_code.errors %}
+                                            <div><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</div>
                                         {% endfor %}
                                     </div>
                                 {% endif %}
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>كود SWIFT للتحويلات الدولية
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
+
+                    <!-- رفع أيقونة البنك -->
                     <div class="mb-3">
-                        {{ form.email.label(class="form-label") }}
-                        {{ form.email(class="form-control") }}
-                        {% if form.email.errors %}
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-image me-2"></i>أيقونة البنك
+                        </label>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <input type="file" name="icon_file" class="form-control" accept=".png,.jpg,.jpeg,.gif,.svg" id="iconFile">
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>الصيغ المدعومة: PNG, JPG, JPEG, GIF, SVG (الحد الأقصى: 2MB)
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <img id="iconPreview" src="#" alt="معاينة الأيقونة" class="img-thumbnail d-none" style="max-height: 60px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- رابط الأيقونة البديل -->
+                    <div class="mb-3">
+                        {{ form.icon_url.label(class="form-label fw-bold") }}
+                        {{ form.icon_url(class="form-control", placeholder="https://example.com/icon.png أو اتركه فارغًا لرفع ملف") }}
+                        {% if form.icon_url.errors %}
                             <div class="text-danger small mt-1">
-                                {% for error in form.email.errors %}
-                                    <div>{{ error }}</div>
+                                {% for error in form.icon_url.errors %}
+                                    <div><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</div>
                                 {% endfor %}
                             </div>
                         {% endif %}
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>يمكنك استخدام رابط الأيقونة بدلاً من رفع ملف
+                        </div>
                     </div>
-                    {% endif %}
-                    
+
+                    <!-- حالة البنك -->
+                    <div class="mb-4">
+                        <div class="form-check form-switch">
+                            {{ form.is_active(class="form-check-input", id="flexSwitchCheckDefault") }}
+                            {{ form.is_active.label(class="form-check-label", for="flexSwitchCheckDefault") }}
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>البنوك غير النشطة لن تظهر في القوائم
+                        </div>
+                    </div>
+
+                    <!-- أزرار التحكم -->
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('banks.index') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-2"></i>Retour
+                        <a href="{{ url_for('banks.index') }}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-arrow-right me-2"></i>العودة
                         </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Enregistrer
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save me-2"></i>حفظ البيانات
                         </button>
                     </div>
                 </form>
             </div>
         </div>
+
+        <!-- نصائح إضافية -->
+        <div class="alert alert-info mt-3" role="alert">
+            <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>نصائح:</h6>
+            <ul class="mb-0">
+                <li>تأكد من أن كود البنك فريد ولا يتكرر</li>
+                <li>استخدم أيقونة واضحة وعالية الجودة</li>
+                <li>كود SWIFT ضروري للمعاملات المصرفية الدولية</li>
+                <li>يمكنك إلغاء تنشيط البنك بدلاً من حذفه</li>
+            </ul>
+        </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // معاينة الأيقونة المرفوعة
+    const iconFile = document.getElementById('iconFile');
+    const iconPreview = document.getElementById('iconPreview');
+    
+    if (iconFile) {
+        iconFile.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // التحقق من حجم الملف (2MB)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('حجم الملف كبير جداً. الحد الأقصى: 2MB');
+                    this.value = '';
+                    iconPreview.classList.add('d-none');
+                    return;
+                }
+                
+                // معاينة الصورة
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    iconPreview.src = e.target.result;
+                    iconPreview.classList.remove('d-none');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                iconPreview.classList.add('d-none');
+            }
+        });
+    }
+    
+    // تحويل كود البنك إلى أحرف كبيرة تلقائياً
+    const codeInput = document.querySelector('input[name="code"]');
+    if (codeInput) {
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    }
+});
+</script>
+
+<style>
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.form-label.fw-bold {
+    color: #495057;
+}
+
+.card-header.bg-primary {
+    background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%) !important;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.alert-info {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #6c757d;
+}
+
+.img-thumbnail {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.form-check-input:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+/* Animation for button hover */
+.btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+/* File input styling */
+.form-control[type="file"] {
+    padding: 0.375rem 0.75rem;
+}
+
+.form-control[type="file"]::-webkit-file-upload-button {
+    background: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    color: #495057;
+    cursor: pointer;
+    margin-right: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.form-control[type="file"]::-webkit-file-upload-button:hover {
+    background: #e9ecef;
+}
+</style>
 {% endblock %}

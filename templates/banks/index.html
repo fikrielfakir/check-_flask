@@ -1,207 +1,479 @@
 {% extends "base.html" %}
 
-{% block title %}Banques - Gestion des Chèques{% endblock %}
+{% block title %}Gestion des banques - Système de gestion des chèques{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1><i class="fas fa-university me-2"></i>Gestion des Banques</h1>
-        {% if current_user.role == 'admin' %}
-        <div>
-            <a href="{{ url_for('banks.init_moroccan_banks') }}" class="btn btn-secondary me-2">
-                <i class="fas fa-flag me-1"></i>Banques Marocaines
-            </a>
-            <a href="{{ url_for('banks.new') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i>Nouvelle Banque
-            </a>
-        </div>
-        {% endif %}
-    </div>
-
-    {% if banks %}
-        {% for bank in banks %}
-        <div class="card mb-4 shadow-sm">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                    {% if bank.icon_url %}
-                    <img src="{{ bank.icon_url }}" alt="{{ bank.name }}" class="me-3" style="height: 30px;">
-                    {% else %}
-                    <i class="fas fa-university fa-lg me-3 text-muted"></i>
-                    {% endif %}
-                    <div>
-                        <h5 class="mb-0">{{ bank.name }}</h5>
-                        <div class="text-muted small">
-                            {% if bank.code %}<span class="me-2">Code: {{ bank.code }}</span>{% endif %}
-                            {% if bank.swift_code %}<span>SWIFT: {{ bank.swift_code }}</span>{% endif %}
-                        </div>
-                    </div>
+    <!-- Section En-tête -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-university text-primary me-2"></i>Gestion des banques
+                    </h2>
+                    <p class="text-muted mb-0">Gestion des banques et agences bancaires</p>
                 </div>
+                
                 {% if current_user.role == 'admin' %}
-                <div class="btn-group btn-group-sm">
-                    <a href="{{ url_for('banks.new_branch', bank_id=bank.id) }}" class="btn btn-outline-success">
-                        <i class="fas fa-plus me-1"></i>Agence
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('banks.new') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Nouvelle banque
                     </a>
-                    <a href="{{ url_for('banks.edit', id=bank.id) }}" class="btn btn-outline-primary">
-                        <i class="fas fa-edit me-1"></i>Modifier
+                    <a href="{{ url_for('banks.init_moroccan_banks') }}" class="btn btn-success">
+                        <i class="fas fa-flag me-2"></i>Initialiser les banques marocaines
                     </a>
-                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ bank.id }}">
-                        <i class="fas fa-trash me-1"></i>Supprimer
-                    </button>
                 </div>
                 {% endif %}
             </div>
-            
-            {% if bank.branches %}
-            <div class="card-body">
-                <h6 class="card-subtitle mb-3 text-muted">
-                    <i class="fas fa-code-branch me-1"></i>Agences ({{ bank.branches|length }})
-                </h6>
-                <div class="row g-3">
-                    {% for branch in bank.branches %}
-                    <div class="col-md-6">
-                        <div class="card h-100 border-start-3 border-start-primary">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="card-title">
-                                            <i class="fas fa-building me-1 text-muted"></i>{{ branch.name }}
-                                        </h6>
-                                        {% if branch.address %}
-                                            <p class="card-text small text-muted mb-1">
-                                                <i class="fas fa-map-marker-alt me-1"></i>{{ branch.address }}
-                                                {% if branch.postal_code %} - {{ branch.postal_code }}{% endif %}
-                                            </p>
-                                        {% endif %}
-                                        {% if branch.phone %}
-                                            <p class="card-text small text-muted mb-1">
-                                                <i class="fas fa-phone me-1"></i>{{ branch.phone }}
-                                            </p>
-                                        {% endif %}
-                                        {% if branch.email %}
-                                            <p class="card-text small text-muted mb-0">
-                                                <i class="fas fa-envelope me-1"></i>{{ branch.email }}
-                                            </p>
-                                        {% endif %}
+        </div>
+    </div>
+
+    <!-- Section Statistiques -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="h4 mb-0">{{ banks|length }}</div>
+                            <div>Total des banques</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-university fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="h4 mb-0">{{ banks|selectattr('is_active')|list|length }}</div>
+                            <div>Banques actives</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="h4 mb-0">
+                                {% set total_branches = 0 %}
+                                {% for bank in banks %}
+                                    {% set total_branches = total_branches + bank.branches|length %}
+                                {% endfor %}
+                                {{ total_branches }}
+                            </div>
+                            <div>Total des agences</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-building fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="h4 mb-0">{{ banks|rejectattr('is_active')|list|length }}</div>
+                            <div>Banques inactives</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-pause-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Recherche et Filtres -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" class="form-control" id="searchBanks" placeholder="Rechercher des banques...">
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="d-flex gap-2">
+                <select class="form-select" id="filterStatus">
+                    <option value="all">Toutes les banques</option>
+                    <option value="active">Actives seulement</option>
+                    <option value="inactive">Inactives seulement</option>
+                </select>
+                <button class="btn btn-outline-secondary" id="toggleView" title="Changer la vue">
+                    <i class="fas fa-th-large"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grille des Banques -->
+    <div class="row" id="banksGrid">
+        {% if banks %}
+            {% for bank in banks %}
+            <div class="col-xl-3 col-lg-4 col-md-6 mb-4 bank-card" 
+                 data-name="{{ bank.name.lower() }}" 
+                 data-code="{{ bank.code.lower() }}"
+                 data-status="{{ 'active' if bank.is_active else 'inactive' }}">
+                <div class="card h-100 shadow-sm bank-item {{ 'border-success' if bank.is_active else 'border-warning' }}">
+                    <!-- En-tête de la Banque -->
+                    <div class="card-header {{ 'bg-light' if bank.is_active else 'bg-warning-subtle' }} text-center position-relative">
+                        {% if bank.icon_url %}
+                            <img src="{{ bank.icon_url }}" 
+                                 alt="{{ bank.name }}" 
+                                 class="bank-logo mb-2"
+                                 style="max-height: 50px; max-width: 80px; object-fit: contain;">
+                        {% else %}
+                            <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-2"
+                                 style="width: 50px; height: 50px;">
+                                <span class="fw-bold">{{ bank.code[:2] if bank.code else bank.name[:2] }}</span>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Badge de Statut -->
+                        <span class="badge {{ 'bg-success' if bank.is_active else 'bg-warning' }} position-absolute top-0 end-0 m-2">
+                            {{ 'Actif' if bank.is_active else 'Inactif' }}
+                        </span>
+                    </div>
+
+                    <!-- Informations sur la Banque -->
+                    <div class="card-body">
+                        <h5 class="card-title text-center mb-3">{{ bank.name }}</h5>
+                        
+                        <div class="bank-details">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Code:</span>
+                                <span class="badge bg-primary">{{ bank.code }}</span>
+                            </div>
+                            
+                            {% if bank.swift_code %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">SWIFT:</span>
+                                <small class="font-monospace">{{ bank.swift_code }}</small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-muted">Agences:</span>
+                                <span class="badge bg-info">{{ bank.branches|length }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Liste des Agences (Repliable) -->
+                        {% if bank.branches %}
+                        <div class="branches-section">
+                            <button class="btn btn-link btn-sm p-0 mb-2" type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#branches{{ bank.id }}" 
+                                    aria-expanded="false">
+                                <i class="fas fa-building me-1"></i>Afficher les agences
+                                <i class="fas fa-chevron-down ms-1"></i>
+                            </button>
+                            
+                            <div class="collapse" id="branches{{ bank.id }}">
+                                <div class="list-group list-group-flush">
+                                    {% for branch in bank.branches %}
+                                    <div class="list-group-item list-group-item-action py-2 px-0">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <small class="fw-semibold">{{ branch.name }}</small>
+                                                {% if branch.phone %}
+                                                <br><small class="text-muted">
+                                                    <i class="fas fa-phone fa-xs me-1"></i>{{ branch.phone }}
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if current_user.role == 'admin' %}
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('banks.edit_branch', id=branch.id) }}" 
+                                                   class="btn btn-outline-primary btn-sm" title="Modifier">
+                                                    <i class="fas fa-edit fa-xs"></i>
+                                                </a>
+                                                <button class="btn btn-outline-danger btn-sm" 
+                                                        onclick="deleteBranch({{ branch.id }})" title="Supprimer">
+                                                    <i class="fas fa-trash fa-xs"></i>
+                                                </button>
+                                            </div>
+                                            {% endif %}
+                                        </div>
                                     </div>
-                                    {% if current_user.role == 'admin' %}
-                                    <div class="btn-group-vertical btn-group-sm">
-                                        <a href="{{ url_for('banks.edit_branch', id=branch.id) }}" 
-                                           class="btn btn-outline-primary btn-sm"
-                                           data-bs-toggle="tooltip" title="Modifier">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-outline-danger btn-sm"
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#deleteBranchModal{{ branch.id }}"
-                                                data-bs-toggle="tooltip" title="Supprimer">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                    {% endif %}
+                                    {% endfor %}
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
-                    
-                    <!-- Delete Branch Modal -->
+
+                    <!-- Pied de page des Actions -->
                     {% if current_user.role == 'admin' %}
-                    <div class="modal fade" id="deleteBranchModal{{ branch.id }}" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Confirmer la suppression</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>Êtes-vous sûr de vouloir supprimer l'agence <strong>{{ branch.name }}</strong> ?</p>
-                                    <p class="text-danger">Cette action est irréversible.</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                    <form method="POST" action="{{ url_for('banks.delete_branch', id=branch.id) }}" class="d-inline">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                        <button type="submit" class="btn btn-danger">Supprimer</button>
-                                    </form>
-                                </div>
-                            </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('banks.new_branch', bank_id=bank.id) }}" 
+                               class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-plus me-1"></i>Agence
+                            </a>
+                            <a href="{{ url_for('banks.edit', id=bank.id) }}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-edit me-1"></i>Modifier
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm" 
+                                    onclick="deleteBank({{ bank.id }})">
+                                <i class="fas fa-trash me-1"></i>Supprimer
+                            </button>
                         </div>
                     </div>
                     {% endif %}
-                    {% endfor %}
                 </div>
             </div>
-            {% else %}
-            <div class="card-body text-center py-4">
-                <i class="fas fa-code-branch fa-2x text-muted mb-3"></i>
-                <p class="text-muted mb-0">Aucune agence enregistrée pour cette banque.</p>
-                {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('banks.new_branch', bank_id=bank.id) }}" class="btn btn-sm btn-outline-primary mt-3">
-                    <i class="fas fa-plus me-1"></i>Ajouter une agence
-                </a>
-                {% endif %}
-            </div>
-            {% endif %}
-        </div>
-        
-        <!-- Delete Bank Modal -->
-        {% if current_user.role == 'admin' %}
-        <div class="modal fade" id="deleteModal{{ bank.id }}" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Confirmer la suppression</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-university fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">Aucune banque enregistrée</h4>
+                    <p class="text-muted">Commencez par ajouter des banques ou initialiser les banques marocaines</p>
+                    {% if current_user.role == 'admin' %}
+                    <div class="mt-3">
+                        <a href="{{ url_for('banks.new') }}" class="btn btn-primary me-2">
+                            <i class="fas fa-plus me-2"></i>Ajouter une nouvelle banque
+                        </a>
+                        <a href="{{ url_for('banks.init_moroccan_banks') }}" class="btn btn-success">
+                            <i class="fas fa-flag me-2"></i>Initialiser les banques marocaines
+                        </a>
                     </div>
-                    <div class="modal-body">
-                        <p>Êtes-vous sûr de vouloir supprimer la banque <strong>{{ bank.name }}</strong> et toutes ses agences ?</p>
-                        <ul class="text-danger">
-                            <li>Toutes les agences associées seront supprimées</li>
-                            <li>Cette action est irréversible</li>
-                        </ul>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                        <form method="POST" action="{{ url_for('banks.delete', id=bank.id) }}" class="d-inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <button type="submit" class="btn btn-danger">Supprimer</button>
-                        </form>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
-        </div>
         {% endif %}
-        {% endfor %}
-    {% else %}
-    <div class="card shadow-sm">
-        <div class="card-body text-center py-5">
-            <i class="fas fa-university fa-3x text-muted mb-3"></i>
-            <h5>Aucune banque enregistrée</h5>
-            <p class="text-muted">Commencez par ajouter une banque pour gérer vos chèques.</p>
-            {% if current_user.role == 'admin' %}
-            <div class="mt-3">
-                <a href="{{ url_for('banks.init_moroccan_banks') }}" class="btn btn-secondary me-2">
-                    <i class="fas fa-flag me-1"></i>Banques Marocaines
-                </a>
-                <a href="{{ url_for('banks.new') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i>Ajouter une banque
-                </a>
+    </div>
+</div>
+
+<!-- Modales de Confirmation de Suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmation de suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            {% endif %}
+            <div class="modal-body">
+                <p id="deleteMessage">Êtes-vous sûr de vouloir supprimer cet élément ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
         </div>
     </div>
-    {% endif %}
 </div>
-{% endblock %}
 
-{% block scripts %}
-{{ super() }}
 <script>
-// Initialize tooltips
 document.addEventListener('DOMContentLoaded', function() {
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    })
-})
+    // Fonctionnalité de recherche
+    const searchInput = document.getElementById('searchBanks');
+    const filterStatus = document.getElementById('filterStatus');
+    const bankCards = document.querySelectorAll('.bank-card');
+
+    function filterBanks() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusFilter = filterStatus.value;
+
+        bankCards.forEach(card => {
+            const name = card.dataset.name;
+            const code = card.dataset.code;
+            const status = card.dataset.status;
+
+            const matchesSearch = name.includes(searchTerm) || code.includes(searchTerm);
+            const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+            card.style.display = matchesSearch && matchesStatus ? 'block' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', filterBanks);
+    filterStatus.addEventListener('change', filterBanks);
+
+    // Basculer la vue (grille/liste)
+    const toggleViewBtn = document.getElementById('toggleView');
+    const banksGrid = document.getElementById('banksGrid');
+    let isGridView = true;
+
+    toggleViewBtn.addEventListener('click', function() {
+        if (isGridView) {
+            // Passer en vue liste
+            banksGrid.classList.remove('row');
+            banksGrid.classList.add('list-view');
+            bankCards.forEach(card => {
+                card.className = card.className.replace(/col-\w+-\d+/g, '') + ' col-12';
+            });
+            this.innerHTML = '<i class="fas fa-th-large"></i>';
+            isGridView = false;
+        } else {
+            // Passer en vue grille
+            banksGrid.classList.remove('list-view');
+            banksGrid.classList.add('row');
+            bankCards.forEach((card, index) => {
+                card.className = card.className.replace('col-12', 'col-xl-3 col-lg-4 col-md-6');
+            });
+            this.innerHTML = '<i class="fas fa-list"></i>';
+            isGridView = true;
+        }
+    });
+});
+
+// Fonctions de suppression
+function deleteBank(bankId) {
+    document.getElementById('deleteMessage').textContent = 'Êtes-vous sûr de vouloir supprimer cette banque et toutes ses agences ?';
+    document.getElementById('deleteForm').action = `/banks/${bankId}/delete`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function deleteBranch(branchId) {
+    document.getElementById('deleteMessage').textContent = 'Êtes-vous sûr de vouloir supprimer cette agence ?';
+    document.getElementById('deleteForm').action = `/banks/branches/${branchId}/delete`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Animations fluides
+document.querySelectorAll('.bank-item').forEach(card => {
+    card.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-5px)';
+    });
+    
+    card.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
+    });
+});
 </script>
+
+<style>
+.bank-item {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.bank-item:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.bank-logo {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.card-header {
+    border-bottom: 2px solid rgba(0,0,0,0.05);
+}
+
+.bank-details {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.branches-section {
+    border-top: 1px solid #dee2e6;
+    padding-top: 10px;
+}
+
+.list-group-item {
+    border: none;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
+
+.btn-group-sm > .btn {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.75rem;
+}
+
+/* Styles vue liste */
+.list-view .bank-card {
+    margin-bottom: 1rem;
+}
+
+.list-view .card {
+    flex-direction: row;
+}
+
+.list-view .card-header {
+    width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: none;
+    border-left: 2px solid rgba(0,0,0,0.05);
+}
+
+.list-view .card-body {
+    flex: 1;
+}
+
+/* Ajustements responsives */
+@media (max-width: 768px) {
+    .bank-details {
+        font-size: 0.9rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group > .btn {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.25rem;
+    }
+    
+    .btn-group > .btn:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* Animation pour le repli */
+.collapse {
+    transition: all 0.35s ease;
+}
+
+/* Styles personnalisés pour les badges */
+.badge {
+    font-size: 0.75em;
+    font-weight: 500;
+}
+
+/* Styles spécifiques au statut */
+.border-success {
+    border-color: #198754 !important;
+    border-width: 2px !important;
+}
+
+.border-warning {
+    border-color: #ffc107 !important;
+    border-width: 2px !important;
+}
+
+.bg-warning-subtle {
+    background-color: #fff3cd !important;
+}
+</style>
 {% endblock %}

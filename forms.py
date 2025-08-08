@@ -12,7 +12,11 @@ class LoginForm(FlaskForm):
     remember_me = BooleanField('Se souvenir de moi')
 
 class BankForm(FlaskForm):
-    name = StringField('Nom de la banque', validators=[DataRequired(), Length(min=2, max=100)])
+    name = StringField('Nom de la banque', validators=[DataRequired()])
+    code = StringField('Code de la banque', validators=[DataRequired()])
+    swift_code = StringField('Code SWIFT', validators=[Optional()])
+    icon_url = StringField('URL de l\'icône', validators=[Optional()])
+    is_active = BooleanField('Banque active', default=True)
 
 class BranchForm(FlaskForm):
     name = StringField('Nom de l\'agence', validators=[DataRequired(), Length(min=2, max=100)])

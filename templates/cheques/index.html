@@ -1,58 +1,145 @@
+<!-- bounced_cheques/index.html - Main bounced cheques dashboard -->
 {% extends "base.html" %}
 
-{% block title %}Chèques - Gestion des Chèques{% endblock %}
+{% block title %}Chèques Impayés - Gestion des Chèques{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-money-check me-2"></i>Gestion des Chèques</h1>
-    {% if current_user.role in ['admin', 'comptable', 'agent'] %}
-    <a href="{{ url_for('cheques.new') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>Nouveau Chèque
-    </a>
-    {% endif %}
+    <h1><i class="fas fa-exclamation-triangle text-danger me-2"></i>Chèques Impayés</h1>
+    <div class="btn-group">
+        <a href="{{ url_for('bounced_cheques.reports') }}" class="btn btn-outline-primary">
+            <i class="fas fa-chart-bar me-1"></i>Rapports
+        </a>
+        {% if current_user.role in ['admin', 'manager'] %}
+        <a href="{{ url_for('bounced_cheques.notification_templates') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-envelope me-1"></i>Modèles
+        </a>
+        {% endif %}
+    </div>
 </div>
 
-<!-- Search and Filter -->
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="stat-card bg-danger">
+            <div class="stat-icon">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.total_bounced }}</h3>
+                <p>Chèques impayés</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card bg-warning">
+            <div class="stat-icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ "{:,.0f}".format(stats.total_amount) }}</h3>
+                <p>Montant total (MAD)</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card bg-success">
+            <div class="stat-icon">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ "{:.1f}%".format(stats.recovery_rate) }}</h3>
+                <p>Taux de recouvrement</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card bg-info">
+            <div class="stat-icon">
+                <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.pending_recovery }}</h3>
+                <p>En attente</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card bg-dark">
+            <div class="stat-icon">
+                <i class="fas fa-gavel"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.legal_actions }}</h3>
+                <p>Actions légales</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card bg-danger">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.high_risk_count }}</h3>
+                <p>Risque élevé</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3">
-            <div class="col-md-3">
-                <label for="search" class="form-label">Rechercher</label>
-                <input type="text" class="form-control" id="search" name="search" 
-                       value="{{ search }}" placeholder="N° chèque, client, banque...">
-            </div>
             <div class="col-md-2">
-                <label for="status" class="form-label">Statut</label>
+                <label for="status" class="form-label">Statut de recouvrement</label>
                 <select class="form-select" id="status" name="status">
                     <option value="">Tous les statuts</option>
-                    <option value="EN_ATTENTE" {{ 'selected' if status == 'EN_ATTENTE' }}>EN ATTENTE</option>
-                    <option value="ENCAISSE" {{ 'selected' if status == 'ENCAISSE' }}>ENCAISSE</option>
-                    <option value="IMPAYE" {{ 'selected' if status == 'IMPAYE' }}>IMPAYE</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="bank_id" class="form-label">Banque</label>
-                <select class="form-select" id="bank_id" name="bank_id">
-                    <option value="">Toutes les banques</option>
-                    {% for bank in banks %}
-                    <option value="{{ bank.id }}" {{ 'selected' if bank_id|string == bank.id|string }}>
-                        {{ bank.name }}
+                    {% for status_value, status_label in [
+                        ('PENDING', 'En attente'),
+                        ('IN_PROGRESS', 'En cours'),
+                        ('RECOVERED', 'Récupéré'),
+                        ('LEGAL', 'Action légale'),
+                        ('WRITTEN_OFF', 'Perte')
+                    ] %}
+                    <option value="{{ status_value }}" {{ 'selected' if status_filter == status_value }}>
+                        {{ status_label }}
                     </option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
-                <label for="branch_id" class="form-label">Agence</label>
-                <select class="form-select" id="branch_id" name="branch_id">
-                    <option value="">Toutes les agences</option>
-                    {% for branch in branches %}
-                    <option value="{{ branch.id }}" {{ 'selected' if branch_id|string == branch.id|string }}>
-                        {{ branch.name }}
+                <label for="risk" class="form-label">Niveau de risque</label>
+                <select class="form-select" id="risk" name="risk">
+                    <option value="">Tous les niveaux</option>
+                    {% for risk_value, risk_label in [
+                        ('CRITICAL', 'Critique'),
+                        ('HIGH', 'Élevé'),
+                        ('MEDIUM', 'Moyen'),
+                        ('LOW', 'Faible')
+                    ] %}
+                    <option value="{{ risk_value }}" {{ 'selected' if risk_filter == risk_value }}>
+                        {{ risk_label }}
                     </option>
                     {% endfor %}
                 </select>
             </div>
-
+            <div class="col-md-2">
+                <label for="recovery" class="form-label">Filtre spécial</label>
+                <select class="form-select" id="recovery" name="recovery">
+                    <option value="">Aucun filtre</option>
+                    <option value="overdue" {{ 'selected' if recovery_filter == 'overdue' }}>
+                        Plus de 30 jours
+                    </option>
+                    <option value="retry_available" {{ 'selected' if recovery_filter == 'retry_available' }}>
+                        Tentative possible
+                    </option>
+                    <option value="legal_action" {{ 'selected' if recovery_filter == 'legal_action' }}>
+                        Action légale
+                    </option>
+                </select>
+            </div>
             <div class="col-md-2">
                 <label for="date_from" class="form-label">Date début</label>
                 <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
@@ -61,151 +148,225 @@
                 <label for="date_to" class="form-label">Date fin</label>
                 <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
             </div>
-            <div class="col-md-1 d-flex align-items-end">
-                <button type="submit" class="btn btn-outline-primary w-100">
-                    <i class="fas fa-search"></i>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i>Filtrer
                 </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Cheques List -->
-{% if cheques %}
+<!-- Bulk Actions -->
+{% if bounced_cheques %}
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('bounced_cheques.bulk_actions') }}" id="bulkActionForm">
+            {{ csrf_token() }}
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Actions groupées</label>
+                    <select class="form-select" name="action" id="bulkAction" required>
+                        <option value="">Sélectionner une action...</option>
+                        <option value="schedule_retry">Programmer tentatives</option>
+                        <option value="send_reminders">Envoyer rappels</option>
+                        <option value="export_legal">Exporter pour légal</option>
+                    </select>
+                </div>
+                <div class="col-md-3" id="bulkDateField" style="display: none;">
+                    <label class="form-label">Date</label>
+                    <input type="date" class="form-control" name="bulk_date" value="{{ (date.today() + timedelta(days=7)).strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Notes</label>
+                    <input type="text" class="form-control" name="bulk_notes" placeholder="Notes optionnelles">
+                </div>
+                <div class="col-md-2">
+                    <input type="hidden" name="cheque_ids" id="selectedChequeIds">
+                    <button type="submit" class="btn btn-warning w-100" id="bulkActionBtn" disabled>
+                        <i class="fas fa-play me-1"></i>Exécuter
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Bounced Cheques List -->
+{% if bounced_cheques %}
 <div class="card">
     <div class="card-body">
-        <div class="table-responsive" style="overflow: visible !important;">
+        <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>N° Chèque</th>
+                        <th width="30">
+                            <input type="checkbox" id="selectAll">
+                        </th>
                         <th>Client</th>
-                        <th>Banque/Agence</th>
+                        <th>Chèque</th>
                         <th>Montant</th>
-                        <th>Date Émission</th>
-                        <th>Échéance</th>
+                        <th>Date Rejet</th>
+                        <th>Raison</th>
                         <th>Statut</th>
+                        <th>Risque</th>
+                        <th>Recouvrement</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for cheque in cheques %}
-                    <tr class="{{ 'table-warning' if cheque.is_overdue else '' }}">
+                    {% for bc in bounced_cheques %}
+                    <tr class="bounced-row" data-risk="{{ bc.risk_level }}">
                         <td>
-                            <strong>{{ cheque.cheque_number or 'N/A' }}</strong>
-                            {% if cheque.scan_path %}
-                                <i class="fas fa-paperclip text-primary ms-1" title="Scan disponible"></i>
-                            {% endif %}
+                            <input type="checkbox" class="cheque-select" value="{{ bc.id }}">
                         </td>
                         <td>
                             <div>
-                                <strong>{{ cheque.client.name }}</strong>
+                                <strong>{{ bc.cheque.client.name }}</strong>
                                 <br>
                                 <small class="text-muted">
-                                    <i class="fas {{ 'fa-user' if cheque.client.type == 'personne' else 'fa-building' }} me-1"></i>
-                                    {{ 'Personne' if cheque.client.type == 'personne' else 'Entreprise' }}
+                                    <i class="fas {{ 'fa-user' if bc.cheque.client.type == 'personne' else 'fa-building' }} me-1"></i>
+                                    {{ bc.cheque.client.id_number or 'N/A' }}
                                 </small>
                             </div>
                         </td>
                         <td>
                             <div>
-                                <strong>{{ cheque.branch.bank.name }}</strong>
+                                <strong>{{ bc.cheque.cheque_number or 'N/A' }}</strong>
                                 <br>
-                                <small class="text-muted">{{ cheque.branch.name }}</small>
+                                <small class="text-muted">{{ bc.cheque.branch.bank.name }}</small>
+                                <br>
+                                <small class="text-muted">Échéance: {{ bc.cheque.due_date.strftime('%d/%m/%Y') }}</small>
                             </div>
                         </td>
                         <td>
-                            <strong>{{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</strong>
-                            {% if cheque.depositor_name %}
+                            <div>
+                                <strong>{{ "{:,.2f}".format(bc.cheque.amount) }} MAD</strong>
+                                {% if bc.recovery_amount %}
                                 <br>
-                                <small class="text-muted">Déposant: {{ cheque.depositor_name }}</small>
+                                <small class="text-success">
+                                    Récupéré: {{ "{:,.2f}".format(bc.recovery_amount) }} MAD
+                                </small>
+                                {% endif %}
+                                {% if bc.penalty_amount or bc.bank_charges or bc.legal_costs %}
+                                <br>
+                                <small class="text-warning">
+                                    Frais: {{ "{:,.2f}".format((bc.penalty_amount or 0) + (bc.bank_charges or 0) + (bc.legal_costs or 0)) }} MAD
+                                </small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {{ bc.rejection_date.strftime('%d/%m/%Y') }}
+                            <br>
+                            <small class="text-muted">
+                                Il y a {{ bc.days_since_bounce }} jour{{ 's' if bc.days_since_bounce > 1 else '' }}
+                            </small>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">
+                                {{ dict(BOUNCE_REASONS).get(bc.rejection_reason, bc.rejection_reason) }}
+                            </span>
+                            {% if bc.rejection_notice_path %}
+                            <br>
+                            <a href="{{ url_for('static', filename='uploads/' + bc.rejection_notice_path) }}" 
+                               target="_blank" class="btn btn-sm btn-outline-info mt-1">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
                             {% endif %}
                         </td>
-                        <td>{{ cheque.issue_date.strftime('%d/%m/%Y') }}</td>
                         <td>
-                            {{ cheque.due_date.strftime('%d/%m/%Y') }}
-                            {% if cheque.is_overdue %}
-                                <br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> En retard</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="badge bg-{{ cheque.status_color }} cheque-status-badge">
-                                {{ cheque.status_text }}
+                            {% set status_colors = {
+                                'PENDING': 'warning',
+                                'IN_PROGRESS': 'info',
+                                'RECOVERED': 'success',
+                                'LEGAL': 'dark',
+                                'WRITTEN_OFF': 'secondary'
+                            } %}
+                            {% set status_labels = {
+                                'PENDING': 'En attente',
+                                'IN_PROGRESS': 'En cours',
+                                'RECOVERED': 'Récupéré',
+                                'LEGAL': 'Action légale',
+                                'WRITTEN_OFF': 'Perte'
+                            } %}
+                            <span class="badge bg-{{ status_colors.get(bc.recovery_status, 'secondary') }}">
+                                {{ status_labels.get(bc.recovery_status, bc.recovery_status) }}
                             </span>
                         </td>
                         <td>
+                            {% set risk_colors = {
+                                'LOW': 'success',
+                                'MEDIUM': 'warning',
+                                'HIGH': 'danger',
+                                'CRITICAL': 'dark'
+                            } %}
+                            {% set risk_labels = {
+                                'LOW': 'Faible',
+                                'MEDIUM': 'Moyen',
+                                'HIGH': 'Élevé',
+                                'CRITICAL': 'Critique'
+                            } %}
+                            <span class="badge bg-{{ risk_colors.get(bc.risk_level, 'secondary') }}">
+                                {{ risk_labels.get(bc.risk_level, bc.risk_level) }}
+                            </span>
+                            <br>
+                            <small class="text-muted">Score: {{ "{:.0f}".format(bc.risk_score) }}</small>
+                        </td>
+                        <td>
+                            <div class="progress" style="height: 6px;">
+                                {% set recovery_pct = (bc.recovery_amount|float / bc.cheque.amount|float * 100) if bc.recovery_amount else 0 %}
+                                <div class="progress-bar bg-success" style="width: {{ recovery_pct }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ "{:.1f}%".format(recovery_pct) }}</small>
+                        </td>
+                        <td>
                             <div class="btn-group btn-group-sm">
-                                {% if current_user.role in ['admin', 'comptable', 'agent'] %}
-                                <!-- Quick Status Update -->
-                                <div class="dropdown">
-                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        <i class="fas fa-exchange-alt"></i>
-                                    </button>
-                                    <ul class="dropdown-menu">
-                                        <li><h6 class="dropdown-header">Changer le statut</h6></li>
-                                        {% for status_value, status_label in [
-                                            ('EN_ATTENTE', 'EN ATTENTE'),
-                                            ('ENCAISSE', 'ENCAISSE'),
-                                            ('IMPAYE', 'IMPAYE'),
-                                        ] %}
-                                        {% if status_value != cheque.status %}
-                                        <li>
-                                            <form method="POST" action="{{ url_for('cheques.update_status', id=cheque.id) }}" class="d-inline">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                <input type="hidden" name="status" value="{{ status_value }}"/>
-                                                <button type="submit" class="dropdown-item">{{ status_label }}</button>
-                                            </form>
-                                        </li>
-                                        {% endif %}
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                                <a href="{{ url_for('cheques.edit', id=cheque.id) }}" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                {% endif %}
-                                
-                                {% if cheque.scan_path %}
-                                <a href="{{ url_for('static', filename='uploads/' + cheque.scan_path) }}" 
-                                   target="_blank" class="btn btn-outline-info btn-sm">
+                                <a href="{{ url_for('bounced_cheques.detail', id=bc.id) }}" 
+                                   class="btn btn-outline-primary">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                
+                                {% if bc.is_retry_available and bc.recovery_status != 'RECOVERED' %}
+                                <a href="{{ url_for('bounced_cheques.schedule_retry', id=bc.id) }}" 
+                                   class="btn btn-outline-warning" title="Programmer tentative">
+                                    <i class="fas fa-redo"></i>
+                                </a>
                                 {% endif %}
                                 
-                                {% if current_user.role == 'admin' %}
-                                <button type="button" class="btn btn-outline-danger btn-sm" 
-                                        data-bs-toggle="modal" data-bs-target="#deleteModal{{ cheque.id }}">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                                {% if bc.recovery_status not in ['RECOVERED', 'WRITTEN_OFF'] %}
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                                            data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('bounced_cheques.alternative_payment', id=bc.id) }}">
+                                                <i class="fas fa-coins me-2"></i>Paiement alternatif
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('bounced_cheques.legal_action', id=bc.id) }}">
+                                                <i class="fas fa-gavel me-2"></i>Action légale
+                                            </a>
+                                        </li>
+                                        {% if current_user.role in ['admin', 'manager'] %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="#" 
+                                               onclick="writeOff({{ bc.id }})">
+                                                <i class="fas fa-times me-2"></i>Passer en perte
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
                                 {% endif %}
                             </div>
                         </td>
                     </tr>
-                    
-                    <!-- Delete Modal -->
-                    {% if current_user.role == 'admin' %}
-                    <div class="modal fade" id="deleteModal{{ cheque.id }}" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Confirmer la suppression</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    Êtes-vous sûr de vouloir supprimer le chèque <strong>{{ cheque.cheque_number or 'sans numéro' }}</strong> ?
-                                    Cette action est irréversible.
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                    <form method="POST" action="{{ url_for('cheques.delete', id=cheque.id) }}" class="d-inline">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                        <button type="submit" class="btn btn-danger">Supprimer</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
@@ -215,13 +376,13 @@
         <div class="row mt-3">
             <div class="col-md-6">
                 <small class="text-muted">
-                    {{ cheques|length }} chèque{{ 's' if cheques|length > 1 else '' }} trouvé{{ 's' if cheques|length > 1 else '' }}
+                    {{ bounced_cheques|length }} chèque{{ 's' if bounced_cheques|length > 1 else '' }} impayé{{ 's' if bounced_cheques|length > 1 else '' }}
                 </small>
             </div>
             <div class="col-md-6 text-end">
-                {% set total_amount = cheques|sum(attribute='amount')|float %}
                 <small class="text-muted">
-                    Montant total: <strong>{{ "{:,.2f}".format(total_amount) }} MAD</strong>
+                    Montant total: <strong>{{ "{:,.2f}".format(stats.total_amount) }} MAD</strong> |
+                    Récupéré: <strong class="text-success">{{ "{:,.2f}".format(stats.total_recovered) }} MAD</strong>
                 </small>
             </div>
         </div>
@@ -231,33 +392,966 @@
 {% else %}
 <div class="card">
     <div class="card-body text-center py-5">
-        <i class="fas fa-money-check fa-3x text-muted mb-3"></i>
-        <h5>Aucun chèque trouvé</h5>
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h5>Aucun chèque impayé</h5>
         <p class="text-muted">
-            {% if search or status or bank_id or date_from or date_to %}
-                Aucun chèque ne correspond à vos critères de recherche.
+            {% if status_filter or risk_filter or recovery_filter or date_from or date_to %}
+                Aucun chèque impayé ne correspond à vos critères de recherche.
             {% else %}
-                Commencez par ajouter des chèques pour gérer vos finances.
+                Félicitations! Vous n'avez actuellement aucun chèque impayé.
             {% endif %}
         </p>
-        {% if current_user.role in ['admin', 'comptable', 'agent'] %}
-        <a href="{{ url_for('cheques.new') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Ajouter un chèque
-        </a>
-        {% endif %}
     </div>
 </div>
 {% endif %}
+
+<!-- Write Off Modal -->
+<div class="modal fade" id="writeOffModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    Passer en perte
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir passer ce chèque en perte?</p>
+                <p class="text-muted small">Cette action marque le chèque comme irrécupérable et l'exclut des statistiques de recouvrement.</p>
+                
+                <form id="writeOffForm" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="form-group">
+                        <label for="writeOffReason" class="form-label">Raison de la perte</label>
+                        <textarea class="form-control" id="writeOffReason" name="reason" rows="3" 
+                                  placeholder="Expliquez pourquoi ce chèque est passé en perte..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmWriteOff">
+                    <i class="fas fa-check me-1"></i>Confirmer la perte
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Auto-submit form when filters change
-$('#status, #bank_id').change(function() {
-    $(this).closest('form').submit();
+$(document).ready(function() {
+    let selectedCheques = [];
+    
+    // Auto-submit filters
+    $('#status, #risk, #recovery').change(function() {
+        $(this).closest('form').submit();
+    });
+    
+    // Select all checkbox
+    $('#selectAll').change(function() {
+        $('.cheque-select').prop('checked', this.checked);
+        updateSelectedCheques();
+    });
+    
+    // Individual checkboxes
+    $('.cheque-select').change(function() {
+        updateSelectedCheques();
+        
+        // Update select all checkbox
+        const allChecked = $('.cheque-select').length === $('.cheque-select:checked').length;
+        $('#selectAll').prop('checked', allChecked);
+    });
+    
+    // Update selected cheques array
+    function updateSelectedCheques() {
+        selectedCheques = $('.cheque-select:checked').map(function() {
+            return $(this).val();
+        }).get();
+        
+        $('#selectedChequeIds').val(selectedCheques.join(','));
+        $('#bulkActionBtn').prop('disabled', selectedCheques.length === 0);
+    }
+    
+    // Show/hide date field based on bulk action
+    $('#bulkAction').change(function() {
+        if ($(this).val() === 'schedule_retry') {
+            $('#bulkDateField').show();
+        } else {
+            $('#bulkDateField').hide();
+        }
+    });
+    
+    // Bulk action form validation
+    $('#bulkActionForm').submit(function(e) {
+        if (selectedCheques.length === 0) {
+            e.preventDefault();
+            alert('Veuillez sélectionner au moins un chèque.');
+            return false;
+        }
+        
+        const action = $('#bulkAction').val();
+        if (!action) {
+            e.preventDefault();
+            alert('Veuillez sélectionner une action.');
+            return false;
+        }
+        
+        const actionNames = {
+            'schedule_retry': 'programmer des tentatives',
+            'send_reminders': 'envoyer des rappels',
+            'export_legal': 'exporter pour action légale'
+        };
+        
+        return confirm(`Êtes-vous sûr de vouloir ${actionNames[action]} pour ${selectedCheques.length} chèque(s) sélectionné(s)?`);
+    });
+    
+    // Risk level row styling
+    $('.bounced-row').each(function() {
+        const risk = $(this).data('risk');
+        if (risk === 'CRITICAL') {
+            $(this).addClass('table-danger');
+        } else if (risk === 'HIGH') {
+            $(this).addClass('table-warning');
+        }
+    });
 });
-$('#status, #bank_id, #branch_id').change(function() {
-    $(this).closest('form').submit();
+
+// Write off functionality
+let writeOffChequeId = null;
+
+function writeOff(chequeId) {
+    writeOffChequeId = chequeId;
+    $('#writeOffModal').modal('show');
+}
+
+$('#confirmWriteOff').click(function() {
+    if (writeOffChequeId && $('#writeOffReason').val().trim()) {
+        $('#writeOffForm').attr('action', `/bounced-cheques/write-off/${writeOffChequeId}`);
+        $('#writeOffForm').submit();
+    } else {
+        alert('Veuillez saisir une raison pour passer ce chèque en perte.');
+    }
 });
+
+// Auto-refresh every 5 minutes to show updated stats
+setTimeout(function() {
+    location.reload();
+}, 300000);
 </script>
 {% endblock %}
+
+<!-- bounced_cheques/detail.html - Detailed view of bounced cheque -->
+{% extends "base.html" %}
+
+{% block title %}Détail Chèque Impayé - {{ bounced_cheque.cheque.client.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="fas fa-exclamation-triangle text-danger me-2"></i>Chèque Impayé</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('bounced_cheques.index') }}">Chèques Impayés</a></li>
+                <li class="breadcrumb-item active">{{ bounced_cheque.cheque.client.name }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="btn-group">
+        {% if bounced_cheque.is_retry_available and bounced_cheque.recovery_status != 'RECOVERED' %}
+        <a href="{{ url_for('bounced_cheques.schedule_retry', id=bounced_cheque.id) }}" 
+           class="btn btn-warning">
+            <i class="fas fa-redo me-1"></i>Programmer Tentative
+        </a>
+        {% endif %}
+        
+        {% if bounced_cheque.recovery_status not in ['RECOVERED', 'WRITTEN_OFF'] %}
+        <div class="btn-group">
+            <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-plus me-1"></i>Actions
+            </button>
+            <ul class="dropdown-menu">
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('bounced_cheques.alternative_payment', id=bounced_cheque.id) }}">
+                        <i class="fas fa-coins me-2"></i>Paiement Alternatif
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('bounced_cheques.legal_action', id=bounced_cheque.id) }}">
+                        <i class="fas fa-gavel me-2"></i>Action Légale
+                    </a>
+                </li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column - Main Information -->
+    <div class="col-md-8">
+        <!-- Cheque Information Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-money-check me-2"></i>Informations du Chèque</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Numéro:</strong></td>
+                                <td>{{ bounced_cheque.cheque.cheque_number or 'N/A' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Montant:</strong></td>
+                                <td><strong class="text-danger">{{ "{:,.2f}".format(bounced_cheque.cheque.amount) }} MAD</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Client:</strong></td>
+                                <td>
+                                    <strong>{{ bounced_cheque.cheque.client.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ bounced_cheque.cheque.client.id_number or 'N/A' }}
+                                    </small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Banque:</strong></td>
+                                <td>
+                                    {{ bounced_cheque.cheque.branch.bank.name }}
+                                    <br>
+                                    <small class="text-muted">{{ bounced_cheque.cheque.branch.name }}</small>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Date émission:</strong></td>
+                                <td>{{ bounced_cheque.cheque.issue_date.strftime('%d/%m/%Y') }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Date échéance:</strong></td>
+                                <td>{{ bounced_cheque.cheque.due_date.strftime('%d/%m/%Y') }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Date rejet:</strong></td>
+                                <td>
+                                    <strong class="text-danger">{{ bounced_cheque.rejection_date.strftime('%d/%m/%Y') }}</strong>
+                                    <br>
+                                    <small class="text-muted">Il y a {{ bounced_cheque.days_since_bounce }} jours</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Raison du rejet:</strong></td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ dict(BOUNCE_REASONS).get(bounced_cheque.rejection_reason, bounced_cheque.rejection_reason) }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                {% if bounced_cheque.rejection_details %}
+                <div class="alert alert-info">
+                    <strong>Détails du rejet:</strong> {{ bounced_cheque.rejection_details }}
+                </div>
+                {% endif %}
+                
+                {% if bounced_cheque.rejection_notice_path %}
+                <div class="mt-3">
+                    <a href="{{ url_for('static', filename='uploads/' + bounced_cheque.rejection_notice_path) }}" 
+                       target="_blank" class="btn btn-outline-info">
+                        <i class="fas fa-file-pdf me-1"></i>Voir l'avis de rejet
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recovery Progress Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line me-2"></i>Progression du Recouvrement</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-3 text-center">
+                        <div class="recovery-stat">
+                            <h4 class="text-danger">{{ "{:,.2f}".format(bounced_cheque.cheque.amount) }}</h4>
+                            <small class="text-muted">Montant initial</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="recovery-stat">
+                            <h4 class="text-success">{{ "{:,.2f}".format(bounced_cheque.recovery_amount or 0) }}</h4>
+                            <small class="text-muted">Récupéré</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="recovery-stat">
+                            <h4 class="text-warning">{{ "{:,.2f}".format((bounced_cheque.penalty_amount or 0) + (bounced_cheque.bank_charges or 0) + (bounced_cheque.legal_costs or 0)) }}</h4>
+                            <small class="text-muted">Frais engagés</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="recovery-stat">
+                            <h4 class="text-primary">{{ "{:.1f}%".format(recovery_percentage) }}</h4>
+                            <small class="text-muted">Taux recouvrement</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="progress mb-2" style="height: 10px;">
+                    <div class="progress-bar bg-success" style="width: {{ recovery_percentage }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-history me-2"></i>Historique des Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <!-- Initial bounce event -->
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Chèque rejeté</h6>
+                            <p class="timeline-description">
+                                Raison: {{ dict(BOUNCE_REASONS).get(bounced_cheque.rejection_reason, bounced_cheque.rejection_reason) }}
+                            </p>
+                            <small class="text-muted">{{ bounced_cheque.rejection_date.strftime('%d/%m/%Y') }}</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Retry attempts -->
+                    {% for attempt in retry_attempts %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-{{ 'success' if attempt.result == 'SUCCESS' else 'warning' if attempt.result == 'FAILED' else 'info' }}">
+                            <i class="fas fa-redo"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Tentative #{{ attempt.attempt_number }}</h6>
+                            <p class="timeline-description">
+                                {% if attempt.result == 'SUCCESS' %}
+                                    <span class="text-success">Tentative réussie</span>
+                                {% elif attempt.result == 'FAILED' %}
+                                    <span class="text-danger">Tentative échouée</span>
+                                {% else %}
+                                    <span class="text-info">En attente</span>
+                                {% endif %}
+                                {% if attempt.result_details %}
+                                    <br>{{ attempt.result_details }}
+                                {% endif %}
+                            </p>
+                            <small class="text-muted">
+                                {% if attempt.attempted_date %}
+                                    {{ attempt.attempted_date.strftime('%d/%m/%Y') }}
+                                {% else %}
+                                    Programmée pour le {{ attempt.scheduled_date.strftime('%d/%m/%Y') }}
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Legal actions -->
+                    {% for legal in legal_actions %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-dark">
+                            <i class="fas fa-gavel"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Action légale</h6>
+                            <p class="timeline-description">
+                                {{ dict(LEGAL_ACTION_TYPES).get(legal.action_type, legal.action_type) }}
+                                {% if legal.lawyer_name %}
+                                    <br>Avocat: {{ legal.lawyer_name }}
+                                {% endif %}
+                                {% if legal.case_reference %}
+                                    <br>Dossier: {{ legal.case_reference }}
+                                {% endif %}
+                            </p>
+                            <small class="text-muted">{{ legal.initiated_date.strftime('%d/%m/%Y') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Alternative payments -->
+                    {% for payment in alternative_payments %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-success">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Paiement alternatif</h6>
+                            <p class="timeline-description">
+                                {{ dict(ALTERNATIVE_PAYMENT_METHODS).get(payment.payment_method, payment.payment_method) }}
+                                <br><strong>{{ "{:,.2f}".format(payment.amount) }} MAD</strong>
+                                {% if payment.reference %}
+                                    <br>Réf: {{ payment.reference }}
+                                {% endif %}
+                            </p>
+                            <small class="text-muted">{{ payment.payment_date.strftime('%d/%m/%Y') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column - Status and Actions -->
+    <div class="col-md-4">
+        <!-- Status Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle me-2"></i>Statut</h5>
+            </div>
+            <div class="card-body">
+                <div class="status-item mb-3">
+                    <label>Recouvrement:</label>
+                    {% set status_colors = {
+                        'PENDING': 'warning',
+                        'IN_PROGRESS': 'info',
+                        'RECOVERED': 'success',
+                        'LEGAL': 'dark',
+                        'WRITTEN_OFF': 'secondary'
+                    } %}
+                    {% set status_labels = {
+                        'PENDING': 'En attente',
+                        'IN_PROGRESS': 'En cours',
+                        'RECOVERED': 'Récupéré',
+                        'LEGAL': 'Action légale',
+                        'WRITTEN_OFF': 'Perte'
+                    } %}
+                    <span class="badge bg-{{ status_colors.get(bounced_cheque.recovery_status, 'secondary') }}">
+                        {{ status_labels.get(bounced_cheque.recovery_status, bounced_cheque.recovery_status) }}
+                    </span>
+                </div>
+                
+                <div class="status-item mb-3">
+                    <label>Niveau de risque:</label>
+                    {% set risk_colors = {
+                        'LOW': 'success',
+                        'MEDIUM': 'warning',
+                        'HIGH': 'danger',
+                        'CRITICAL': 'dark'
+                    } %}
+                    {% set risk_labels = {
+                        'LOW': 'Faible',
+                        'MEDIUM': 'Moyen',
+                        'HIGH': 'Élevé',
+                        'CRITICAL': 'Critique'
+                    } %}
+                    <span class="badge bg-{{ risk_colors.get(bounced_cheque.risk_level, 'secondary') }}">
+                        {{ risk_labels.get(bounced_cheque.risk_level, bounced_cheque.risk_level) }}
+                    </span>
+                    <small class="text-muted d-block">Score: {{ "{:.0f}".format(bounced_cheque.risk_score) }}/100</small>
+                </div>
+                
+                <div class="status-item mb-3">
+                    <label>Tentatives:</label>
+                    <span class="badge bg-info">
+                        {{ bounced_cheque.retry_count }}/{{ bounced_cheque.max_retry_attempts }}
+                    </span>
+                    {% if bounced_cheque.next_retry_date %}
+                    <small class="text-muted d-block">
+                        Prochaine: {{ bounced_cheque.next_retry_date.strftime('%d/%m/%Y') }}
+                    </small>
+                    {% endif %}
+                </div>
+                
+                {% if bounced_cheque.client_notified %}
+                <div class="status-item mb-3">
+                    <label>Client notifié:</label>
+                    <span class="badge bg-success">Oui</span>
+                    <small class="text-muted d-block">
+                        {{ bounced_cheque.notification_date.strftime('%d/%m/%Y à %H:%M') if bounced_cheque.notification_date else 'Date inconnue' }}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions Card -->
+        {% if bounced_cheque.recovery_status not in ['RECOVERED', 'WRITTEN_OFF'] %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-bolt me-2"></i>Actions Rapides</h5>
+            </div>
+            <div class="card-body">
+                {% if bounced_cheque.is_retry_available %}
+                <div class="d-grid gap-2 mb-2">
+                    <a href="{{ url_for('bounced_cheques.schedule_retry', id=bounced_cheque.id) }}" 
+                       class="btn btn-warning btn-sm">
+                        <i class="fas fa-redo me-1"></i>Programmer Tentative
+                    </a>
+                </div>
+                {% endif %}
+                
+                <div class="d-grid gap-2 mb-2">
+                    <a href="{{ url_for('bounced_cheques.alternative_payment', id=bounced_cheque.id) }}" 
+                       class="btn btn-success btn-sm">
+                        <i class="fas fa-coins me-1"></i>Paiement Reçu
+                    </a>
+                </div>
+                
+                <div class="d-grid gap-2 mb-2">
+                    <a href="{{ url_for('bounced_cheques.legal_action', id=bounced_cheque.id) }}" 
+                       class="btn btn-dark btn-sm">
+                        <i class="fas fa-gavel me-1"></i>Action Légale
+                    </a>
+                </div>
+                
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="sendReminder()">
+                        <i class="fas fa-envelope me-1"></i>Envoyer Rappel
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Client Information Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-user me-2"></i>Information Client</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <td><strong>Nom:</strong></td>
+                        <td>{{ bounced_cheque.cheque.client.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Type:</strong></td>
+                        <td>{{ 'Personne' if bounced_cheque.cheque.client.type == 'personne' else 'Entreprise' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>{{ bounced_cheque.cheque.client.id_number or 'N/A' }}</td>
+                    </tr>
+                    {% if bounced_cheque.cheque.client.phone %}
+                    <tr>
+                        <td><strong>Téléphone:</strong></td>
+                        <td>
+                            <a href="tel:{{ bounced_cheque.cheque.client.phone }}">
+                                {{ bounced_cheque.cheque.client.phone }}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if bounced_cheque.cheque.client.email %}
+                    <tr>
+                        <td><strong>Email:</strong></td>
+                        <td>
+                            <a href="mailto:{{ bounced_cheque.cheque.client.email }}">
+                                {{ bounced_cheque.cheque.client.email }}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td><strong>Taux rebond:</strong></td>
+                        <td>
+                            <span class="badge bg-{{ 'danger' if bounced_cheque.cheque.client.bounce_rate > 20 else 'warning' if bounced_cheque.cheque.client.bounce_rate > 10 else 'success' }}">
+                                {{ "{:.1f}%".format(bounced_cheque.cheque.client.bounce_rate) }}
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+                
+                <div class="d-grid gap-2 mt-3">
+                    <a href="{{ url_for('clients.view', id=bounced_cheque.cheque.client.id) }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye me-1"></i>Voir Profil Client
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Upcoming Reminders Card -->
+        {% if upcoming_reminders %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-clock me-2"></i>Rappels Programmés</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for reminder in upcoming_reminders %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ reminder.subject }}</h6>
+                                <small class="text-muted">
+                                    {{ reminder.scheduled_date.strftime('%d/%m/%Y') }}
+                                    {% if reminder.scheduled_time %}
+                                        à {{ reminder.scheduled_time.strftime('%H:%M') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <span class="badge bg-{{ 'warning' if reminder.reminder_type == 'RETRY' else 'info' if reminder.reminder_type == 'LEGAL' else 'primary' }}">
+                                {{ reminder.reminder_type }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Documents Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-folder me-2"></i>Documents</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% if bounced_cheque.rejection_notice_path %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file-pdf text-danger me-2"></i>
+                            <div class="flex-grow-1">
+                                <small>Avis de rejet</small>
+                            </div>
+                            <a href="{{ url_for('static', filename='uploads/' + bounced_cheque.rejection_notice_path) }}" 
+                               target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if bounced_cheque.cheque.scan_path %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-image text-info me-2"></i>
+                            <div class="flex-grow-1">
+                                <small>Scan du chèque</small>
+                            </div>
+                            <a href="{{ url_for('static', filename='uploads/' + bounced_cheque.cheque.scan_path) }}" 
+                               target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% for payment in alternative_payments %}
+                        {% if payment.proof_document_path %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-receipt text-success me-2"></i>
+                                <div class="flex-grow-1">
+                                    <small>Justificatif paiement</small>
+                                    <br>
+                                    <small class="text-muted">{{ payment.payment_date.strftime('%d/%m/%Y') }}</small>
+                                </div>
+                                <a href="{{ url_for('static', filename='uploads/' + payment.proof_document_path) }}" 
+                                   target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% for legal in legal_actions %}
+                        {% if legal.documents_path %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-gavel text-dark me-2"></i>
+                                <div class="flex-grow-1">
+                                    <small>Document légal</small>
+                                    <br>
+                                    <small class="text-muted">{{ legal.initiated_date.strftime('%d/%m/%Y') }}</small>
+                                </div>
+                                <a href="{{ url_for('static', filename='uploads/' + legal.documents_path) }}" 
+                                   target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if not bounced_cheque.rejection_notice_path and not bounced_cheque.cheque.scan_path %}
+                    <div class="list-group-item px-0 text-center">
+                        <small class="text-muted">
+                            <i class="fas fa-folder-open me-1"></i>
+                            Aucun document disponible
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function sendReminder() {
+    if (confirm('Envoyer un rappel au client pour ce chèque impayé?')) {
+        $.ajax({
+            url: '/api/send-reminder',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': $('input[name="csrf_token"]').val()
+            },
+            data: JSON.stringify({
+                bounced_cheque_id: {{ bounced_cheque.id }},
+                reminder_type: 'manual'
+            })
+        })
+        .done(function(response) {
+            if (response.success) {
+                alert('Rappel envoyé avec succès!');
+            } else {
+                alert('Erreur lors de l\'envoi du rappel: ' + response.error);
+            }
+        })
+        .fail(function() {
+            alert('Erreur technique lors de l\'envoi du rappel.');
+        });
+    }
+}
+
+// Auto-update recovery percentage
+function updateRecoveryProgress() {
+    const totalAmount = {{ bounced_cheque.cheque.amount }};
+    const recoveredAmount = {{ bounced_cheque.recovery_amount or 0 }};
+    const percentage = (recoveredAmount / totalAmount * 100).toFixed(1);
+    
+    $('.progress-bar').css('width', percentage + '%');
+    $('.recovery-percentage').text(percentage + '%');
+}
+
+// Initialize tooltips
+$('[data-bs-toggle="tooltip"]').tooltip();
+</script>
+{% endblock %}
+
+<!-- bounced_cheques/mark_bounced.html - Form to mark cheque as bounced -->
+{% extends "base.html" %}
+
+{% block title %}Marquer comme Impayé - {{ cheque.client.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-card">
+        <div class="form-header">
+            <h1><i class="fas fa-exclamation-triangle text-danger me-2"></i>{{ title }}</h1>
+            <p>Marquer le chèque comme impayé et configurer les options de recouvrement</p>
+        </div>
+        
+        <div class="form-body">
+            <!-- Cheque Summary -->
+            <div class="alert alert-info mb-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Chèque n°:</strong> {{ cheque.cheque_number or 'N/A' }}<br>
+                        <strong>Client:</strong> {{ cheque.client.name }}<br>
+                        <strong>Montant:</strong> {{ "{:,.2f}".format(cheque.amount) }} MAD
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Banque:</strong> {{ cheque.branch.bank.name }}<br>
+                        <strong>Date échéance:</strong> {{ cheque.due_date.strftime('%d/%m/%Y') }}<br>
+                        <strong>Jours de retard:</strong> {{ (date.today() - cheque.due_date).days if cheque.due_date < date.today() else 0 }}
+                    </div>
+                </div>
+            </div>
+            
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                
+                <div class="form-grid">
+                    <!-- Rejection Details -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <i class="fas fa-times-circle text-danger"></i> Détails du Rejet
+                        </h3>
+                        
+                        <div class="form-group">
+                            {{ form.rejection_date.label }}
+                            {{ form.rejection_date(class="form-control") }}
+                            {% if form.rejection_date.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.rejection_date.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.rejection_reason.label }}
+                            {{ form.rejection_reason(class="form-select") }}
+                            {% if form.rejection_reason.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.rejection_reason.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.rejection_details.label }}
+                            {{ form.rejection_details(class="form-control", rows="3", placeholder="Détails supplémentaires sur le rejet...") }}
+                            {% if form.rejection_details.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.rejection_details.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.rejection_notice.label }}
+                            <div class="file-upload-area">
+                                {{ form.rejection_notice(class="form-control") }}
+                                <div class="mt-2">
+                                    <i class="fas fa-file-upload fa-2x"></i>
+                                    <p>Avis de rejet de la banque (optionnel)</p>
+                                    <small class="text-muted">Formats acceptés: JPG, PNG, PDF</small>
+                                </div>
+                            </div>
+                            {% if form.rejection_notice.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.rejection_notice.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Notification Options -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <i class="fas fa-bell text-warning"></i> Options de Notification
+                        </h3>
+                        
+                        <div class="form-group">
+                            <div class="form-check">
+                                {{ form.notify_client(class="form-check-input") }}
+                                {{ form.notify_client.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-help">
+                                <i class="fas fa-info-circle"></i>
+                                Informer automatiquement le client du rejet
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="form-check">
+                                {{ form.notify_accountant(class="form-check-input") }}
+                                {{ form.notify_accountant.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-help">
+                                <i class="fas fa-info-circle"></i>
+                                Notifier l'équipe comptable
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.notification_method.label }}
+                            {{ form.notification_method(class="form-select") }}
+                            {% if form.notification_method.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.notification_method.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Impact Warning -->
+                <div class="alert alert-warning mt-4">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
+                        <div>
+                            <h5>Impact de cette action:</h5>
+                            <ul class="mb-0">
+                                <li>Le chèque sera marqué comme <strong>IMPAYÉ</strong></li>
+                                <li>Le taux de rebond du client sera mis à jour</li>
+                                <li>Un dossier de recouvrement sera automatiquement créé</li>
+                                <li>Les notifications seront envoyées selon votre configuration</li>
+                                <li>Le statut sera synchronisé avec Excel</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <a href="{{ url_for('cheques.edit', id=cheque.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Retour au chèque
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Marquer comme Impayé
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Show/hide notification method based on notification checkboxes
+    function toggleNotificationMethod() {
+        if ($('#notify_client').is(':checked') || $('#notify_accountant').is(':checked')) {
+            $('#notification_method').closest('.form-group').show();
+        } else {
+            $('#notification_method').closest('.form-group').hide();
+        }
+    }
+    
+    $('#notify_client, #notify_accountant').change(toggleNotificationMethod);
+    toggleNotificationMethod(); // Initial state
+    
+    // File upload drag and drop
+    const fileUploadArea = $('.file-upload-area');
+    const fileInput = $('.file-upload-area input[type="file"]');
+    
+    fileUploadArea.on('dragover', function(e) {
+        e.preventDefault();
+        fileUploadArea.addClass('dragover');
+    });
+    
+    fileUploadArea.on('dragleave', function() {
+        fileUploadArea.removeClass('dragover');
+    });
+    
+    fileUploadArea.on('drop', function(e) {
+        e.preventDefault();
+        fileUploadArea.removeClass('dragover');
+        fileInput[0].files = e.originalEvent.dataTransfer.files;
+    });
+    
+    // Confirmation before submit
+    $('form').submit(function(e) {
+        return confirm('Êtes-vous sûr de vouloir marquer ce chèque comme impayé? Cette action ne peut pas être annulée facilement.');
+    });
+});
+</script>
+{% endblock %>
