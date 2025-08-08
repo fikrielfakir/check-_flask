@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Action Légale - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-gavel text-dark me-2"></i>Initier une Action Légale</h1>
+                <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Retour
+                </a>
+            </div>
+
+            <!-- Cheque Information Card -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card border-dark">
+                        <div class="card-header bg-dark text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations du Chèque</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Numéro:</strong> {{ cheque.cheque_number or 'N/A' }}</p>
+                                    <p><strong>Client:</strong> {{ cheque.client.name }}</p>
+                                    <p><strong>Montant:</strong> {{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</p>
+                                    <p><strong>Date de rejet:</strong> {{ cheque.rejection_date.strftime('%d/%m/%Y') if cheque.rejection_date else 'N/A' }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Banque:</strong> {{ cheque.branch.bank.name }}</p>
+                                    <p><strong>Motif de rejet:</strong> {{ cheque.rejection_reason or 'N/A' }}</p>
+                                    <p><strong>Tentatives:</strong> {{ cheque.retry_count or 0 }}</p>
+                                    <p><strong>Jours depuis rejet:</strong> {{ (date.today() - cheque.rejection_date).days if cheque.rejection_date else 'N/A' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legal Action Form -->
+            <div class="row">
+                <div class="col-md-10">
+                    <div class="card">
+                        <div class="card-header bg-dark text-white">
+                            <h5 class="mb-0"><i class="fas fa-gavel me-2"></i>Détails de l'Action Légale</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Important:</strong> Une fois l'action légale initiée, le statut du chèque sera changé en "PROCÉDURE LÉGALE".
+                            </div>
+                            
+                            <form method="POST" enctype="multipart/form-data">
+                                {{ form.hidden_tag() }}
+                                {{ form.cheque_id(value=cheque.id) }}
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.action_type.label(class="form-label") }}
+                                            {{ form.action_type(class="form-select") }}
+                                            {% if form.action_type.errors %}
+                                                <div class="text-danger">
+                                                    {% for error in form.action_type.errors %}
+                                                        <small>{{ error }}</small>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.initiated_date.label(class="form-label") }}
+                                            {{ form.initiated_date(class="form-control") }}
+                                            {% if form.initiated_date.errors %}
+                                                <div class="text-danger">
+                                                    {% for error in form.initiated_date.errors %}
+                                                        <small>{{ error }}</small>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.file_reference.label(class="form-label") }}
+                                            {{ form.file_reference(class="form-control", placeholder="Réf. du dossier") }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.court_reference.label(class="form-label") }}
+                                            {{ form.court_reference(class="form-control", placeholder="Réf. tribunal") }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.lawyer_name.label(class="form-label") }}
+                                            {{ form.lawyer_name(class="form-control", placeholder="Nom de l'avocat") }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.lawyer_contact.label(class="form-label") }}
+                                            {{ form.lawyer_contact(class="form-control", placeholder="Téléphone ou email") }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.deadline_date.label(class="form-label") }}
+                                            {{ form.deadline_date(class="form-control") }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.amount_claimed.label(class="form-label") }}
+                                            <div class="input-group">
+                                                {{ form.amount_claimed(class="form-control") }}
+                                                <span class="input-group-text">MAD</span>
+                                            </div>
+                                            {% if form.amount_claimed.errors %}
+                                                <div class="text-danger">
+                                                    {% for error in form.amount_claimed.errors %}
+                                                        <small>{{ error }}</small>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.court_fees.label(class="form-label") }}
+                                            <div class="input-group">
+                                                {{ form.court_fees(class="form-control") }}
+                                                <span class="input-group-text">MAD</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.lawyer_fees.label(class="form-label") }}
+                                            <div class="input-group">
+                                                {{ form.lawyer_fees(class="form-control") }}
+                                                <span class="input-group-text">MAD</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.legal_documents.label(class="form-label") }}
+                                    {{ form.legal_documents(class="form-control") }}
+                                    <div class="form-text">Formats acceptés: PDF, DOC, DOCX</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.notes.label(class="form-label") }}
+                                    {{ form.notes(class="form-control", rows="4", placeholder="Notes détaillées sur l'action légale...") }}
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
+                                        <i class="fas fa-times me-1"></i>Annuler
+                                    </a>
+                                    <button type="submit" class="btn btn-dark">
+                                        <i class="fas fa-gavel me-1"></i>Initier l'Action Légale
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default amount claimed to original cheque amount
+    const amountField = document.getElementById('amount_claimed');
+    if (!amountField.value) {
+        amountField.value = '{{ "{:.2f}".format(cheque.amount) }}';
+    }
+    
+    // Set default date to today if not set
+    const dateField = document.getElementById('initiated_date');
+    if (!dateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateField.value = today;
+    }
+});
+</script>
+{% endblock %}

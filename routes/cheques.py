@@ -1,15 +1,16 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from models import Cheque, Client, Branch, Bank
-from forms import ChequeForm
+from models import (Cheque, Client, Branch, Bank, ChequeStatusHistory, 
+                   ChequeRetryAttempt, ChequeLegalAction, ImpayeNotification, STANDARD_REJECTION_REASONS)
+from forms import (ChequeForm, ImpayeStatusForm, RetryAttemptForm, RetryResultForm,
+                  AlternativePaymentForm, LegalActionForm, NotificationForm, PresentationForm)
 from app import db
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import os
 from utils.excel_manager import ExcelManager
 from utils.optimized_excel_sync import OptimizedExcelSync
 from pathlib import Path
-from models import ChequeStatusHistory  # Add this import
 
 cheques_bp = Blueprint('cheques', __name__)
 
@@ -402,6 +403,10 @@ def update_status(id):
             cheque.rejection_date = datetime.utcnow().date()
         elif new_status == 'ENCAISSE':
             cheque.clearance_date = datetime.utcnow().date()
+        elif new_status == 'PRESENTE':
+            cheque.presentation_date = datetime.utcnow().date()
+        elif new_status == 'DEPOSE':
+            cheque.deposit_date = datetime.utcnow().date()
 
         db.session.commit()
         current_app.logger.info(f"Cheque {id} status updated to {new_status}")
@@ -429,3 +434,318 @@ def update_status(id):
         current_app.logger.error(f"Error updating status for cheque {id}: {str(e)}", exc_info=True)
         flash('Erreur technique lors de la mise à jour du statut', 'danger')
         return redirect(url_for('cheques.index'))
+
+# Enhanced Impayé Management Routes
+
+@cheques_bp.route('/<int:id>/present', methods=['GET', 'POST'])
+@login_required
+def present_cheque(id):
+    """Mark cheque as presented for collection"""
+    if not check_access():
+        return redirect(url_for('cheques.index'))
+    
+    cheque = Cheque.query.get_or_404(id)
+    form = PresentationForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Record status change history
+            status_history = ChequeStatusHistory(
+                cheque_id=cheque.id,
+                old_status=cheque.status,
+                new_status='PRESENTE',
+                changed_by=current_user.id,
+                notes=f"Chèque présenté pour encaissement le {form.presentation_date.data}"
+            )
+            db.session.add(status_history)
+            
+            # Update cheque
+            cheque.status = 'PRESENTE'
+            cheque.presentation_date = form.presentation_date.data
+            cheque.notes = (cheque.notes or '') + f"\n\nPrésenté le {form.presentation_date.data}: {form.notes.data or ''}"
+            cheque.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash('Chèque marqué comme présenté avec succès!', 'success')
+            return redirect(url_for('cheques.index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error presenting cheque {id}: {str(e)}")
+            flash('Erreur lors de la présentation du chèque', 'danger')
+    
+    return render_template('cheques/present_form.html', form=form, cheque=cheque)
+
+@cheques_bp.route('/<int:id>/impaye', methods=['GET', 'POST'])
+@login_required
+def mark_impaye(id):
+    """Mark cheque as Impayé (bounced) with rejection details"""
+    if not check_access():
+        return redirect(url_for('cheques.index'))
+    
+    cheque = Cheque.query.get_or_404(id)
+    form = ImpayeStatusForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Handle rejection notice upload
+            rejection_notice_path = None
+            if form.rejection_notice.data:
+                file = form.rejection_notice.data
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"rejection_{timestamp}_{filename}"
+                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                    file.save(file_path)
+                    rejection_notice_path = filename
+            
+            # Record status change history
+            status_history = ChequeStatusHistory(
+                cheque_id=cheque.id,
+                old_status=cheque.status,
+                new_status='IMPAYE',
+                changed_by=current_user.id,
+                notes=f"Chèque rejeté - Motif: {form.rejection_reason.data}"
+            )
+            db.session.add(status_history)
+            
+            # Update cheque
+            cheque.status = 'IMPAYE'
+            cheque.rejection_date = form.rejection_date.data
+            cheque.rejection_reason = form.rejection_reason.data
+            cheque.rejection_notice_path = rejection_notice_path
+            cheque.unpaid_reason = form.notes.data
+            cheque.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash('Chèque marqué comme impayé avec succès!', 'success')
+            return redirect(url_for('cheques.index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error marking cheque as impayé {id}: {str(e)}")
+            flash('Erreur lors du marquage comme impayé', 'danger')
+    
+    return render_template('cheques/impaye_form.html', form=form, cheque=cheque)
+
+@cheques_bp.route('/<int:id>/schedule-retry', methods=['GET', 'POST'])
+@login_required
+def schedule_retry(id):
+    """Schedule a retry attempt for a bounced cheque"""
+    if not check_access():
+        return redirect(url_for('cheques.index'))
+    
+    cheque = Cheque.query.get_or_404(id)
+    form = RetryAttemptForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Count existing retry attempts
+            retry_count = ChequeRetryAttempt.query.filter_by(cheque_id=cheque.id).count()
+            
+            # Create retry attempt
+            retry_attempt = ChequeRetryAttempt(
+                cheque_id=cheque.id,
+                attempt_number=retry_count + 1,
+                scheduled_date=form.scheduled_date.data,
+                status='scheduled',
+                notes=form.notes.data,
+                created_by=current_user.id
+            )
+            db.session.add(retry_attempt)
+            
+            # Update cheque
+            cheque.retry_count = retry_count + 1
+            cheque.next_retry_date = form.scheduled_date.data
+            cheque.status = 'TENTATIVE'
+            cheque.updated_at = datetime.utcnow()
+            
+            # Record status change
+            status_history = ChequeStatusHistory(
+                cheque_id=cheque.id,
+                old_status=cheque.status,
+                new_status='TENTATIVE',
+                changed_by=current_user.id,
+                notes=f"Tentative #{retry_count + 1} programmée pour le {form.scheduled_date.data}"
+            )
+            db.session.add(status_history)
+            
+            db.session.commit()
+            flash('Tentative de recouvrement programmée avec succès!', 'success')
+            return redirect(url_for('cheques.index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error scheduling retry for cheque {id}: {str(e)}")
+            flash('Erreur lors de la programmation de la tentative', 'danger')
+    
+    return render_template('cheques/retry_form.html', form=form, cheque=cheque)
+
+@cheques_bp.route('/<int:id>/alternative-payment', methods=['GET', 'POST'])
+@login_required
+def record_alternative_payment(id):
+    """Record alternative payment received for a bounced cheque"""
+    if not check_access():
+        return redirect(url_for('cheques.index'))
+    
+    cheque = Cheque.query.get_or_404(id)
+    form = AlternativePaymentForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Update cheque
+            cheque.status = 'RECOUVRE'
+            cheque.recovery_method = form.recovery_method.data
+            cheque.recovery_date = form.recovery_date.data
+            cheque.recovery_amount = form.recovery_amount.data
+            cheque.notes = (cheque.notes or '') + f"\n\nRecouvré le {form.recovery_date.data} par {form.recovery_method.data}: {form.recovery_amount.data} MAD"
+            cheque.updated_at = datetime.utcnow()
+            
+            # Record status change
+            status_history = ChequeStatusHistory(
+                cheque_id=cheque.id,
+                old_status=cheque.status,
+                new_status='RECOUVRE',
+                changed_by=current_user.id,
+                notes=f"Recouvrement alternatif: {form.recovery_method.data} - {form.recovery_amount.data} MAD"
+            )
+            db.session.add(status_history)
+            
+            db.session.commit()
+            flash('Paiement alternatif enregistré avec succès!', 'success')
+            return redirect(url_for('cheques.index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error recording alternative payment for cheque {id}: {str(e)}")
+            flash('Erreur lors de l\'enregistrement du paiement alternatif', 'danger')
+    
+    return render_template('cheques/alternative_payment_form.html', form=form, cheque=cheque)
+
+@cheques_bp.route('/<int:id>/legal-action', methods=['GET', 'POST'])
+@login_required
+def initiate_legal_action(id):
+    """Initiate legal action for a bounced cheque"""
+    if not check_access():
+        return redirect(url_for('cheques.index'))
+    
+    cheque = Cheque.query.get_or_404(id)
+    form = LegalActionForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Handle legal documents upload
+            documents_path = None
+            if form.legal_documents.data:
+                file = form.legal_documents.data
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"legal_{timestamp}_{filename}"
+                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                    file.save(file_path)
+                    documents_path = filename
+            
+            # Create legal action record
+            legal_action = ChequeLegalAction(
+                cheque_id=cheque.id,
+                action_type=form.action_type.data,
+                status='initiated',
+                file_reference=form.file_reference.data,
+                court_reference=form.court_reference.data,
+                lawyer_name=form.lawyer_name.data,
+                lawyer_contact=form.lawyer_contact.data,
+                initiated_date=form.initiated_date.data,
+                deadline_date=form.deadline_date.data,
+                amount_claimed=form.amount_claimed.data,
+                court_fees=form.court_fees.data,
+                lawyer_fees=form.lawyer_fees.data,
+                notes=form.notes.data,
+                documents_path=documents_path,
+                created_by=current_user.id
+            )
+            db.session.add(legal_action)
+            
+            # Update cheque
+            cheque.status = 'PROCEDURE'
+            cheque.legal_action_initiated = True
+            cheque.legal_file_reference = form.file_reference.data
+            cheque.court_case_reference = form.court_reference.data
+            cheque.lawyer_name = form.lawyer_name.data
+            cheque.legal_notes = form.notes.data
+            cheque.updated_at = datetime.utcnow()
+            
+            # Record status change
+            status_history = ChequeStatusHistory(
+                cheque_id=cheque.id,
+                old_status=cheque.status,
+                new_status='PROCEDURE',
+                changed_by=current_user.id,
+                notes=f"Action légale initiée: {form.action_type.data}"
+            )
+            db.session.add(status_history)
+            
+            db.session.commit()
+            flash('Action légale initiée avec succès!', 'success')
+            return redirect(url_for('cheques.index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error initiating legal action for cheque {id}: {str(e)}")
+            flash('Erreur lors de l\'initiation de l\'action légale', 'danger')
+    
+    return render_template('cheques/legal_action_form.html', form=form, cheque=cheque)
+
+@cheques_bp.route('/<int:id>/impaye-details')
+@login_required
+def impaye_details(id):
+    """View detailed information about an impayé cheque"""
+    cheque = Cheque.query.get_or_404(id)
+    
+    # Get related data
+    retry_attempts = ChequeRetryAttempt.query.filter_by(cheque_id=id).order_by(ChequeRetryAttempt.created_at.desc()).all()
+    legal_actions = ChequeLegalAction.query.filter_by(cheque_id=id).order_by(ChequeLegalAction.created_at.desc()).all()
+    notifications = ImpayeNotification.query.filter_by(cheque_id=id).order_by(ImpayeNotification.sent_date.desc()).all()
+    status_history = ChequeStatusHistory.query.filter_by(cheque_id=id).order_by(ChequeStatusHistory.changed_at.desc()).all()
+    
+    return render_template('cheques/impaye_details.html', 
+                         cheque=cheque,
+                         retry_attempts=retry_attempts,
+                         legal_actions=legal_actions,
+                         notifications=notifications,
+                         status_history=status_history,
+                         rejection_reasons=dict((r['code'], r['reason_fr']) for r in STANDARD_REJECTION_REASONS))
+
+@cheques_bp.route('/impaye-dashboard')
+@login_required
+def impaye_dashboard():
+    """Dashboard showing all impayé cheques and statistics"""
+    # Get impayé cheques
+    impaye_cheques = Cheque.query.filter(Cheque.status.in_(['IMPAYE', 'TENTATIVE', 'PROCEDURE'])).all()
+    
+    # Calculate statistics
+    total_impaye = len(impaye_cheques)
+    total_amount = sum(cheque.amount for cheque in impaye_cheques)
+    
+    # Group by status
+    status_stats = {}
+    for cheque in impaye_cheques:
+        status = cheque.status
+        if status not in status_stats:
+            status_stats[status] = {'count': 0, 'amount': 0}
+        status_stats[status]['count'] += 1
+        status_stats[status]['amount'] += cheque.amount
+    
+    # Get upcoming retry attempts
+    upcoming_retries = ChequeRetryAttempt.query.filter(
+        ChequeRetryAttempt.status == 'scheduled',
+        ChequeRetryAttempt.scheduled_date <= date.today() + timedelta(days=7)
+    ).order_by(ChequeRetryAttempt.scheduled_date).all()
+    
+    return render_template('cheques/impaye_dashboard.html',
+                         impaye_cheques=impaye_cheques,
+                         total_impaye=total_impaye,
+                         total_amount=total_amount,
+                         status_stats=status_stats,
+                         upcoming_retries=upcoming_retries)

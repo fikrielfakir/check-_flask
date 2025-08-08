@@ -298,6 +298,22 @@ class Cheque(db.Model):
     auto_extracted_data = db.Column(db.JSON)
     duplicate_detected = db.Column(db.Boolean, default=False)
     duplicate_score = db.Column(db.Numeric(5, 2))
+    
+    # Enhanced Impayé Management Fields
+    presentation_date = db.Column(db.Date)  # Date when cheque was presented for collection
+    rejection_reason = db.Column(db.String(100))  # Standard rejection reasons
+    rejection_notice_path = db.Column(db.String(255))  # Path to rejection notice document
+    retry_count = db.Column(db.Integer, default=0)  # Number of retry attempts
+    last_retry_date = db.Column(db.Date)  # Date of last retry attempt
+    next_retry_date = db.Column(db.Date)  # Scheduled next retry date
+    recovery_method = db.Column(db.String(50))  # Alternative payment method used
+    recovery_date = db.Column(db.Date)  # Date when recovered via alternative method
+    recovery_amount = db.Column(db.Numeric(15, 2))  # Amount recovered
+    legal_action_initiated = db.Column(db.Boolean, default=False)  # Legal action flag
+    legal_file_reference = db.Column(db.String(100))  # Legal file reference number
+    court_case_reference = db.Column(db.String(100))  # Court case reference
+    lawyer_name = db.Column(db.String(200))  # Assigned lawyer name
+    legal_notes = db.Column(db.Text)  # Legal action notes
 
 
 
@@ -306,8 +322,13 @@ class Cheque(db.Model):
     def status_display(self):
         status_map = {
             'EN_ATTENTE': 'EN ATTENTE',
-            'ENCAISSE': 'ENCAISSE',
-            'IMPAYE': 'IMPAYE',
+            'PRESENTE': 'PRÉSENTÉ',
+            'EN_COURS': 'EN COURS',
+            'ENCAISSE': 'ENCAISSÉ',
+            'IMPAYE': 'IMPAYÉ',
+            'TENTATIVE': 'NOUVELLE TENTATIVE',
+            'RECOUVRE': 'RECOUVRÉ',
+            'PROCEDURE': 'PROCÉDURE LÉGALE',
             'DEPOSE': 'DÉPOSÉ',
             'ANNULE': 'ANNULÉ'
         }
@@ -317,8 +338,13 @@ class Cheque(db.Model):
     def status_color(self):
         color_map = {
             'EN_ATTENTE': 'warning',
+            'PRESENTE': 'info',
+            'EN_COURS': 'primary',
             'ENCAISSE': 'success',
             'IMPAYE': 'danger',
+            'TENTATIVE': 'warning',
+            'RECOUVRE': 'success',
+            'PROCEDURE': 'dark',
             'DEPOSE': 'info',
             'ANNULE': 'secondary'
         }
@@ -327,6 +353,11 @@ class Cheque(db.Model):
     # Relationships - Fixed: Use back_populates instead of backref to avoid conflicts
     assigned_user = db.relationship('User', back_populates='assigned_cheques')
     excel_mapping = db.relationship('ChequeExcelMapping', backref='cheque', uselist=False, cascade='all, delete-orphan')
+    
+    # Enhanced Impayé relationships - using string references for forward compatibility
+    retry_attempts = db.relationship('ChequeRetryAttempt', backref='cheque', lazy=True, cascade='all, delete-orphan')
+    legal_actions = db.relationship('ChequeLegalAction', backref='cheque', lazy=True, cascade='all, delete-orphan')
+    impaye_notifications = db.relationship('ImpayeNotification', backref='cheque', lazy=True, cascade='all, delete-orphan')
     
     # Note: branch and deposit_branch relationships are defined in Branch model with foreign_keys specified
 
@@ -528,3 +559,130 @@ class HolidayCalendar(db.Model):
         Index('idx_holiday_date', 'date'),
         Index('idx_holiday_banking', 'is_banking_day_off'),
     )
+
+# Enhanced Impayé Management Models
+
+class ChequeRetryAttempt(db.Model):
+    """Track retry attempts for bounced cheques"""
+    __tablename__ = 'cheque_retry_attempts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cheque_id = db.Column(db.Integer, db.ForeignKey('cheques.id'), nullable=False)
+    attempt_number = db.Column(db.Integer, nullable=False)
+    scheduled_date = db.Column(db.Date, nullable=False)
+    actual_date = db.Column(db.Date)
+    status = db.Column(db.String(20), nullable=False)  # scheduled, completed, failed, cancelled
+    result = db.Column(db.String(20))  # success, failed, rejected
+    notes = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        CheckConstraint(status.in_(['scheduled', 'completed', 'failed', 'cancelled']), name='check_retry_status'),
+        CheckConstraint(result.in_(['success', 'failed', 'rejected']), name='check_retry_result'),
+        Index('idx_retry_cheque', 'cheque_id'),
+        Index('idx_retry_scheduled_date', 'scheduled_date'),
+        Index('idx_retry_status', 'status'),
+    )
+
+class ChequeLegalAction(db.Model):
+    """Track legal actions for unpaid cheques"""
+    __tablename__ = 'cheque_legal_actions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cheque_id = db.Column(db.Integer, db.ForeignKey('cheques.id'), nullable=False)
+    action_type = db.Column(db.String(50), nullable=False)  # mise_en_demeure, assignation, jugement, execution
+    status = db.Column(db.String(20), nullable=False)  # initiated, in_progress, completed, closed
+    file_reference = db.Column(db.String(100))
+    court_reference = db.Column(db.String(100))
+    lawyer_name = db.Column(db.String(200))
+    lawyer_contact = db.Column(db.String(100))
+    initiated_date = db.Column(db.Date, nullable=False)
+    deadline_date = db.Column(db.Date)
+    completion_date = db.Column(db.Date)
+    amount_claimed = db.Column(db.Numeric(15, 2))
+    amount_recovered = db.Column(db.Numeric(15, 2))
+    court_fees = db.Column(db.Numeric(10, 2))
+    lawyer_fees = db.Column(db.Numeric(10, 2))
+    notes = db.Column(db.Text)
+    documents_path = db.Column(db.String(255))  # Path to legal documents
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        CheckConstraint(action_type.in_(['mise_en_demeure', 'assignation', 'jugement', 'execution', 'mediation']), name='check_legal_action_type'),
+        CheckConstraint(status.in_(['initiated', 'in_progress', 'completed', 'closed', 'suspended']), name='check_legal_status'),
+        Index('idx_legal_cheque', 'cheque_id'),
+        Index('idx_legal_action_type', 'action_type'),
+        Index('idx_legal_status', 'status'),
+        Index('idx_legal_initiated_date', 'initiated_date'),
+    )
+
+class ImpayeNotification(db.Model):
+    """Track notifications sent for bounced cheques"""
+    __tablename__ = 'impaye_notifications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cheque_id = db.Column(db.Integer, db.ForeignKey('cheques.id'), nullable=False)
+    notification_type = db.Column(db.String(50), nullable=False)  # impaye_alert, retry_reminder, legal_notice
+    recipient_type = db.Column(db.String(20), nullable=False)  # client, internal, lawyer
+    recipient_contact = db.Column(db.String(200))
+    method = db.Column(db.String(20), nullable=False)  # email, sms, phone, letter
+    subject = db.Column(db.String(200))
+    message = db.Column(db.Text)
+    sent_date = db.Column(db.DateTime, default=datetime.utcnow)
+    delivery_status = db.Column(db.String(20), default='sent')  # sent, delivered, failed, read
+    delivery_date = db.Column(db.DateTime)
+    response_received = db.Column(db.Boolean, default=False)
+    response_date = db.Column(db.DateTime)
+    response_notes = db.Column(db.Text)
+    external_reference = db.Column(db.String(100))  # SMS/Email provider reference
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    
+    __table_args__ = (
+        CheckConstraint(notification_type.in_(['impaye_alert', 'retry_reminder', 'legal_notice', 'recovery_notice']), name='check_notification_type'),
+        CheckConstraint(recipient_type.in_(['client', 'internal', 'lawyer', 'accountant']), name='check_recipient_type'),
+        CheckConstraint(method.in_(['email', 'sms', 'phone', 'letter', 'fax']), name='check_notification_method'),
+        CheckConstraint(delivery_status.in_(['sent', 'delivered', 'failed', 'read', 'bounced']), name='check_delivery_status'),
+        Index('idx_notification_cheque', 'cheque_id'),
+        Index('idx_notification_type', 'notification_type'),
+        Index('idx_notification_sent_date', 'sent_date'),
+        Index('idx_notification_delivery_status', 'delivery_status'),
+    )
+
+class ImpayeRejectionReason(db.Model):
+    """Standard rejection reasons for cheques"""
+    __tablename__ = 'impaye_rejection_reasons'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    reason_fr = db.Column(db.String(200), nullable=False)
+    reason_ar = db.Column(db.String(200))
+    category = db.Column(db.String(50))  # funds, signature, account, technical
+    severity = db.Column(db.String(10), default='medium')  # low, medium, high
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        CheckConstraint(category.in_(['funds', 'signature', 'account', 'technical', 'fraud']), name='check_rejection_category'),
+        CheckConstraint(severity.in_(['low', 'medium', 'high']), name='check_rejection_severity'),
+        Index('idx_rejection_code', 'code'),
+        Index('idx_rejection_category', 'category'),
+        Index('idx_rejection_active', 'is_active'),
+    )
+
+# Predefined rejection reasons for Moroccan banking system
+STANDARD_REJECTION_REASONS = [
+    {'code': 'ISF', 'reason_fr': 'Provision insuffisante', 'category': 'funds', 'severity': 'high'},
+    {'code': 'SIG', 'reason_fr': 'Signature non conforme', 'category': 'signature', 'severity': 'medium'},
+    {'code': 'CMP', 'reason_fr': 'Compte fermé', 'category': 'account', 'severity': 'high'},
+    {'code': 'BLQ', 'reason_fr': 'Compte bloqué', 'category': 'account', 'severity': 'high'},
+    {'code': 'OPP', 'reason_fr': 'Opposition sur chèque', 'category': 'account', 'severity': 'high'},
+    {'code': 'DAT', 'reason_fr': 'Chèque antidaté', 'category': 'technical', 'severity': 'low'},
+    {'code': 'EXT', 'reason_fr': 'Chèque expiré', 'category': 'technical', 'severity': 'medium'},
+    {'code': 'FRM', 'reason_fr': 'Formulaire non conforme', 'category': 'technical', 'severity': 'low'},
+    {'code': 'FRD', 'reason_fr': 'Suspicion de fraude', 'category': 'fraud', 'severity': 'high'},
+    {'code': 'AUT', 'reason_fr': 'Autre motif', 'category': 'technical', 'severity': 'medium'}
+]

@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de Bord Impayés - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-chart-line text-danger me-2"></i>Tableau de Bord - Chèques Impayés</h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
+                        <i class="fas fa-list me-1"></i>Liste des Chèques
+                    </a>
+                    <button class="btn btn-primary" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i>Imprimer
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h3 class="mb-1">{{ total_impaye }}</h3>
+                                    <p class="mb-0">Chèques Impayés</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h3 class="mb-1">{{ "{:,.0f}".format(total_amount) }}</h3>
+                                    <p class="mb-0">Montant Total (MAD)</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-money-bill-wave fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h3 class="mb-1">{{ status_stats.get('TENTATIVE', {}).get('count', 0) }}</h3>
+                                    <p class="mb-0">En Tentative</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-redo fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-dark text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h3 class="mb-1">{{ status_stats.get('PROCEDURE', {}).get('count', 0) }}</h3>
+                                    <p class="mb-0">Procédure Légale</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-gavel fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Distribution Chart -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-chart-pie me-2"></i>Répartition par Statut</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if status_stats %}
+                            <canvas id="statusChart" width="400" height="200"></canvas>
+                            {% else %}
+                            <p class="text-muted text-center">Aucune donnée disponible</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-chart-bar me-2"></i>Montants par Statut</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if status_stats %}
+                            <canvas id="amountChart" width="400" height="200"></canvas>
+                            {% else %}
+                            <p class="text-muted text-center">Aucune donnée disponible</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Retries -->
+            {% if upcoming_retries %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Tentatives Prévues (7 prochains jours)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Date Prévue</th>
+                                            <th>Chèque</th>
+                                            <th>Client</th>
+                                            <th>Montant</th>
+                                            <th>Tentative #</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for retry in upcoming_retries %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-warning text-dark">
+                                                    {{ retry.scheduled_date.strftime('%d/%m/%Y') }}
+                                                </span>
+                                            </td>
+                                            <td>{{ retry.cheque.cheque_number or 'N/A' }}</td>
+                                            <td>{{ retry.cheque.client.name }}</td>
+                                            <td>{{ "{:,.2f}".format(retry.cheque.amount) }} MAD</td>
+                                            <td>{{ retry.attempt_number }}</td>
+                                            <td>
+                                                <a href="{{ url_for('cheques.impaye_details', id=retry.cheque.id) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Impayé Cheques List -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-list me-2"></i>Liste des Chèques Impayés</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if impaye_cheques %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Chèque</th>
+                                            <th>Client</th>
+                                            <th>Montant</th>
+                                            <th>Date Rejet</th>
+                                            <th>Statut</th>
+                                            <th>Tentatives</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for cheque in impaye_cheques %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ cheque.cheque_number or 'N/A' }}</strong><br>
+                                                <small class="text-muted">{{ cheque.branch.bank.name }}</small>
+                                            </td>
+                                            <td>
+                                                {{ cheque.client.name }}<br>
+                                                <small class="text-muted">{{ cheque.client.id_number or 'N/A' }}</small>
+                                            </td>
+                                            <td>{{ "{:,.2f}".format(cheque.amount) }} MAD</td>
+                                            <td>
+                                                {% if cheque.rejection_date %}
+                                                {{ cheque.rejection_date.strftime('%d/%m/%Y') }}<br>
+                                                <small class="text-muted">Il y a {{ (date.today() - cheque.rejection_date).days }} jour(s)</small>
+                                                {% else %}
+                                                N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ cheque.status_color }}">
+                                                    {{ cheque.status_display }}
+                                                </span>
+                                            </td>
+                                            <td>{{ cheque.retry_count or 0 }}</td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ url_for('cheques.impaye_details', id=cheque.id) }}" class="btn btn-outline-primary" title="Détails">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    {% if cheque.status == 'IMPAYE' %}
+                                                    <a href="{{ url_for('cheques.schedule_retry', id=cheque.id) }}" class="btn btn-outline-warning" title="Nouvelle Tentative">
+                                                        <i class="fas fa-redo"></i>
+                                                    </a>
+                                                    <a href="{{ url_for('cheques.record_alternative_payment', id=cheque.id) }}" class="btn btn-outline-success" title="Paiement Alternatif">
+                                                        <i class="fas fa-money-bill-wave"></i>
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                <h5>Aucun chèque impayé</h5>
+                                <p class="text-muted">Tous les chèques sont en règle!</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Import date from Python context
+window.date = {
+    today: function() {
+        return new Date();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Status Distribution Chart
+    {% if status_stats %}
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [
+                {% for status in status_stats.keys() %}
+                '{{ status }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for stats in status_stats.values() %}
+                    {{ stats['count'] }},
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    '#dc3545', // IMPAYE - red
+                    '#ffc107', // TENTATIVE - yellow
+                    '#343a40', // PROCEDURE - dark
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Amount Distribution Chart
+    const amountCtx = document.getElementById('amountChart').getContext('2d');
+    new Chart(amountCtx, {
+        type: 'bar',
+        data: {
+            labels: [
+                {% for status in status_stats.keys() %}
+                '{{ status }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Montant (MAD)',
+                data: [
+                    {% for stats in status_stats.values() %}
+                    {{ stats['amount'] }},
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    '#dc3545', // IMPAYE - red
+                    '#ffc107', // TENTATIVE - yellow
+                    '#343a40', // PROCEDURE - dark
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + ' MAD';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

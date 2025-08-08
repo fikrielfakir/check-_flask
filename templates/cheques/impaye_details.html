@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}Détails Impayé - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-search text-primary me-2"></i>Détails du Chèque Impayé</h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Retour
+                    </a>
+                    {% if cheque.status == 'IMPAYE' %}
+                    <a href="{{ url_for('cheques.schedule_retry', id=cheque.id) }}" class="btn btn-warning">
+                        <i class="fas fa-redo me-1"></i>Nouvelle Tentative
+                    </a>
+                    <a href="{{ url_for('cheques.record_alternative_payment', id=cheque.id) }}" class="btn btn-success">
+                        <i class="fas fa-money-bill-wave me-1"></i>Paiement Alternatif
+                    </a>
+                    <a href="{{ url_for('cheques.initiate_legal_action', id=cheque.id) }}" class="btn btn-dark">
+                        <i class="fas fa-gavel me-1"></i>Action Légale
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Cheque Summary Card -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-danger">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Résumé du Chèque Impayé</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <h6>Informations Chèque</h6>
+                                    <p><strong>Numéro:</strong> {{ cheque.cheque_number or 'N/A' }}</p>
+                                    <p><strong>Montant:</strong> {{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</p>
+                                    <p><strong>Date d'échéance:</strong> {{ cheque.due_date.strftime('%d/%m/%Y') }}</p>
+                                    <p><strong>Statut:</strong> <span class="badge bg-{{ cheque.status_color }}">{{ cheque.status_display }}</span></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Client</h6>
+                                    <p><strong>Nom:</strong> {{ cheque.client.name }}</p>
+                                    <p><strong>Type:</strong> {{ 'Personne' if cheque.client.type == 'personne' else 'Entreprise' }}</p>
+                                    <p><strong>ID:</strong> {{ cheque.client.id_number or 'N/A' }}</p>
+                                    <p><strong>Contact:</strong> {{ cheque.client.phone or cheque.client.email or 'N/A' }}</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Banque</h6>
+                                    <p><strong>Banque:</strong> {{ cheque.branch.bank.name }}</p>
+                                    <p><strong>Agence:</strong> {{ cheque.branch.name }}</p>
+                                    <p><strong>Date de présentation:</strong> {{ cheque.presentation_date.strftime('%d/%m/%Y') if cheque.presentation_date else 'N/A' }}</p>
+                                    <p><strong>Date de rejet:</strong> {{ cheque.rejection_date.strftime('%d/%m/%Y') if cheque.rejection_date else 'N/A' }}</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6>Rejet</h6>
+                                    <p><strong>Motif:</strong> 
+                                        {% if cheque.rejection_reason %}
+                                            {{ rejection_reasons.get(cheque.rejection_reason, cheque.rejection_reason) }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Tentatives:</strong> {{ cheque.retry_count or 0 }}</p>
+                                    {% if cheque.next_retry_date %}
+                                    <p><strong>Prochaine tentative:</strong> {{ cheque.next_retry_date.strftime('%d/%m/%Y') }}</p>
+                                    {% endif %}
+                                    {% if cheque.rejection_notice_path %}
+                                    <p><a href="{{ url_for('static', filename='uploads/' + cheque.rejection_notice_path) }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-file-pdf me-1"></i>Avis de rejet
+                                    </a></p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs for detailed information -->
+            <div class="row">
+                <div class="col-12">
+                    <ul class="nav nav-tabs" id="detailsTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button">
+                                <i class="fas fa-history me-1"></i>Historique
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="retries-tab" data-bs-toggle="tab" data-bs-target="#retries" type="button">
+                                <i class="fas fa-redo me-1"></i>Tentatives ({{ retry_attempts|length }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="legal-tab" data-bs-toggle="tab" data-bs-target="#legal" type="button">
+                                <i class="fas fa-gavel me-1"></i>Actions Légales ({{ legal_actions|length }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button">
+                                <i class="fas fa-bell me-1"></i>Notifications ({{ notifications|length }})
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content mt-3">
+                        <!-- Status History Tab -->
+                        <div class="tab-pane fade show active" id="history">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-history me-2"></i>Historique des Changements de Statut</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if status_history %}
+                                    <div class="timeline">
+                                        {% for history in status_history %}
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker bg-primary"></div>
+                                            <div class="timeline-content">
+                                                <h6>{{ history.old_status or 'Nouveau' }} → {{ history.new_status }}</h6>
+                                                <p><small class="text-muted">{{ history.changed_at.strftime('%d/%m/%Y à %H:%M') }}</small></p>
+                                                {% if history.notes %}
+                                                <p>{{ history.notes }}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted">Aucun historique disponible.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Retry Attempts Tab -->
+                        <div class="tab-pane fade" id="retries">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-redo me-2"></i>Tentatives de Recouvrement</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if retry_attempts %}
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Tentative #</th>
+                                                    <th>Date Prévue</th>
+                                                    <th>Date Réelle</th>
+                                                    <th>Statut</th>
+                                                    <th>Résultat</th>
+                                                    <th>Notes</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for attempt in retry_attempts %}
+                                                <tr>
+                                                    <td>{{ attempt.attempt_number }}</td>
+                                                    <td>{{ attempt.scheduled_date.strftime('%d/%m/%Y') }}</td>
+                                                    <td>{{ attempt.actual_date.strftime('%d/%m/%Y') if attempt.actual_date else '-' }}</td>
+                                                    <td>
+                                                        <span class="badge bg-{% if attempt.status == 'completed' %}success{% elif attempt.status == 'scheduled' %}warning{% else %}secondary{% endif %}">
+                                                            {{ attempt.status }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ attempt.result or '-' }}</td>
+                                                    <td>{{ attempt.notes or '-' }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted">Aucune tentative de recouvrement enregistrée.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Legal Actions Tab -->
+                        <div class="tab-pane fade" id="legal">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-gavel me-2"></i>Actions Légales</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if legal_actions %}
+                                    {% for action in legal_actions %}
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <h6>{{ action.action_type.replace('_', ' ').title() }}</h6>
+                                                    <p><strong>Statut:</strong> <span class="badge bg-primary">{{ action.status }}</span></p>
+                                                    <p><strong>Date d'initiation:</strong> {{ action.initiated_date.strftime('%d/%m/%Y') }}</p>
+                                                    {% if action.deadline_date %}
+                                                    <p><strong>Date limite:</strong> {{ action.deadline_date.strftime('%d/%m/%Y') }}</p>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="col-md-6">
+                                                    {% if action.lawyer_name %}
+                                                    <p><strong>Avocat:</strong> {{ action.lawyer_name }}</p>
+                                                    {% endif %}
+                                                    {% if action.file_reference %}
+                                                    <p><strong>Référence dossier:</strong> {{ action.file_reference }}</p>
+                                                    {% endif %}
+                                                    {% if action.amount_claimed %}
+                                                    <p><strong>Montant réclamé:</strong> {{ "{:,.2f}".format(action.amount_claimed) }} MAD</p>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% if action.notes %}
+                                            <div class="row">
+                                                <div class="col-12">
+                                                    <p><strong>Notes:</strong> {{ action.notes }}</p>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-muted">Aucune action légale initiée.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Notifications Tab -->
+                        <div class="tab-pane fade" id="notifications">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-bell me-2"></i>Notifications Envoyées</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if notifications %}
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Type</th>
+                                                    <th>Destinataire</th>
+                                                    <th>Méthode</th>
+                                                    <th>Date d'envoi</th>
+                                                    <th>Statut</th>
+                                                    <th>Sujet</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for notif in notifications %}
+                                                <tr>
+                                                    <td>{{ notif.notification_type }}</td>
+                                                    <td>{{ notif.recipient_type }}</td>
+                                                    <td>{{ notif.method }}</td>
+                                                    <td>{{ notif.sent_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                                    <td>
+                                                        <span class="badge bg-{% if notif.delivery_status == 'delivered' %}success{% elif notif.delivery_status == 'failed' %}danger{% else %}warning{% endif %}">
+                                                            {{ notif.delivery_status }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ notif.subject }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <p class="text-muted">Aucune notification envoyée.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+// Import date from Python context
+window.date = {
+    today: function() {
+        return new Date();
+    }
+};
+</script>
+{% endblock %}

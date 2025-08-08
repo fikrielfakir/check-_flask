@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Marquer Impayé - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-exclamation-triangle text-danger me-2"></i>Marquer Chèque comme Impayé</h1>
+                <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Retour
+                </a>
+            </div>
+
+            <!-- Cheque Information Card -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card border-danger">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations du Chèque</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Numéro:</strong> {{ cheque.cheque_number or 'N/A' }}</p>
+                                    <p><strong>Client:</strong> {{ cheque.client.name }}</p>
+                                    <p><strong>Montant:</strong> {{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Banque:</strong> {{ cheque.branch.bank.name }}</p>
+                                    <p><strong>Agence:</strong> {{ cheque.branch.name }}</p>
+                                    <p><strong>Date d'échéance:</strong> {{ cheque.due_date.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <p><strong>Statut actuel:</strong> 
+                                        <span class="badge bg-{{ cheque.status_color }}">{{ cheque.status_display }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Impayé Form -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Détails du Rejet</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" enctype="multipart/form-data">
+                                {{ form.hidden_tag() }}
+                                {{ form.cheque_id(value=cheque.id) }}
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.rejection_date.label(class="form-label") }}
+                                            {{ form.rejection_date(class="form-control") }}
+                                            {% if form.rejection_date.errors %}
+                                                <div class="text-danger">
+                                                    {% for error in form.rejection_date.errors %}
+                                                        <small>{{ error }}</small>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.rejection_reason.label(class="form-label") }}
+                                            {{ form.rejection_reason(class="form-select") }}
+                                            {% if form.rejection_reason.errors %}
+                                                <div class="text-danger">
+                                                    {% for error in form.rejection_reason.errors %}
+                                                        <small>{{ error }}</small>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.rejection_notice.label(class="form-label") }}
+                                    {{ form.rejection_notice(class="form-control") }}
+                                    <div class="form-text">Formats acceptés: JPG, PNG, PDF</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.notes.label(class="form-label") }}
+                                    {{ form.notes(class="form-control", rows="3", placeholder="Notes complémentaires sur le rejet...") }}
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                {{ form.notify_client(class="form-check-input") }}
+                                                {{ form.notify_client.label(class="form-check-label") }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            {{ form.notification_method.label(class="form-label") }}
+                                            {{ form.notification_method(class="form-select") }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
+                                        <i class="fas fa-times me-1"></i>Annuler
+                                    </a>
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Marquer comme Impayé
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default date to today if not set
+    const dateField = document.getElementById('rejection_date');
+    if (!dateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateField.value = today;
+    }
+    
+    // Toggle notification method field based on notify client checkbox
+    const notifyClientCheck = document.getElementById('notify_client');
+    const notificationMethodField = document.getElementById('notification_method');
+    
+    function toggleNotificationMethod() {
+        notificationMethodField.disabled = !notifyClientCheck.checked;
+        if (!notifyClientCheck.checked) {
+            notificationMethodField.value = '';
+        }
+    }
+    
+    notifyClientCheck.addEventListener('change', toggleNotificationMethod);
+    toggleNotificationMethod(); // Initial state
+});
+</script>
+{% endblock %}

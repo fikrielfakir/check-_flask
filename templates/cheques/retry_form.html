@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Programmer Tentative - Gestion des Chèques{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-redo text-warning me-2"></i>Programmer une Nouvelle Tentative</h1>
+                <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Retour
+                </a>
+            </div>
+
+            <!-- Cheque Information Card -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations du Chèque Impayé</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Numéro:</strong> {{ cheque.cheque_number or 'N/A' }}</p>
+                                    <p><strong>Client:</strong> {{ cheque.client.name }}</p>
+                                    <p><strong>Montant:</strong> {{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</p>
+                                    <p><strong>Date de rejet:</strong> {{ cheque.rejection_date.strftime('%d/%m/%Y') if cheque.rejection_date else 'N/A' }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Banque:</strong> {{ cheque.branch.bank.name }}</p>
+                                    <p><strong>Agence:</strong> {{ cheque.branch.name }}</p>
+                                    <p><strong>Motif de rejet:</strong> {{ cheque.rejection_reason or 'N/A' }}</p>
+                                    <p><strong>Tentatives actuelles:</strong> {{ cheque.retry_count or 0 }}</p>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <p><strong>Statut actuel:</strong> 
+                                        <span class="badge bg-{{ cheque.status_color }}">{{ cheque.status_display }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Retry Form -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-redo me-2"></i>Détails de la Tentative</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Conseil:</strong> Il est recommandé d'attendre au moins 7 jours avant une nouvelle tentative pour permettre au client de résoudre le problème.
+                            </div>
+                            
+                            <form method="POST">
+                                {{ form.hidden_tag() }}
+                                {{ form.cheque_id(value=cheque.id) }}
+                                
+                                <div class="mb-3">
+                                    {{ form.scheduled_date.label(class="form-label") }}
+                                    {{ form.scheduled_date(class="form-control") }}
+                                    {% if form.scheduled_date.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.scheduled_date.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">Date prévue pour la prochaine tentative d'encaissement</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    {{ form.notes.label(class="form-label") }}
+                                    {{ form.notes(class="form-control", rows="3", placeholder="Notes ou raisons pour cette tentative...") }}
+                                    <div class="form-text">Indiquez les raisons de cette nouvelle tentative ou les actions prises</div>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('cheques.index') }}" class="btn btn-secondary">
+                                        <i class="fas fa-times me-1"></i>Annuler
+                                    </a>
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="fas fa-redo me-1"></i>Programmer la Tentative
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default date to 7 days from now if not set
+    const dateField = document.getElementById('scheduled_date');
+    if (!dateField.value) {
+        const future = new Date();
+        future.setDate(future.getDate() + 7);
+        dateField.value = future.toISOString().split('T')[0];
+    }
+    
+    // Validate that scheduled date is in the future
+    dateField.addEventListener('change', function() {
+        const selectedDate = new Date(this.value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (selectedDate <= today) {
+            alert('La date de tentative doit être dans le futur.');
+            const future = new Date();
+            future.setDate(future.getDate() + 1);
+            this.value = future.toISOString().split('T')[0];
+        }
+    });
+});
+</script>
+{% endblock %}
