@@ -155,8 +155,30 @@
                         </div>
                         
                         <div class="form-group">
+                            {{ form.depositor_id.label }}
+                            <div class="select-with-btn">
+                                <div class="form-control-wrapper">
+                                    {{ form.depositor_id(class="form-select") }}
+                                </div>
+                                <button type="button" class="btn btn-outline btn-sm" onclick="window.open('{{ url_for('depositors.create_depositor') }}', '_blank')">
+                                    <i class="fas fa-user-plus"></i> Nouveau Déposant
+                                </button>
+                            </div>
+                            {% if form.depositor_id.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.depositor_id.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
                             {{ form.depositor_name.label }}
-                            {{ form.depositor_name(class="form-control") }}
+                            {{ form.depositor_name(class="form-control", placeholder="Ou saisir le nom manuellement") }}
+                            <div class="form-help">
+                                <i class="fas fa-info-circle"></i>
+                                Ce champ est optionnel si un déposant est sélectionné
+                            </div>
                             {% if form.depositor_name.errors %}
                                 <div class="error-message">
                                     <i class="fas fa-exclamation-circle"></i>

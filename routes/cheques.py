@@ -205,6 +205,7 @@ def new():
                 issue_date=form.issue_date.data,
                 due_date=form.due_date.data,
                 client_id=form.client_id.data,
+                depositor_id=form.depositor_id.data if form.depositor_id.data and form.depositor_id.data != 0 else None,
                 branch_id=form.branch_id.data,
                 deposit_branch_id=form.deposit_branch_id.data if form.deposit_branch_id.data and form.deposit_branch_id.data != 0 else None,
                 status=form.status.data,
@@ -288,6 +289,7 @@ def edit(id):
             cheque.issue_date = form.issue_date.data
             cheque.due_date = form.due_date.data
             cheque.client_id = form.client_id.data
+            cheque.depositor_id = form.depositor_id.data if form.depositor_id.data and form.depositor_id.data != 0 else None
             cheque.branch_id = form.branch_id.data
             cheque.deposit_branch_id = form.deposit_branch_id.data if form.deposit_branch_id.data and form.deposit_branch_id.data != 0 else None
             cheque.status = form.status.data

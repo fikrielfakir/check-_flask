@@ -42,6 +42,7 @@ class ChequeForm(FlaskForm):
     issue_date = DateField('Date d\'reception', validators=[DataRequired()])
     due_date = DateField('Date d\'échéance', validators=[DataRequired()])
     client_id = SelectField('Client', coerce=int, validators=[DataRequired()])
+    depositor_id = SelectField('Déposant', coerce=int, validators=[Optional()])
     branch_id = SelectField('Banque/Agence', coerce=int, validators=[DataRequired()])
     deposit_branch_id = SelectField('Banque de dépôts - Agence', coerce=int, validators=[Optional()])
     status = SelectField('Statut',
@@ -107,20 +108,32 @@ class ChequeForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super(ChequeForm, self).__init__(*args, **kwargs)
         
+        # Import here to avoid circular imports
+        from models import Depositor
+        
         # Populate client choices
         self.client_id.choices = [(0, 'Sélectionner un client...')] + [
-            (client.id, client.name) for client in Client.query.order_by(Client.name).all()
+            (c.id, f"{c.name} ({'Entreprise' if c.type == 'entreprise' else 'Personne'})")
+            for c in Client.query.filter_by(is_active=True).order_by(Client.name).all()
         ]
         
-        # Populate branch choices
-        branch_choices = [(0, 'Sélectionner une agence...')] + [
-            (branch.id, branch.display_name) for branch in Branch.query.join(Bank).order_by(Bank.name, Branch.name).all()
+        # Populate depositor choices
+        self.depositor_id.choices = [(0, 'Sélectionner un déposant...')] + [
+            (d.id, f"{d.name} ({'Entreprise' if d.type == 'entreprise' else 'Personne' if d.type == 'personne' else 'Mandataire'})")
+            for d in Depositor.query.filter_by(is_active=True, blocked=False).order_by(Depositor.name).all()
         ]
-        self.branch_id.choices = branch_choices
         
-        # Populate deposit branch choices (same as branch choices but optional)
-        self.deposit_branch_id.choices = [(0, 'Sélectionner une banque de dépôts (optionnel)...')] + [
-            (branch.id, branch.display_name) for branch in Branch.query.join(Bank).order_by(Bank.name, Branch.name).all()
+        # Populate branch choices (Bank - Branch format)
+        branches = Branch.query.join(Bank).filter(Branch.is_active == True, Bank.is_active == True).order_by(Bank.name, Branch.name).all()
+        self.branch_id.choices = [(0, 'Sélectionner une agence...')] + [
+            (branch.id, f"{branch.bank.name} - {branch.name}") 
+            for branch in branches
+        ]
+        
+        # Populate deposit branch choices (same as branch choices)
+        self.deposit_branch_id.choices = [(0, 'Sélectionner une agence de dépôt...')] + [
+            (branch.id, f"{branch.bank.name} - {branch.name}") 
+            for branch in branches
         ]
         
         # Populate rejection reason choices
