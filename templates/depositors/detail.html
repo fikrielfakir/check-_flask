@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% block title %}{{ depositor.name }} - Détails Déposant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-user"></i> {{ depositor.name }}</h2>
+                    <p class="text-muted mb-0">
+                        {% if depositor.type == 'personne' %}
+                            <span class="badge bg-primary">Personne physique</span>
+                        {% elif depositor.type == 'entreprise' %}
+                            <span class="badge bg-success">Entreprise</span>
+                        {% else %}
+                            <span class="badge bg-info">Mandataire</span>
+                        {% endif %}
+                        
+                        {% if depositor.blocked %}
+                            <span class="badge bg-danger ms-2">Bloqué</span>
+                        {% elif depositor.is_active %}
+                            <span class="badge bg-success ms-2">Actif</span>
+                        {% else %}
+                            <span class="badge bg-secondary ms-2">Inactif</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="btn-group">
+                    <a href="{{ url_for('depositors.edit_depositor', id=depositor.id) }}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Modifier
+                    </a>
+                    <button type="button" class="btn btn-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="fas fa-cog"></i> Actions
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <form method="POST" action="{{ url_for('depositors.toggle_depositor_status', id=depositor.id) }}" class="d-inline">
+                                <button type="submit" class="dropdown-item">
+                                    <i class="fas fa-{{ 'eye-slash' if depositor.is_active else 'eye' }}"></i>
+                                    {{ 'Désactiver' if depositor.is_active else 'Activer' }}
+                                </button>
+                            </form>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#blockModal">
+                                <i class="fas fa-{{ 'unlock' if depositor.blocked else 'ban' }}"></i>
+                                {{ 'Débloquer' if depositor.blocked else 'Bloquer' }}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Depositor Information -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-id-card"></i> Informations personnelles</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless table-sm">
+                        <tr>
+                            <td><strong>Nom:</strong></td>
+                            <td>{{ depositor.name }}</td>
+                        </tr>
+                        {% if depositor.company_name %}
+                        <tr>
+                            <td><strong>{{ 'Raison sociale:' if depositor.type == 'entreprise' else 'Entreprise:' }}</strong></td>
+                            <td>{{ depositor.company_name }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if depositor.job_title %}
+                        <tr>
+                            <td><strong>Poste:</strong></td>
+                            <td>{{ depositor.job_title }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if depositor.phone %}
+                        <tr>
+                            <td><strong>Téléphone:</strong></td>
+                            <td><i class="fas fa-phone"></i> {{ depositor.phone }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if depositor.email %}
+                        <tr>
+                            <td><strong>Email:</strong></td>
+                            <td><i class="fas fa-envelope"></i> {{ depositor.email }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if depositor.id_number %}
+                        <tr>
+                            <td><strong>{{ depositor.id_type.upper() }}:</strong></td>
+                            <td>{{ depositor.id_number }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            {% if depositor.address or depositor.city %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-map-marker-alt"></i> Adresse</h6>
+                </div>
+                <div class="card-body">
+                    {% if depositor.address %}
+                        <p class="mb-1">{{ depositor.address }}</p>
+                    {% endif %}
+                    {% if depositor.city %}
+                        <p class="mb-0">
+                            {{ depositor.city }}
+                            {% if depositor.postal_code %} {{ depositor.postal_code }}{% endif %}
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if depositor.bank_account_number %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-university"></i> Informations bancaires</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless table-sm">
+                        <tr>
+                            <td><strong>Compte:</strong></td>
+                            <td>{{ depositor.bank_account_number }}</td>
+                        </tr>
+                        {% if depositor.bank_name %}
+                        <tr>
+                            <td><strong>Banque:</strong></td>
+                            <td>{{ depositor.bank_name }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if depositor.bank_branch %}
+                        <tr>
+                            <td><strong>Agence:</strong></td>
+                            <td>{{ depositor.bank_branch }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Activity Statistics -->
+        <div class="col-md-8">
+            <!-- Statistics Cards -->
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-0">{{ depositor.total_deposits or 0 }}</h4>
+                            <small>Total Dépôts</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-0">{{ '{:,.2f}'.format(depositor.total_amount_deposited or 0) }} MAD</h4>
+                            <small>Montant Total</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-0">
+                                {% if depositor.risk_level == 'low' %}Faible
+                                {% elif depositor.risk_level == 'medium' %}Moyen
+                                {% else %}Élevé{% endif %}
+                            </h4>
+                            <small>Niveau Risque</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-0">{{ deposit_stats.successful_deposits or 0 }}</h4>
+                            <small>Dépôts Réussis</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Deposits -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-history"></i> Dépôts Récents</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_deposits %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Chèque</th>
+                                        <th>Montant</th>
+                                        <th>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for deposit in recent_deposits %}
+                                    <tr>
+                                        <td>{{ deposit.deposit_date.strftime('%d/%m/%Y') }}</td>
+                                        <td>
+                                            {% if deposit.cheque %}
+                                                <a href="{{ url_for('cheques.view', id=deposit.cheque.id) }}">
+                                                    {{ deposit.cheque.cheque_number or 'N/A' }}
+                                                </a>
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if deposit.cheque %}
+                                                {{ '{:,.2f}'.format(deposit.cheque.amount) }} {{ deposit.cheque.currency }}
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if deposit.status == 'completed' %}
+                                                <span class="badge bg-success">Terminé</span>
+                                            {% elif deposit.status == 'pending_verification' %}
+                                                <span class="badge bg-warning">Vérification</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Rejeté</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">Aucun dépôt récent</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Cheques -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-money-check"></i> Chèques Associés Récents</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_cheques %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>N° Chèque</th>
+                                        <th>Client</th>
+                                        <th>Montant</th>
+                                        <th>Échéance</th>
+                                        <th>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cheque in recent_cheques %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('cheques.view', id=cheque.id) }}">
+                                                {{ cheque.cheque_number or 'N/A' }}
+                                            </a>
+                                        </td>
+                                        <td>{{ cheque.client.name if cheque.client else 'N/A' }}</td>
+                                        <td>{{ '{:,.2f}'.format(cheque.amount) }} {{ cheque.currency }}</td>
+                                        <td>{{ cheque.due_date.strftime('%d/%m/%Y') if cheque.due_date else 'N/A' }}</td>
+                                        <td>
+                                            {% if cheque.status == 'ENCAISSE' %}
+                                                <span class="badge bg-success">Encaissé</span>
+                                            {% elif cheque.status == 'EN_ATTENTE' %}
+                                                <span class="badge bg-warning">En attente</span>
+                                            {% elif cheque.status == 'IMPAYE' %}
+                                                <span class="badge bg-danger">Impayé</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ cheque.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">Aucun chèque associé récent</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if depositor.notes %}
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-sticky-note"></i> Notes</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ depositor.notes }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Block/Unblock Modal -->
+<div class="modal fade" id="blockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    {{ 'Débloquer' if depositor.blocked else 'Bloquer' }} Déposant
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('depositors.block_depositor', id=depositor.id) }}">
+                <div class="modal-body">
+                    {% if not depositor.blocked %}
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Raison du blocage:</label>
+                        <textarea class="form-control" name="reason" id="reason" rows="3" required>{{ depositor.blocked_reason or '' }}</textarea>
+                    </div>
+                    {% else %}
+                    <p>Êtes-vous sûr de vouloir débloquer ce déposant?</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-{{ 'success' if depositor.blocked else 'danger' }}">
+                        {{ 'Débloquer' if depositor.blocked else 'Bloquer' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-12">
+        <a href="{{ url_for('depositors.list_depositors') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour à la liste
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize Bootstrap tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
+});
+</script>
+{% endblock %}

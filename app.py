@@ -73,6 +73,7 @@ def create_app():
     from routes.banks import banks_bp
     from routes.clients import clients_bp
     from routes.cheques import cheques_bp
+    from routes.depositors import depositors_bp
     from routes.exports import exports_bp
     from routes.excel_manager import excel_manager_bp
     from routes.analytics import analytics_bp
@@ -83,6 +84,7 @@ def create_app():
     app.register_blueprint(banks_bp, url_prefix='/banks')
     app.register_blueprint(clients_bp, url_prefix='/clients')
     app.register_blueprint(cheques_bp, url_prefix='/cheques')
+    app.register_blueprint(depositors_bp, url_prefix='/depositors')
     app.register_blueprint(exports_bp, url_prefix='/exports')
     app.register_blueprint(excel_manager_bp, url_prefix='/excel')
     app.register_blueprint(analytics_bp, url_prefix='/analytics')

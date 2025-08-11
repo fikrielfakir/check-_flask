@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block title %}Gestion des Déposants{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-users"></i> Gestion des Déposants</h2>
+                <a href="{{ url_for('depositors.create_depositor') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Nouveau Déposant
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="small">Total Déposants</div>
+                            <div class="fw-bold">{{ stats.total }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="small">Actifs</div>
+                            <div class="fw-bold">{{ stats.active }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="small">Risque Élevé</div>
+                            <div class="fw-bold">{{ stats.high_risk }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-ban fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="small">Bloqués</div>
+                            <div class="fw-bold">{{ stats.blocked }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Rechercher</label>
+                    <input type="text" class="form-control" id="search" name="search" value="{{ search }}" 
+                           placeholder="Nom, téléphone, email, CIN...">
+                </div>
+                <div class="col-md-2">
+                    <label for="type" class="form-label">Type</label>
+                    <select class="form-select" id="type" name="type">
+                        <option value="">Tous</option>
+                        <option value="personne" {{ 'selected' if depositor_type == 'personne' }}>Personne</option>
+                        <option value="entreprise" {{ 'selected' if depositor_type == 'entreprise' }}>Entreprise</option>
+                        <option value="mandataire" {{ 'selected' if depositor_type == 'mandataire' }}>Mandataire</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="status" class="form-label">Statut</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">Tous</option>
+                        <option value="active" {{ 'selected' if status == 'active' }}>Actif</option>
+                        <option value="inactive" {{ 'selected' if status == 'inactive' }}>Inactif</option>
+                        <option value="blocked" {{ 'selected' if status == 'blocked' }}>Bloqué</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="risk" class="form-label">Risque</label>
+                    <select class="form-select" id="risk" name="risk">
+                        <option value="">Tous</option>
+                        <option value="low" {{ 'selected' if risk_level == 'low' }}>Faible</option>
+                        <option value="medium" {{ 'selected' if risk_level == 'medium' }}>Moyen</option>
+                        <option value="high" {{ 'selected' if risk_level == 'high' }}>Élevé</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search"></i> Rechercher
+                    </button>
+                    <a href="{{ url_for('depositors.list_depositors') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Depositors Table -->
+    <div class="card">
+        <div class="card-body">
+            {% if depositors.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Type</th>
+                                <th>Contact</th>
+                                <th>Identification</th>
+                                <th>Activité</th>
+                                <th>Risque</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for depositor in depositors.items %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ depositor.name }}</div>
+                                    {% if depositor.company_name %}
+                                        <small class="text-muted">{{ depositor.company_name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if depositor.type == 'personne' %}
+                                        <span class="badge bg-primary">Personne</span>
+                                    {% elif depositor.type == 'entreprise' %}
+                                        <span class="badge bg-success">Entreprise</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Mandataire</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if depositor.phone %}
+                                        <div><i class="fas fa-phone"></i> {{ depositor.phone }}</div>
+                                    {% endif %}
+                                    {% if depositor.email %}
+                                        <div><i class="fas fa-envelope"></i> {{ depositor.email }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if depositor.id_number %}
+                                        <span class="badge bg-secondary">
+                                            {{ depositor.id_type.upper() }}: {{ depositor.id_number }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="small">
+                                        <strong>{{ depositor.total_deposits }}</strong> dépôts
+                                    </div>
+                                    {% if depositor.last_deposit_date %}
+                                        <div class="text-muted small">
+                                            Dernier: {{ depositor.last_deposit_date.strftime('%d/%m/%Y') }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if depositor.risk_level == 'low' %}
+                                        <span class="badge bg-success">Faible</span>
+                                    {% elif depositor.risk_level == 'medium' %}
+                                        <span class="badge bg-warning">Moyen</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Élevé</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if depositor.blocked %}
+                                        <span class="badge bg-danger">Bloqué</span>
+                                    {% elif depositor.is_active %}
+                                        <span class="badge bg-success">Actif</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactif</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('depositors.view_depositor', id=depositor.id) }}" 
+                                           class="btn btn-outline-primary" title="Voir détails">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('depositors.edit_depositor', id=depositor.id) }}" 
+                                           class="btn btn-outline-warning" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if depositors.pages > 1 %}
+                <nav aria-label="Pagination des déposants">
+                    <ul class="pagination justify-content-center">
+                        {% if depositors.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('depositors.list_depositors', page=depositors.prev_num, search=search, type=depositor_type, status=status, risk=risk_level) }}">
+                                    Précédent
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in depositors.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != depositors.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('depositors.list_depositors', page=page_num, search=search, type=depositor_type, status=status, risk=risk_level) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if depositors.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('depositors.list_depositors', page=depositors.next_num, search=search, type=depositor_type, status=status, risk=risk_level) }}">
+                                    Suivant
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucun déposant trouvé</h5>
+                    <p class="text-muted">
+                        {% if search or depositor_type or status or risk_level %}
+                            Aucun déposant ne correspond aux critères de recherche.
+                            <br>
+                            <a href="{{ url_for('depositors.list_depositors') }}" class="btn btn-link">Voir tous les déposants</a>
+                        {% else %}
+                            Commencez par créer votre premier déposant.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-submit form on filter change
+document.addEventListener('DOMContentLoaded', function() {
+    const filterSelects = document.querySelectorAll('#type, #status, #risk');
+    filterSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+});
+</script>
+{% endblock %}

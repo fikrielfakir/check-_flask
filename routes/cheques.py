@@ -11,6 +11,7 @@ from datetime import datetime, date, timedelta
 import os
 from utils.excel_manager import ExcelManager
 from utils.optimized_excel_sync import OptimizedExcelSync
+from utils.auto_sheet_creator import AutoSheetCreator
 from pathlib import Path
 
 cheques_bp = Blueprint('cheques', __name__)
@@ -221,13 +222,20 @@ def new():
             db.session.add(cheque)
             db.session.commit()
             
-            # Automatically update Excel file with optimized sync
+            # OPTIMIZATION: Auto-create all monthly sheets for the year when adding a cheque
             excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+            auto_creator = AutoSheetCreator(excel_folder)
+            sheet_optimization_success, sheet_filepath = auto_creator.optimize_cheque_addition(cheque)
+            
+            # Automatically update Excel file with optimized sync
             optimized_sync = OptimizedExcelSync(excel_folder)
             excel_sync_success = optimized_sync.sync_cheque(cheque, 'create')
             
             if excel_sync_success:
-                flash('Chèque ajouté avec succès et synchronisé avec Excel!', 'success')
+                if sheet_optimization_success:
+                    flash('Chèque ajouté avec succès! Tous les onglets mensuels ont été créés et le fichier Excel synchronisé.', 'success')
+                else:
+                    flash('Chèque ajouté avec succès et synchronisé avec Excel!', 'success')
             else:
                 flash('Chèque ajouté avec succès, mais erreur de synchronisation Excel.', 'warning')
             

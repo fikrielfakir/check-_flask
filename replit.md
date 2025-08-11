@@ -60,6 +60,15 @@ This is a Flask-based web application for managing checks and financial transact
 - Created detailed build guide with multiple construction methods
 - Prepared portable application structure with local data storage
 
+### ✓ Depositor Management & Auto-Sheet Optimization (August 2025)
+- Created comprehensive depositor management system with CRUD operations
+- Implemented DepositorForm for managing depositor information (person/company/agent)
+- Added depositor search, filtering, and risk assessment capabilities
+- Built AutoSheetCreator optimization for automatic monthly sheet creation
+- Enhanced cheque creation to automatically generate all 12 monthly sheets per year
+- Integrated depositor relationship tracking with cheques and deposit logs
+- Created responsive templates for depositor list, form, and detail views
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

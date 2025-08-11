@@ -224,6 +224,50 @@ class LegalActionForm(FlaskForm):
     ])
     notes = TextAreaField('Notes légales', validators=[Optional()])
 
+
+class DepositorForm(FlaskForm):
+    """Form for managing depositor information"""
+    name = StringField('Nom complet', validators=[DataRequired(), Length(min=2, max=200)])
+    type = SelectField('Type de déposant', 
+                      choices=[
+                          ('personne', 'Personne physique'),
+                          ('entreprise', 'Entreprise'),
+                          ('mandataire', 'Mandataire')
+                      ],
+                      validators=[DataRequired()])
+    
+    # Contact information
+    phone = StringField('Téléphone', validators=[Optional(), Length(max=20)])
+    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
+    address = TextAreaField('Adresse', validators=[Optional()])
+    city = StringField('Ville', validators=[Optional(), Length(max=100)])
+    postal_code = StringField('Code postal', validators=[Optional(), Length(max=20)])
+    
+    # Identification
+    id_number = StringField('Numéro d\'identification', validators=[Optional(), Length(max=50)])
+    id_type = SelectField('Type de pièce d\'identité',
+                         choices=[
+                             ('', 'Sélectionner...'),
+                             ('cin', 'CIN'),
+                             ('passport', 'Passeport'),
+                             ('rc', 'Registre de Commerce'),
+                             ('ice', 'ICE'),
+                             ('carte_sejour', 'Carte de séjour')
+                         ],
+                         validators=[Optional()])
+    
+    # Professional information (for mandataires/employees)
+    company_name = StringField('Nom de l\'entreprise', validators=[Optional(), Length(max=200)])
+    job_title = StringField('Poste/Fonction', validators=[Optional(), Length(max=100)])
+    
+    # Bank account information (optional)
+    bank_account_number = StringField('Numéro de compte bancaire', validators=[Optional(), Length(max=50)])
+    bank_name = StringField('Nom de la banque', validators=[Optional(), Length(max=100)])
+    bank_branch = StringField('Agence bancaire', validators=[Optional(), Length(max=100)])
+    
+    # Notes
+    notes = TextAreaField('Notes et observations', validators=[Optional()])
+
 class NotificationForm(FlaskForm):
     """Form for sending notifications about impayé cheques"""
     cheque_id = HiddenField()
