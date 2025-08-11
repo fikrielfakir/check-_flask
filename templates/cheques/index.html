@@ -127,6 +127,7 @@
                 <thead>
                     <tr>
                         <th>Client</th>
+                        <th>Déposant</th>
                         <th>Numéro Chèque</th>
                         <th>Montant</th>
                         <th>Date Échéance</th>
@@ -143,8 +144,18 @@
                                 <strong>{{ cheque.client.name }}</strong>
                                 <br>
                                 <small class="text-muted">{{ cheque.client.type }}</small>
-                                
                             </div>
+                        </td>
+                        <td>
+                            {% if cheque.depositor %}
+                                <span class="badge bg-{{ 'primary' if cheque.depositor.type == 'personne' else 'info' if cheque.depositor.type == 'entreprise' else 'warning' }}">
+                                    {{ cheque.depositor.name[:20] }}{{ '...' if cheque.depositor.name|length > 20 else '' }}
+                                </span>
+                            {% elif cheque.depositor_name %}
+                                <span class="badge bg-secondary">{{ cheque.depositor_name[:20] }}{{ '...' if cheque.depositor_name|length > 20 else '' }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
                         </td>
                         <td>
                             <div>

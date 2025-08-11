@@ -636,6 +636,20 @@ class Cheque(db.Model):
     legal_notes = db.Column(db.Text)  # Legal action notes
 
     @property
+    def days_overdue(self):
+        """Calculate days overdue"""
+        if self.status in ['ENCAISSE', 'ANNULE']:
+            return 0
+        if datetime.now().date() <= self.due_date:
+            return 0
+        return (datetime.now().date() - self.due_date).days
+    
+    @property
+    def is_overdue(self):
+        """Check if the cheque is overdue"""
+        return self.days_overdue > 0
+    
+    @property
     def status_display(self):
         status_map = {
             'EN_ATTENTE': 'EN ATTENTE',

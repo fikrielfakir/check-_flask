@@ -303,6 +303,110 @@
         </div>
     </div>
 
+    <!-- Depositor Analytics Section -->
+    {% if depositor_stats %}
+    <div class="row mb-4">
+        <!-- Depositor Distribution -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-user-friends me-2"></i>Statistiques des Déposants</h5>
+                    <a href="{{ url_for('depositors.list_depositors') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="border-end">
+                                <h4 class="text-primary">{{ depositor_stats.type_distribution.get('personne', 0) }}</h4>
+                                <small class="text-muted">Personnes</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border-end">
+                                <h4 class="text-info">{{ depositor_stats.type_distribution.get('entreprise', 0) }}</h4>
+                                <small class="text-muted">Entreprises</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-warning">{{ depositor_stats.type_distribution.get('mandataire', 0) }}</h4>
+                            <small class="text-muted">Mandataires</small>
+                        </div>
+                    </div>
+                    
+                    {% if depositor_stats.risk_distribution %}
+                    <h6 class="mb-2">Distribution des Risques:</h6>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <span class="badge bg-success">{{ depositor_stats.risk_distribution.get('low', 0) }}</span>
+                            <small class="d-block text-muted">Faible</small>
+                        </div>
+                        <div class="col-4">
+                            <span class="badge bg-warning">{{ depositor_stats.risk_distribution.get('medium', 0) }}</span>
+                            <small class="d-block text-muted">Moyen</small>
+                        </div>
+                        <div class="col-4">
+                            <span class="badge bg-danger">{{ depositor_stats.risk_distribution.get('high', 0) }}</span>
+                            <small class="d-block text-muted">Élevé</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Depositors -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Top Déposants</h5>
+                    <span class="badge bg-secondary">Par Volume</span>
+                </div>
+                <div class="card-body">
+                    {% if depositor_stats.top_depositors %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Déposant</th>
+                                    <th class="text-center">Type</th>
+                                    <th class="text-end">Chèques</th>
+                                    <th class="text-end">Montant</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for depositor in depositor_stats.top_depositors[:5] %}
+                                <tr>
+                                    <td>{{ depositor.name[:25] + '...' if depositor.name|length > 25 else depositor.name }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ 'primary' if depositor.type == 'personne' else 'info' if depositor.type == 'entreprise' else 'warning' }}">
+                                            {{ depositor.type.title()[:1] }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-info">{{ depositor.cheque_count }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>{{ "%.0f"|format(depositor.total_amount) }} MAD</strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-user-friends fa-3x mb-3"></i>
+                        <p>Aucun déposant actif trouvé</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Risk Clients Alert -->
     {% if risk_clients %}
     <div class="row mb-4">

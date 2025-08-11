@@ -186,6 +186,106 @@
 </div>
 {% endif %}
 
+<!-- Depositor Statistics Section -->
+{% if depositor_stats %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0" data-fr="👥 Statistiques des Déposants" data-ar="👥 إحصائيات المودعين">👥 Statistiques des Déposants</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h4 class="text-primary">{{ depositor_stats.total }}</h4>
+                        <small class="text-muted" data-fr="Total Actifs" data-ar="المجموع النشط">Total Actifs</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-danger">{{ depositor_stats.blocked }}</h4>
+                        <small class="text-muted" data-fr="Bloqués" data-ar="محظورين">Bloqués</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-success">{{ depositor_stats.type_distribution.get('personne', 0) + depositor_stats.type_distribution.get('entreprise', 0) + depositor_stats.type_distribution.get('mandataire', 0) }}</h4>
+                        <small class="text-muted" data-fr="Types" data-ar="الأنواع">Types</small>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row text-center">
+                    <div class="col-4">
+                        <span class="badge bg-primary">{{ depositor_stats.type_distribution.get('personne', 0) }}</span>
+                        <small class="d-block text-muted" data-fr="Personnes" data-ar="أشخاص">Personnes</small>
+                    </div>
+                    <div class="col-4">
+                        <span class="badge bg-info">{{ depositor_stats.type_distribution.get('entreprise', 0) }}</span>
+                        <small class="d-block text-muted" data-fr="Entreprises" data-ar="شركات">Entreprises</small>
+                    </div>
+                    <div class="col-4">
+                        <span class="badge bg-warning">{{ depositor_stats.type_distribution.get('mandataire', 0) }}</span>
+                        <small class="d-block text-muted" data-fr="Mandataires" data-ar="وكلاء">Mandataires</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0" data-fr="🏆 Top 5 Déposants" data-ar="🏆 أفضل 5 مودعين">🏆 Top 5 Déposants</h5>
+            </div>
+            <div class="card-body">
+                {% if depositor_stats.top_depositors %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th data-fr="Déposant" data-ar="المودع">Déposant</th>
+                                <th class="text-center" data-fr="Type" data-ar="النوع">Type</th>
+                                <th class="text-end" data-fr="Chèques" data-ar="شيكات">Chèques</th>
+                                <th class="text-end" data-fr="Montant" data-ar="المبلغ">Montant</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for depositor in depositor_stats.top_depositors[:5] %}
+                            <tr>
+                                <td>{{ depositor.name[:20] + '...' if depositor.name|length > 20 else depositor.name }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-{{ 'primary' if depositor.type == 'personne' else 'info' if depositor.type == 'entreprise' else 'warning' }}">
+                                        {{ depositor.type.title()[:1] }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <span class="badge bg-info">{{ depositor.cheque_count }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <strong>{{ "{:,.0f}".format(depositor.total_amount) }} MAD</strong>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-user-friends fa-3x mb-3"></i>
+                    <p data-fr="Aucun déposant actif" data-ar="لا يوجد مودعين نشطين">Aucun déposant actif</p>
+                </div>
+                {% endif %}
+                
+                <div class="text-end mt-3">
+                    <a href="{{ url_for('depositors.list_depositors') }}" class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-list"></i> 
+                        <span data-fr="Voir tous" data-ar="عرض الكل">Voir tous</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Recent Cheques -->
 <div class="row mb-4">
     <div class="col-md-12">
@@ -211,6 +311,7 @@
                             <tr>
                                 <th data-fr="N° Chèque" data-ar="رقم الشيك">N° Chèque</th>
                                 <th data-fr="Client" data-ar="العميل">Client</th>
+                                <th data-fr="Déposant" data-ar="المودع">Déposant</th>
                                 <th data-fr="Montant" data-ar="المبلغ">Montant</th>
                                 <th data-fr="Date d'échéance" data-ar="تاريخ الاستحقاق">Date d'échéance</th>
                                 <th data-fr="Statut" data-ar="الحالة">Statut</th>
@@ -223,6 +324,17 @@
                             <tr data-status="{{ cheque.status }}">
                                 <td>{{ cheque.cheque_number or '-' }}</td>
                                 <td>{{ cheque.client.name[:25] }}{{ '...' if cheque.client.name|length > 25 else '' }}</td>
+                                <td>
+                                    {% if cheque.depositor %}
+                                        <span class="badge bg-{{ 'primary' if cheque.depositor.type == 'personne' else 'info' if cheque.depositor.type == 'entreprise' else 'warning' }}" title="{{ cheque.depositor.name }}">
+                                            {{ cheque.depositor.name[:15] }}{{ '...' if cheque.depositor.name|length > 15 else '' }}
+                                        </span>
+                                    {% elif cheque.depositor_name %}
+                                        <span class="badge bg-secondary" title="{{ cheque.depositor_name }}">{{ cheque.depositor_name[:15] }}{{ '...' if cheque.depositor_name|length > 15 else '' }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</td>
                                 <td>{{ cheque.due_date.strftime('%d/%m/%Y') }}</td>
                                 <td>

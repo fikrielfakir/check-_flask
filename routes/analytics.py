@@ -10,9 +10,75 @@ import os
 import json
 import logging
 from utils.analytics_engine import AnalyticsEngine
-from models import Cheque, Client, Bank, Branch
+from models import Cheque, Client, Bank, Branch, Depositor
 
 analytics_bp = Blueprint('analytics', __name__)
+
+def get_depositor_analytics():
+    """Get comprehensive depositor analytics"""
+    from app import db
+    from sqlalchemy import func, case
+    
+    try:
+        # Total depositors by type
+        depositor_counts = db.session.query(
+            Depositor.type,
+            func.count(Depositor.id).label('count')
+        ).filter_by(is_active=True).group_by(Depositor.type).all()
+        
+        # Active vs blocked depositors
+        status_counts = db.session.query(
+            case(
+                (Depositor.blocked == True, 'blocked'),
+                (Depositor.is_active == False, 'inactive'),
+                else_='active'
+            ).label('status'),
+            func.count(Depositor.id).label('count')
+        ).group_by('status').all()
+        
+        # Top depositors by cheque volume
+        top_depositors = db.session.query(
+            Depositor.name,
+            Depositor.type,
+            func.count(Cheque.id).label('cheque_count'),
+            func.sum(Cheque.amount).label('total_amount')
+        ).join(
+            Cheque, Cheque.depositor_id == Depositor.id, isouter=True
+        ).filter(
+            Depositor.is_active == True
+        ).group_by(Depositor.id, Depositor.name, Depositor.type).order_by(
+            func.count(Cheque.id).desc()
+        ).limit(10).all()
+        
+        # Risk assessment stats
+        risk_stats = db.session.query(
+            Depositor.risk_level,
+            func.count(Depositor.id).label('count')
+        ).filter_by(is_active=True).group_by(Depositor.risk_level).all()
+        
+        return {
+            'type_distribution': {dep_type: count for dep_type, count in depositor_counts},
+            'status_distribution': {status: count for status, count in status_counts},
+            'top_depositors': [
+                {
+                    'name': name,
+                    'type': dep_type,
+                    'cheque_count': cheque_count or 0,
+                    'total_amount': float(total_amount or 0)
+                }
+                for name, dep_type, cheque_count, total_amount in top_depositors
+            ],
+            'risk_distribution': {risk: count for risk, count in risk_stats}
+        }
+        
+    except Exception as e:
+        logging.error(f"Error getting depositor analytics: {str(e)}")
+        return {
+            'type_distribution': {},
+            'status_distribution': {},
+            'top_depositors': [],
+            'risk_distribution': {}
+        }
 
 @analytics_bp.route('/')
 @login_required
@@ -34,11 +100,15 @@ def analytics_dashboard():
         # Get top risk clients
         risk_clients = analytics.assess_client_risk()[:5]  # Top 5 risky clients
         
+        # Get depositor analytics
+        depositor_stats = get_depositor_analytics()
+        
         return render_template('analytics/dashboard.html',
                              kpi_data=kpi_data,
                              performance_metrics=performance_metrics,
                              cash_flow=cash_flow,
-                             risk_clients=risk_clients)
+                             risk_clients=risk_clients,
+                             depositor_stats=depositor_stats)
     
     except Exception as e:
         logging.error(f"Error in analytics dashboard: {str(e)}")

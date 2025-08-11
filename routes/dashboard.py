@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template
 from flask_login import login_required
-from models import Cheque, Client, Bank, Branch
+from models import Cheque, Client, Bank, Branch, Depositor
 from sqlalchemy import func, and_, or_
 from datetime import date
 from datetime import datetime, timedelta
@@ -8,6 +8,69 @@ from app import db
 import json
 
 dashboard_bp = Blueprint('dashboard', __name__)
+
+def get_depositor_dashboard_stats():
+    """Get depositor statistics for dashboard"""
+    try:
+        # Total depositors
+        total_depositors = Depositor.query.filter_by(is_active=True).count()
+        
+        # Blocked depositors
+        blocked_depositors = Depositor.query.filter_by(blocked=True).count()
+        
+        # Depositors by type
+        type_stats = db.session.query(
+            Depositor.type,
+            func.count(Depositor.id).label('count')
+        ).filter_by(is_active=True).group_by(Depositor.type).all()
+        
+        # Top 5 depositors by cheque volume (last 30 days)
+        last_month = datetime.now().date() - timedelta(days=30)
+        top_depositors = db.session.query(
+            Depositor.name,
+            Depositor.type,
+            func.count(Cheque.id).label('cheque_count'),
+            func.sum(Cheque.amount).label('total_amount')
+        ).join(
+            Cheque, Cheque.depositor_id == Depositor.id, isouter=True
+        ).filter(
+            Depositor.is_active == True,
+            or_(Cheque.created_at >= last_month, Cheque.created_at == None)
+        ).group_by(Depositor.id, Depositor.name, Depositor.type).order_by(
+            func.count(Cheque.id).desc()
+        ).limit(5).all()
+        
+        # Risk level distribution
+        risk_stats = db.session.query(
+            Depositor.risk_level,
+            func.count(Depositor.id).label('count')
+        ).filter_by(is_active=True).group_by(Depositor.risk_level).all()
+        
+        return {
+            'total': total_depositors,
+            'blocked': blocked_depositors,
+            'type_distribution': {dep_type: count for dep_type, count in type_stats},
+            'top_depositors': [
+                {
+                    'name': name,
+                    'type': dep_type,
+                    'cheque_count': cheque_count or 0,
+                    'total_amount': float(total_amount or 0)
+                }
+                for name, dep_type, cheque_count, total_amount in top_depositors
+            ],
+            'risk_distribution': {risk: count for risk, count in risk_stats}
+        }
+        
+    except Exception as e:
+        print(f"Error getting depositor dashboard stats: {str(e)}")
+        return {
+            'total': 0,
+            'blocked': 0,
+            'type_distribution': {},
+            'top_depositors': [],
+            'risk_distribution': {}
+        }
 
 @dashboard_bp.route('/')
 @login_required
@@ -167,7 +230,12 @@ def index():
         cheque.days_overdue = (today - cheque.due_date).days if cheque.due_date < today else 0
     
     # -------------------------
-    # 10. Render template with JSON for charts
+    # 10. Depositor Statistics
+    # -------------------------
+    depositor_stats = get_depositor_dashboard_stats()
+    
+    # -------------------------
+    # 11. Render template with JSON for charts
     # -------------------------
     return render_template(
         'dashboard/enhanced_index.html',
@@ -183,5 +251,6 @@ def index():
         bank_cheque_counts=json.dumps(bank_cheque_counts),
         risk_clients=risk_clients,
         recent_cheques=recent_cheques,
-        alert_cheques=alert_cheques
+        alert_cheques=alert_cheques,
+        depositor_stats=depositor_stats
     )
