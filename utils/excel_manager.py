@@ -13,7 +13,7 @@ class ExcelManager:
         
         # Excel headers - Updated to include deposit bank field
         self.headers = [
-            "Date d'émission",
+            "Date de reception",
             "Type de Règlement", 
             "Numéro du chèque",
             "Banque/Agence",

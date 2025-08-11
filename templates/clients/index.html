@@ -5,23 +5,106 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-users me-2"></i>Gestion des Clients</h1>
-    {% if current_user.role in ['admin', 'comptable', 'agent'] %}
-    <a href="{{ url_for('clients.new') }}" class="btn btn-primary">
-        <i class="fas fa-user-plus me-2"></i>Nouveau Client
-    </a>
-    {% endif %}
+    <div class="btn-group">
+        {% if current_user.role in ['admin', 'comptable', 'agent'] %}
+        <a href="{{ url_for('clients.new') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-2"></i>Nouveau Client
+        </a>
+        {% endif %}
+        {% if current_user.role in ['admin', 'comptable'] %}
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-cog me-2"></i>Actions
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{{ url_for('clients.export') }}{% if search or client_type %}?{% if search %}search={{ search }}{% endif %}{% if client_type %}{% if search %}&{% endif %}type={{ client_type }}{% endif %}{% endif %}">
+                    <i class="fas fa-download me-2"></i>Exporter CSV
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('clients.bulk_import') }}">
+                    <i class="fas fa-upload me-2"></i>Import CSV
+                </a></li>
+                {% if current_user.role == 'admin' %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('clients.merge_clients') }}">
+                    <i class="fas fa-object-group me-2"></i>Fusionner Doublons
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('clients.backup_clients') }}">
+                    <i class="fas fa-shield-alt me-2"></i>Sauvegarde
+                </a></li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
 </div>
+
+<!-- Statistics Cards -->
+{% if stats %}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Clients</h6>
+                        <h3 class="mb-0">{{ stats.total }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Personnes Physiques</h6>
+                        <h3 class="mb-0">{{ stats.personnes }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-user fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Entreprises</h6>
+                        <h3 class="mb-0">{{ stats.entreprises }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-building fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Search and Filter -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-md-6">
+        <form method="GET" class="row g-3" id="searchForm">
+            <div class="col-md-5">
                 <label for="search" class="form-label">Rechercher</label>
-                <input type="text" class="form-control" id="search" name="search" 
-                       value="{{ search }}" placeholder="Nom, CIN, RC, IF...">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Nom, CIN, RC, IF, ICE...">
+                    <button type="button" class="btn btn-outline-secondary" id="clearSearch" title="Effacer">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="form-text">Recherche dans le nom, CIN, RC, IF et ICE</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-2">
                 <label for="type" class="form-label">Type de client</label>
                 <select class="form-select" id="type" name="type">
                     <option value="">Tous les types</option>
@@ -29,58 +112,86 @@
                     <option value="entreprise" {{ 'selected' if client_type == 'entreprise' }}>Entreprise</option>
                 </select>
             </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-outline-primary w-100">
-                    <i class="fas fa-search me-1"></i>Rechercher
-                </button>
+            <div class="col-md-2">
+                <label for="sort" class="form-label">Trier par</label>
+                <select class="form-select" id="sort" name="sort">
+                    <option value="name" {{ 'selected' if sort_by == 'name' }}>Nom</option>
+                    <option value="type" {{ 'selected' if sort_by == 'type' }}>Type</option>
+                    <option value="created_at" {{ 'selected' if sort_by == 'created_at' }}>Date création</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end flex-wrap align-content-center">
+                <div class="btn-group w-100">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>Rechercher
+                    </button>
+                    <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" style="background-color: crimson;color:#fff">
+                        <span class="visually-hidden">Toggle Dropdown</span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('clients.index') }}">
+                            <i class="fas fa-refresh me-2"></i>Réinitialiser
+                        </a></li>
+                    </ul>
+                </div>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Clients List -->
-{% if clients %}
+{% if clients and clients.items %}
 <div class="row">
-    {% for client in clients %}
-    <div class="col-md-6 mb-3">
-        <div class="card">
+    {% for client in clients.items %}
+    <div class="col-md-6 col-lg-4 mb-3">
+        <div class="card h-100 client-card" data-client-id="{{ client.id }}">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <h6 class="card-title">
-                            <i class="fas {{ 'fa-user' if client.type == 'personne' else 'fa-building' }} me-2"></i>
-                            {{ client.name }}
+                            <i class="fas {{ 'fa-user' if client.type == 'personne' else 'fa-building' }} me-2 text-{{ 'primary' if client.type == 'personne' else 'info' }}"></i>
+                            <a href="{{ url_for('clients.view', id=client.id) }}" class="text-decoration-none">
+                                {{ client.name }}
+                            </a>
                         </h6>
-                        <div class="small text-muted">
-                            <div class="mb-1">
+                        <div class="client-info">
+                            <div class="mb-2">
                                 <span class="badge bg-{{ 'primary' if client.type == 'personne' else 'info' }}">
                                     {{ 'Personne physique' if client.type == 'personne' else 'Entreprise' }}
                                 </span>
                             </div>
                             {% if client.id_number %}
-                            <div class="mb-1">
-                                <strong>{{ 'CIN:' if client.type == 'personne' else 'RC:' }}</strong> {{ client.id_number }}
+                            <div class="mb-1 small text-muted">
+                                <strong>{{ 'CIN:' if client.type == 'personne' else 'RC:' }}</strong> 
+                                <span class="font-monospace">{{ client.id_number }}</span>
                             </div>
                             {% endif %}
                             {% if client.vat_number %}
-                            <div class="mb-1">
-                                <strong>{{ 'IF:' if client.type == 'personne' else 'ICE:' }}</strong> {{ client.vat_number }}
+                            <div class="mb-1 small text-muted">
+                                <strong>{{ 'IF:' if client.type == 'personne' else 'ICE:' }}</strong> 
+                                <span class="font-monospace">{{ client.vat_number }}</span>
                             </div>
                             {% endif %}
-                            <div class="text-muted">
+                            {% if client.created_at %}
+                            <div class="small text-muted">
                                 <i class="fas fa-calendar me-1"></i>
                                 Créé le {{ client.created_at.strftime('%d/%m/%Y') }}
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                     
                     {% if current_user.role in ['admin', 'comptable', 'agent'] %}
                     <div class="btn-group-vertical btn-group-sm">
-                        <a href="{{ url_for('clients.edit', id=client.id) }}" class="btn btn-outline-primary btn-sm">
+                        <a href="{{ url_for('clients.view', id=client.id) }}" class="btn btn-outline-success btn-sm" title="Voir">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{{ url_for('clients.edit', id=client.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
                             <i class="fas fa-edit"></i>
                         </a>
                         {% if current_user.role == 'admin' %}
-                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal{{ client.id }}">
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                data-bs-toggle="modal" data-bs-target="#deleteModal{{ client.id }}" title="Supprimer">
                             <i class="fas fa-trash"></i>
                         </button>
                         {% endif %}
@@ -88,15 +199,40 @@
                     {% endif %}
                 </div>
                 
-                <!-- Cheques count -->
+                <!-- Cheques summary -->
                 {% if client.cheques %}
-                <div class="mt-2 pt-2 border-top">
-                    <small class="text-muted">
-                        <i class="fas fa-money-check me-1"></i>
-                        {{ client.cheques|length }} chèque{{ 's' if client.cheques|length > 1 else '' }}
-                    </small>
+                <div class="mt-3 pt-3 border-top">
+                    <div class="row text-center">
+                        <div class="col">
+                            <small class="text-muted d-block">Chèques</small>
+                            <span class="badge bg-secondary">{{ client.cheques|length }}</span>
+                        </div>
+                        {% set pending_cheques = client.cheques|selectattr("status", "in", ["EN_ATTENTE", "DEPOSE"])|list %}
+                        {% if pending_cheques %}
+                        <div class="col">
+                            <small class="text-muted d-block">En cours</small>
+                            <span class="badge bg-warning">{{ pending_cheques|length }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
                 {% endif %}
+            </div>
+            
+            <!-- Quick actions footer -->
+            <div class="card-footer bg-light py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        ID: {{ client.id }}
+                    </small>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-link btn-sm p-0 copy-info" 
+                                data-client-info="{{ client.name }}{% if client.id_number %} - {{ client.id_number }}{% endif %}"
+                                title="Copier les informations">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -111,14 +247,25 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    Êtes-vous sûr de vouloir supprimer le client <strong>{{ client.name }}</strong> ?
-                    Cette action est irréversible.
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Attention!</strong> Cette action est irréversible.
+                    </div>
+                    <p>Êtes-vous sûr de vouloir supprimer le client <strong>{{ client.name }}</strong> ?</p>
+                    {% if client.cheques %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Ce client a <strong>{{ client.cheques|length }} chèque(s)</strong> associé(s).
+                    </div>
+                    {% endif %}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                     <form method="POST" action="{{ url_for('clients.delete', id=client.id) }}" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-2"></i>Supprimer définitivement
+                        </button>
                     </form>
                 </div>
             </div>
@@ -128,26 +275,306 @@
     {% endfor %}
 </div>
 
-<!-- Pagination would go here if needed -->
+<!-- Pagination -->
+{% if clients.pages > 1 %}
+<nav aria-label="Navigation des pages">
+    <ul class="pagination justify-content-center">
+        {% if clients.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('clients.index', page=clients.prev_num, search=search, type=client_type, sort=sort_by, order=sort_order) }}">
+                <i class="fas fa-chevron-left"></i> Précédent
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in clients.iter_pages() %}
+        {% if page_num %}
+        {% if page_num != clients.page %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('clients.index', page=page_num, search=search, type=client_type, sort=sort_by, order=sort_order) }}">
+                {{ page_num }}
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item active">
+            <span class="page-link">{{ page_num }}</span>
+        </li>
+        {% endif %}
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">…</span>
+        </li>
+        {% endif %}
+        {% endfor %}
+        
+        {% if clients.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('clients.index', page=clients.next_num, search=search, type=client_type, sort=sort_by, order=sort_order) }}">
+                Suivant <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+<!-- Results info -->
+<div class="text-center text-muted mb-4">
+    <small>
+        Affichage de {{ clients.items|length }} client(s) sur {{ clients.total }} 
+        (Page {{ clients.page }} sur {{ clients.pages }})
+    </small>
+</div>
+{% endif %}
 
 {% else %}
+<!-- Empty state -->
 <div class="card">
     <div class="card-body text-center py-5">
-        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-        <h5>Aucun client trouvé</h5>
+        <i class="fas fa-users fa-4x text-muted mb-4"></i>
+        <h4 class="text-muted">
+            {% if search or client_type %}
+                Aucun client trouvé
+            {% else %}
+                Aucun client enregistré
+            {% endif %}
+        </h4>
         <p class="text-muted">
             {% if search or client_type %}
                 Aucun client ne correspond à vos critères de recherche.
+                <br>
+                <a href="{{ url_for('clients.index') }}" class="btn btn-outline-primary btn-sm mt-2">
+                    <i class="fas fa-times me-2"></i>Effacer les filtres
+                </a>
             {% else %}
                 Commencez par ajouter des clients pour gérer vos chèques.
             {% endif %}
         </p>
         {% if current_user.role in ['admin', 'comptable', 'agent'] %}
-        <a href="{{ url_for('clients.new') }}" class="btn btn-primary">
-            <i class="fas fa-user-plus me-2"></i>Ajouter un client
-        </a>
+        <div class="mt-4">
+            <a href="{{ url_for('clients.new') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-user-plus me-2"></i>Ajouter votre premier client
+            </a>
+            {% if current_user.role in ['admin', 'comptable'] %}
+            <a href="{{ url_for('clients.bulk_import') }}" class="btn btn-outline-secondary btn-lg ms-2">
+                <i class="fas fa-upload me-2"></i>Importer depuis CSV
+            </a>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
 </div>
 {% endif %}
+
+<!-- Floating Action Button for mobile -->
+<div class="fab-container d-md-none">
+    {% if current_user.role in ['admin', 'comptable', 'agent'] %}
+    <a href="{{ url_for('clients.new') }}" class="btn btn-primary btn-fab">
+        <i class="fas fa-plus"></i>
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.client-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #dee2e6;
+}
+
+.client-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-color: #007bff;
+}
+
+.client-info .small {
+    line-height: 1.4;
+}
+
+.font-monospace {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+}
+
+.fab-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.btn-fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-fab:hover {
+    transform: scale(1.1);
+}
+
+.card-footer {
+    font-size: 0.875rem;
+}
+
+.copy-info:hover {
+    color: #007bff !important;
+}
+
+@media (max-width: 768px) {
+    .btn-group-vertical {
+        flex-direction: row;
+    }
+    
+    .client-card .card-body {
+        padding: 1rem 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Auto-submit form on type change
+    $('#type, #sort').change(function() {
+        $('#searchForm').submit();
+    });
+    
+    // Clear search functionality
+    $('#clearSearch').click(function() {
+        $('#search').val('');
+        $('#searchForm').submit();
+    });
+    
+    // Copy client info functionality
+    $('.copy-info').click(function(e) {
+        e.preventDefault();
+        const info = $(this).data('client-info');
+        
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(info).then(function() {
+                showToast('Informations copiées!', 'success');
+            }).catch(function() {
+                fallbackCopyTextToClipboard(info);
+            });
+        } else {
+            fallbackCopyTextToClipboard(info);
+        }
+    });
+    
+    // Fallback copy function
+    function fallbackCopyTextToClipboard(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            showToast('Informations copiées!', 'success');
+        } catch (err) {
+            showToast('Erreur lors de la copie', 'error');
+        }
+        
+        document.body.removeChild(textArea);
+    }
+    
+    // Toast notification function
+    function showToast(message, type) {
+        const toast = $(`
+            <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `);
+        
+        if (!$('#toast-container').length) {
+            $('body').append('<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>');
+        }
+        
+        $('#toast-container').append(toast);
+        const bsToast = new bootstrap.Toast(toast[0]);
+        bsToast.show();
+        
+        // Auto remove after showing
+        toast.on('hidden.bs.toast', function() {
+            $(this).remove();
+        });
+    }
+    
+    // Keyboard shortcuts
+    $(document).keydown(function(e) {
+        // Ctrl/Cmd + K to focus search
+        if ((e.ctrlKey || e.metaKey) && e.keyCode === 75) {
+            e.preventDefault();
+            $('#search').focus();
+        }
+        
+        // Escape to clear search
+        if (e.keyCode === 27 && $('#search').is(':focus')) {
+            $('#search').val('');
+        }
+    });
+    
+    // Search input enhancements
+    let searchTimeout;
+    $('#search').on('input', function() {
+        clearTimeout(searchTimeout);
+        const searchValue = $(this).val();
+        
+        // Auto-search after 500ms of no typing (optional)
+        if (searchValue.length >= 3) {
+            searchTimeout = setTimeout(function() {
+                // You could implement live search here
+                console.log('Live search for:', searchValue);
+            }, 500);
+        }
+    });
+    
+    // Highlight search terms in results
+    const searchTerm = '{{ search }}';
+    if (searchTerm && searchTerm.length > 0) {
+        $('.client-card').each(function() {
+            const card = $(this);
+            const text = card.html();
+            const highlightedText = text.replace(
+                new RegExp(searchTerm, 'gi'),
+                '<mark>$&</mark>'
+            );
+            card.html(highlightedText);
+        });
+    }
+    
+    // Load statistics via AJAX (optional enhancement)
+    function loadStatistics() {
+        $.get('{{ url_for("clients.stats") }}')
+            .done(function(data) {
+                // Update statistics if needed
+                console.log('Statistics loaded:', data);
+            })
+            .fail(function() {
+                console.warn('Failed to load statistics');
+            });
+    }
+    
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 {% endblock %}

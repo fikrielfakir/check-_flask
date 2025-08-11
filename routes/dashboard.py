@@ -2,6 +2,7 @@ from flask import Blueprint, render_template
 from flask_login import login_required
 from models import Cheque, Client, Bank, Branch
 from sqlalchemy import func, and_, or_
+from datetime import date
 from datetime import datetime, timedelta
 from app import db
 import json
@@ -38,10 +39,10 @@ def index():
     # -------------------------
     # 3. Overdue and due soon cheques
     # -------------------------
-    overdue_cheques = Cheque.query.filter(
-        Cheque.due_date < today,
-        Cheque.status.in_(['EN ATTENTE'])
-    ).count()
+    overdue_cheques = db.session.query(func.count(Cheque.id)).filter(
+        Cheque.due_date < date.today(),
+        Cheque.status.in_(["EN ATTENTE"])
+    ).scalar()
     
     due_soon = Cheque.query.filter(
         Cheque.due_date.between(today, today + timedelta(days=3)),

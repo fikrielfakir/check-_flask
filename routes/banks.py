@@ -78,7 +78,7 @@ MOROCCAN_BANKS = [
         "name": "Umnia Bank",
         "code": "UMB",
         "swift_code": "UMNIAMC",
-        "icon": "umnia.png",
+        "icon": "umnia.jpg",
         "type": "participatif"
     },
     {
@@ -88,13 +88,13 @@ MOROCCAN_BANKS = [
         "icon": "al_yousr.png",
         "type": "participatif"
     },
-    {
-        "name": "BTI Bank",
-        "code": "BTI",
-        "swift_code": "BTIMAMC",
-        "icon": "bti.png",
-        "type": "participatif"
-    },
+    # {
+    #     "name": "BTI Bank",
+    #     "code": "BTI",
+    #     "swift_code": "BTIMAMC",
+    #     "icon": "bti.png",
+    #     "type": "participatif"
+    # },
     {
         "name": "Assafa Bank",
         "code": "ASB",

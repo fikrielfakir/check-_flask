@@ -91,7 +91,7 @@ Montant
 
 Devise (MAD, EUR…)
 
-Date d’émission
+Date d’reception
 
 Date d’échéance
 

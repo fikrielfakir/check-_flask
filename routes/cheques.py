@@ -7,6 +7,7 @@ from forms import (ChequeForm, ImpayeStatusForm, RetryAttemptForm, RetryResultFo
                   AlternativePaymentForm, LegalActionForm, NotificationForm, PresentationForm)
 from app import db
 from datetime import datetime, date, timedelta
+
 import os
 from utils.excel_manager import ExcelManager
 from utils.optimized_excel_sync import OptimizedExcelSync
@@ -23,7 +24,7 @@ def check_access():
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf', 'doc', 'docx'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def check_duplicate_cheque(cheque_number, branch_id=None, client_id=None):
@@ -160,7 +161,8 @@ def index():
                          bank_id=bank_id,
                          branch_id=branch_id,
                          date_from=date_from,
-                         date_to=date_to)
+                         date_to=date_to,
+                         date=date)
 
 @cheques_bp.route('/new', methods=['GET', 'POST'])
 @login_required
@@ -254,18 +256,6 @@ def edit(id):
     form = ChequeForm(obj=cheque)
     
     if form.validate_on_submit():
-        # Enhanced duplicate checking (excluding current cheque)
-        is_duplicate, duplicate_cheque, error_message = check_duplicate_cheque(
-            form.cheque_number.data,
-            form.branch_id.data,
-            form.client_id.data,
-            exclude_id=id
-        )
-        
-        if is_duplicate:
-            flash(error_message, 'error')
-            return render_template('cheques/form.html', form=form, title='Modifier Chèque', cheque=cheque)
-        
         # Handle file upload
         if form.scan.data:
             file = form.scan.data
@@ -284,7 +274,7 @@ def edit(id):
                 cheque.scan_path = filename
         
         try:
-            # Update cheque fields
+            # Update cheque fields (excluding cheque_number - it stays the same)
             cheque.amount = form.amount.data
             cheque.currency = form.currency.data
             cheque.issue_date = form.issue_date.data
@@ -293,7 +283,7 @@ def edit(id):
             cheque.branch_id = form.branch_id.data
             cheque.deposit_branch_id = form.deposit_branch_id.data if form.deposit_branch_id.data and form.deposit_branch_id.data != 0 else None
             cheque.status = form.status.data
-            cheque.cheque_number = form.cheque_number.data.strip() if form.cheque_number.data else None
+            # Note: cheque_number is not updated - it remains the original value
             cheque.invoice_number = form.invoice_number.data
             cheque.invoice_date = form.invoice_date.data
             cheque.depositor_name = form.depositor_name.data
@@ -631,6 +621,12 @@ def initiate_legal_action(id):
         return redirect(url_for('cheques.index'))
     
     cheque = Cheque.query.get_or_404(id)
+    
+    # Check if cheque is eligible for legal action
+    if cheque.status not in ['IMPAYE', 'TENTATIVE']:
+        flash('Seuls les chèques impayés peuvent faire l\'objet d\'une action légale.', 'error')
+        return redirect(url_for('cheques.index'))
+    
     form = LegalActionForm()
     
     if form.validate_on_submit():
@@ -748,4 +744,5 @@ def impaye_dashboard():
                          total_impaye=total_impaye,
                          total_amount=total_amount,
                          status_stats=status_stats,
-                         upcoming_retries=upcoming_retries)
+                         upcoming_retries=upcoming_retries,
+                         date=date)

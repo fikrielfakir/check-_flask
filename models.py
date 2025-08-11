@@ -259,6 +259,325 @@ class Client(db.Model):
     def __repr__(self):
         return f'<Client {self.name}>'
 
+# Add these new classes to your models.py file
+
+class Depositor(db.Model):
+    """Manage people who deposit cheques (depositors)"""
+    __tablename__ = 'depositors'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False, index=True)
+    type = db.Column(db.String(20), nullable=False, default='personne')  # personne, entreprise, mandataire
+    
+    # Contact information
+    phone = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+    address = db.Column(db.Text)
+    city = db.Column(db.String(100))
+    postal_code = db.Column(db.String(20))
+    
+    # Identification
+    id_number = db.Column(db.String(50))  # CIN, Passport, RC
+    id_type = db.Column(db.String(20))  # cin, passport, rc, ice
+    
+    # Professional information (for mandataires/employees)
+    company_name = db.Column(db.String(200))
+    job_title = db.Column(db.String(100))
+    authorization_letter_path = db.Column(db.String(255))  # Scan of authorization letter
+    
+    # Bank account information (optional)
+    bank_account_number = db.Column(db.String(50))
+    bank_name = db.Column(db.String(100))
+    bank_branch = db.Column(db.String(100))
+    
+    # Activity tracking
+    is_active = db.Column(db.Boolean, default=True, index=True)
+    registration_date = db.Column(db.Date, default=date.today)
+    last_deposit_date = db.Column(db.Date)
+    total_deposits = db.Column(db.Integer, default=0)
+    total_amount_deposited = db.Column(db.Numeric(15, 2), default=0)
+    
+    # Risk management
+    risk_level = db.Column(db.String(10), default='low')  # low, medium, high
+    blocked = db.Column(db.Boolean, default=False)
+    blocked_reason = db.Column(db.Text)
+    blocked_date = db.Column(db.Date)
+    blocked_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    
+    # Audit fields
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    notes = db.Column(db.Text)
+    
+    # Relationships
+    deposited_cheques = db.relationship('Cheque', backref='depositor', lazy=True)
+    deposit_logs = db.relationship('DepositLog', backref='depositor', lazy=True, cascade='all, delete-orphan')
+    
+    __table_args__ = (
+        CheckConstraint(type.in_(['personne', 'entreprise', 'mandataire']), name='check_depositor_type'),
+        CheckConstraint(id_type.in_(['cin', 'passport', 'rc', 'ice', 'carte_sejour']), name='check_id_type'),
+        CheckConstraint(risk_level.in_(['low', 'medium', 'high']), name='check_depositor_risk'),
+        Index('idx_depositor_name', 'name'),
+        Index('idx_depositor_type', 'type'),
+        Index('idx_depositor_active', 'is_active'),
+        Index('idx_depositor_risk', 'risk_level'),
+        Index('idx_depositor_id_number', 'id_number'),
+        Index('idx_depositor_registration_date', 'registration_date'),
+    )
+    
+    def __repr__(self):
+        return f'<Depositor {self.name}>'
+    
+    @property
+    def display_name(self):
+        if self.type == 'mandataire' and self.company_name:
+            return f"{self.name} ({self.company_name})"
+        return self.name
+    
+    @property
+    def deposit_success_rate(self):
+        """Calculate percentage of successful deposits"""
+        if self.total_deposits == 0:
+            return 100.0
+        successful = len([c for c in self.deposited_cheques if c.status in ['ENCAISSE', 'DEPOSE']])
+        return (successful / self.total_deposits) * 100
+    
+    @property
+    def recent_activity(self):
+        """Check if depositor has been active in the last 30 days"""
+        if not self.last_deposit_date:
+            return False
+        return (date.today() - self.last_deposit_date).days <= 30
+    
+    def update_stats(self):
+        """Update depositor statistics"""
+        self.total_deposits = len(self.deposited_cheques)
+        self.total_amount_deposited = sum([c.amount for c in self.deposited_cheques])
+        if self.deposited_cheques:
+            self.last_deposit_date = max([c.created_date for c in self.deposited_cheques])
+    
+    def calculate_risk_score(self):
+        """Calculate risk score based on deposit history"""
+        score = 0
+        
+        if self.total_deposits == 0:
+            return 0
+        
+        # Failed deposits impact
+        failed_deposits = len([c for c in self.deposited_cheques if c.status == 'IMPAYE'])
+        failure_rate = (failed_deposits / self.total_deposits) * 100
+        score += failure_rate * 0.5
+        
+        # Recent activity
+        if not self.recent_activity:
+            score += 10
+        
+        # Amount patterns (large amounts = higher risk)
+        if self.total_amount_deposited > 100000:  # More than 100k MAD
+            score += 15
+        
+        return min(score, 100)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'type': self.type,
+            'phone': self.phone,
+            'email': self.email,
+            'id_number': self.id_number,
+            'id_type': self.id_type,
+            'company_name': self.company_name,
+            'is_active': self.is_active,
+            'total_deposits': self.total_deposits,
+            'total_amount_deposited': float(self.total_amount_deposited) if self.total_amount_deposited else 0,
+            'risk_level': self.risk_level,
+            'deposit_success_rate': self.deposit_success_rate,
+            'recent_activity': self.recent_activity
+        }
+
+class DepositLog(db.Model):
+    """Log each deposit transaction for audit and tracking"""
+    __tablename__ = 'deposit_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    depositor_id = db.Column(db.Integer, db.ForeignKey('depositors.id'), nullable=False)
+    cheque_id = db.Column(db.Integer, db.ForeignKey('cheques.id'), nullable=False)
+    
+    # Deposit details
+    deposit_date = db.Column(db.Date, nullable=False, default=date.today)
+    deposit_time = db.Column(db.Time, default=datetime.now().time)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
+    teller_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # Bank teller who processed
+    
+    # Verification details
+    id_document_verified = db.Column(db.Boolean, default=False)
+    authorization_verified = db.Column(db.Boolean, default=False)  # For mandataires
+    signature_verified = db.Column(db.Boolean, default=False)
+    
+    # Transaction details
+    deposit_slip_number = db.Column(db.String(50))
+    receipt_number = db.Column(db.String(50))
+    processing_fee = db.Column(db.Numeric(10, 2), default=0)
+    
+    # Status and notes
+    status = db.Column(db.String(20), default='completed')  # completed, pending_verification, rejected
+    rejection_reason = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    
+    # Audit
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        CheckConstraint(status.in_(['completed', 'pending_verification', 'rejected']), name='check_deposit_status'),
+        Index('idx_deposit_log_date', 'deposit_date'),
+        Index('idx_deposit_log_depositor', 'depositor_id'),
+        Index('idx_deposit_log_cheque', 'cheque_id'),
+        Index('idx_deposit_log_branch', 'branch_id'),
+        Index('idx_deposit_log_status', 'status'),
+    )
+
+class DepositorAuthorization(db.Model):
+    """Manage authorizations for mandataires (people authorized to deposit on behalf of others)"""
+    __tablename__ = 'depositor_authorizations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    depositor_id = db.Column(db.Integer, db.ForeignKey('depositors.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
+    
+    # Authorization details
+    authorization_type = db.Column(db.String(20), nullable=False)  # permanent, temporary, limited
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date)  # NULL for permanent authorizations
+    
+    # Limits
+    max_amount_per_cheque = db.Column(db.Numeric(15, 2))
+    max_amount_per_day = db.Column(db.Numeric(15, 2))
+    max_amount_per_month = db.Column(db.Numeric(15, 2))
+    allowed_branches = db.Column(db.JSON)  # List of branch IDs
+    
+    # Documentation
+    authorization_document_path = db.Column(db.String(255))
+    notary_reference = db.Column(db.String(100))
+    
+    # Status
+    is_active = db.Column(db.Boolean, default=True)
+    revoked_date = db.Column(db.Date)
+    revoked_reason = db.Column(db.Text)
+    revoked_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    
+    # Audit
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        CheckConstraint(authorization_type.in_(['permanent', 'temporary', 'limited']), name='check_auth_type'),
+        Index('idx_auth_depositor', 'depositor_id'),
+        Index('idx_auth_client', 'client_id'),
+        Index('idx_auth_active', 'is_active'),
+        Index('idx_auth_dates', 'start_date', 'end_date'),
+    )
+    
+    def is_valid_for_date(self, check_date=None):
+        """Check if authorization is valid for a given date"""
+        if check_date is None:
+            check_date = date.today()
+        
+        if not self.is_active:
+            return False
+            
+        if check_date < self.start_date:
+            return False
+            
+        if self.end_date and check_date > self.end_date:
+            return False
+            
+        return True
+    
+    def is_valid_for_amount(self, amount):
+        """Check if authorization allows for a specific amount"""
+        if self.max_amount_per_cheque and amount > self.max_amount_per_cheque:
+            return False
+        return True
+    
+    def is_valid_for_branch(self, branch_id):
+        """Check if authorization allows deposits at a specific branch"""
+        if not self.allowed_branches:
+            return True  # No restriction
+        return branch_id in self.allowed_branches
+
+# Update the Cheque model to use depositor_id instead of depositor_name
+# Add this field to the existing Cheque model:
+
+# In your existing Cheque model, add:
+# depositor_id = db.Column(db.Integer, db.ForeignKey('depositors.id'), nullable=True)
+# 
+# And modify the relationship:
+# The relationship will be automatically created by the backref in Depositor model
+
+# Migration script to add depositor_id to existing Cheque model
+class ChequeDepositorMigration:
+    """
+    Helper class for migrating existing depositor_name data to new Depositor model
+    """
+    
+    @staticmethod
+    def migrate_existing_depositors():
+        """
+        Migrate existing depositor_name entries to Depositor table
+        This should be run as a one-time migration
+        """
+        from sqlalchemy import text
+        
+        # Get unique depositor names from existing cheques
+        existing_names = db.session.execute(
+            text("SELECT DISTINCT depositor_name FROM cheques WHERE depositor_name IS NOT NULL AND depositor_name != ''")
+        ).fetchall()
+        
+        depositor_mapping = {}
+        
+        for (name,) in existing_names:
+            if name and name.strip():
+                # Create new depositor
+                depositor = Depositor(
+                    name=name.strip(),
+                    type='personne',  # Default to person
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(depositor)
+                db.session.flush()  # To get the ID
+                
+                depositor_mapping[name] = depositor.id
+        
+        db.session.commit()
+        
+        # Update cheques with depositor_id
+        for name, depositor_id in depositor_mapping.items():
+            db.session.execute(
+                text("UPDATE cheques SET depositor_id = :depositor_id WHERE depositor_name = :name"),
+                {'depositor_id': depositor_id, 'name': name}
+            )
+        
+        db.session.commit()
+        
+        return len(depositor_mapping)
+
+# Also add this to your existing models.py for the Cheque model update:
+"""
+# Add these fields to your existing Cheque model:
+
+# In the Cheque class, add:
+depositor_id = db.Column(db.Integer, db.ForeignKey('depositors.id'), nullable=True)
+
+# Keep depositor_name for backward compatibility during migration
+# You can remove it later after full migration
+# depositor_name = db.Column(db.String(200))  # Keep existing field temporarily
+
+# The depositor relationship will be created automatically via backref in Depositor model
+"""
+
 class Cheque(db.Model):
     __tablename__ = 'cheques'
     
@@ -268,9 +587,10 @@ class Cheque(db.Model):
     issue_date = db.Column(db.Date)
     due_date = db.Column(db.Date, nullable=False)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
+    depositor_id = db.Column(db.Integer, db.ForeignKey('depositors.id'), nullable=True)
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False)
     deposit_branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=True)
-    status = db.Column(db.String(20), default='EN ATTENTE')
+    status = db.Column(db.String(20), default='EN_ATTENTE')
     cheque_number = db.Column(db.String(50))
     scan_path = db.Column(db.String(255))
     invoice_number = db.Column(db.String(100))
@@ -315,21 +635,12 @@ class Cheque(db.Model):
     lawyer_name = db.Column(db.String(200))  # Assigned lawyer name
     legal_notes = db.Column(db.Text)  # Legal action notes
 
-
-
-        # In models.py - Cheque class
     @property
     def status_display(self):
         status_map = {
             'EN_ATTENTE': 'EN ATTENTE',
-            'PRESENTE': 'PRÉSENTÉ',
-            'EN_COURS': 'EN COURS',
             'ENCAISSE': 'ENCAISSÉ',
             'IMPAYE': 'IMPAYÉ',
-            'TENTATIVE': 'NOUVELLE TENTATIVE',
-            'RECOUVRE': 'RECOUVRÉ',
-            'PROCEDURE': 'PROCÉDURE LÉGALE',
-            'DEPOSE': 'DÉPOSÉ',
             'ANNULE': 'ANNULÉ'
         }
         return status_map.get(self.status, self.status)
@@ -338,14 +649,8 @@ class Cheque(db.Model):
     def status_color(self):
         color_map = {
             'EN_ATTENTE': 'warning',
-            'PRESENTE': 'info',
-            'EN_COURS': 'primary',
             'ENCAISSE': 'success',
             'IMPAYE': 'danger',
-            'TENTATIVE': 'warning',
-            'RECOUVRE': 'success',
-            'PROCEDURE': 'dark',
-            'DEPOSE': 'info',
             'ANNULE': 'secondary'
         }
         return color_map.get(self.status, 'primary')
@@ -363,7 +668,6 @@ class Cheque(db.Model):
 
 # Update User model to use back_populates
 User.assigned_cheques = db.relationship('Cheque', back_populates='assigned_user', lazy=True, foreign_keys='Cheque.assigned_user_id')
-
 class ChequeExcelMapping(db.Model):
     """Track Excel sheet and row mappings for each cheque"""
     __tablename__ = 'cheque_excel_mappings'

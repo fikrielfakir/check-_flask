@@ -73,7 +73,7 @@ class ExcelYearlyManager:
         """
         # Updated headers to match the new format
         self.headers = [
-            "Date d'émission",
+            "Date de reception",
             "Type de Règlement", 
             "Numéro du chèque",
             "Banque/Agence",
@@ -112,7 +112,7 @@ class ExcelYearlyManager:
         
         # Set column widths - Updated for new columns
         column_widths = {
-            'A': 12,  # Date d'émission
+            'A': 12,  # Date de reception
             'B': 12,  # Type de Règlement
             'C': 15,  # Numéro du chèque
             'D': 25,  # Banque/Agence

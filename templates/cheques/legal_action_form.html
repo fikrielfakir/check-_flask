@@ -32,7 +32,7 @@
                                     <p><strong>Banque:</strong> {{ cheque.branch.bank.name }}</p>
                                     <p><strong>Motif de rejet:</strong> {{ cheque.rejection_reason or 'N/A' }}</p>
                                     <p><strong>Tentatives:</strong> {{ cheque.retry_count or 0 }}</p>
-                                    <p><strong>Jours depuis rejet:</strong> {{ (date.today() - cheque.rejection_date).days if cheque.rejection_date else 'N/A' }}</p>
+                                    <p><strong>Jours depuis rejet:</strong> {{ days_since_rejection if days_since_rejection is not none else 'N/A' }}</p>
                                 </div>
                             </div>
                         </div>
@@ -191,7 +191,7 @@
 </div>
 {% endblock %}
 
-{% block script %}
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Set default amount claimed to original cheque amount

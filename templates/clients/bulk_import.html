@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block title %}Import CSV - Gestion des Clients{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-upload me-2"></i>Import CSV des Clients</h1>
+                <a href="{{ url_for('clients.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+                </a>
+            </div>
+
+            <!-- Import Results -->
+            {% if import_stats %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar me-2"></i>Résultats de l'import</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-info">{{ import_stats.total }}</div>
+                                <small class="text-muted">Total traité</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-success">{{ import_stats.success }}</div>
+                                <small class="text-muted">Créés</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-warning">{{ import_stats.skipped }}</div>
+                                <small class="text-muted">Ignorés</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="h4 text-danger">{{ import_stats.errors }}</div>
+                                <small class="text-muted">Erreurs</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if import_stats.success > 0 %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        {{ import_stats.success }} client(s) ont été créés avec succès!
+                    </div>
+                    {% endif %}
+
+                    {% if import_stats.error_details %}
+                    <div class="mt-3">
+                        <h6>Détails des erreurs:</h6>
+                        <div class="alert alert-danger">
+                            <div class="error-list" style="max-height: 300px; overflow-y: auto;">
+                                {% for error in import_stats.error_details %}
+                                <div class="mb-1"><small>{{ error }}</small></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-3 text-center">
+                        <a href="{{ url_for('clients.index') }}" class="btn btn-primary">
+                            <i class="fas fa-users me-2"></i>Voir tous les clients
+                        </a>
+                        <button type="button" class="btn btn-outline-primary" onclick="window.location.reload()">
+                            <i class="fas fa-redo me-2"></i>Nouvel import
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Import Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-file-csv me-2"></i>Sélectionner le fichier CSV</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Instructions -->
+                    <div class="alert alert-info mb-4">
+                        <h6><i class="fas fa-info-circle me-2"></i>Instructions d'import:</h6>
+                        <ul class="mb-0">
+                            <li>Le fichier doit être au format CSV avec encodage UTF-8</li>
+                            <li>La première ligne doit contenir les en-têtes des colonnes</li>
+                            <li>Les colonnes requises sont: <strong>Type</strong> et <strong>Nom</strong></li>
+                            <li>Les colonnes optionnelles sont: <strong>CIN_RC</strong> et <strong>IF_ICE</strong></li>
+                            <li>Types acceptés: "Personne physique" ou "Entreprise"</li>
+                        </ul>
+                    </div>
+
+                    <!-- CSV Template Download -->
+                    <div class="mb-4">
+                        <h6>Modèle CSV:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-outline-success w-100" id="downloadTemplate">
+                                    <i class="fas fa-download me-2"></i>Télécharger le modèle CSV
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-outline-info w-100" data-bs-toggle="modal" data-bs-target="#exampleModal">
+                                    <i class="fas fa-eye me-2"></i>Voir un exemple
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upload Form -->
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm" class="dropzone-form">
+                        <!-- CSRF Token - This is the critical fix -->
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="mb-4">
+                            <label for="csvFile" class="form-label">Fichier CSV:</label>
+                            <div class="input-group">
+                                <input type="file" class="form-control" id="csvFile" name="file" accept=".csv" required>
+                                <button class="btn btn-outline-secondary" type="button" id="previewBtn" disabled>
+                                    <i class="fas fa-eye me-1"></i>Aperçu
+                                </button>
+                            </div>
+                            <div class="form-text">Taille maximale: 10 MB</div>
+                        </div>
+
+                        <!-- File Preview -->
+                        <div id="csvPreview" class="mb-4" style="display: none;">
+                            <h6>Aperçu du fichier:</h6>
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm table-bordered" id="previewTable">
+                                    <thead class="table-dark"></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div id="previewStats" class="mt-2"></div>
+                        </div>
+
+                        <!-- Import Options -->
+                        <div class="mb-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Options d'import</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="skip_duplicates" id="skipDuplicates" checked>
+                                                <label class="form-check-label" for="skipDuplicates">
+                                                    Ignorer les doublons
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="validate_ids" id="validateIds" checked>
+                                                <label class="form-check-label" for="validateIds">
+                                                    Valider les numéros d'identification
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg" id="importBtn" disabled>
+                                <i class="fas fa-upload me-2"></i>
+                                <span class="btn-text">Importer les clients</span>
+                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Help Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6><i class="fas fa-question-circle me-2"></i>Aide et conseils</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Format des données:</h6>
+                            <ul class="small">
+                                <li><strong>Type:</strong> "Personne physique" ou "Entreprise"</li>
+                                <li><strong>CIN:</strong> 1-2 lettres + 3-6 chiffres (ex: RX3653)</li>
+                                <li><strong>RC:</strong> Numéros uniquement</li>
+                                <li><strong>IF:</strong> 9 chiffres exactement</li>
+                                <li><strong>ICE:</strong> 15 chiffres exactement</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Résolution des problèmes:</h6>
+                            <ul class="small">
+                                <li>Vérifiez l'encodage UTF-8 du fichier</li>
+                                <li>Assurez-vous que les colonnes sont séparées par des virgules</li>
+                                <li>Évitez les caractères spéciaux dans les noms</li>
+                                <li>Vérifiez les doublons avant l'import</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Example Modal -->
+<div class="modal fade" id="exampleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Exemple de fichier CSV</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Structure du fichier:</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Type</th>
+                                <th>Nom</th>
+                                <th>CIN_RC</th>
+                                <th>IF_ICE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Personne physique</td>
+                                <td>Dupont Jean</td>
+                                <td>RX123456</td>
+                                <td>123456789</td>
+                            </tr>
+                            <tr>
+                                <td>Entreprise</td>
+                                <td>Société ABC</td>
+                                <td>12345</td>
+                                <td>001234567890123</td>
+                            </tr>
+                            <tr>
+                                <td>Personne physique</td>
+                                <td>Martin Pierre</td>
+                                <td>K98765</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-info">
+                    <small>
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Les colonnes CIN_RC et IF_ICE sont optionnelles et peuvent être vides.
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block styles %}
+<style>
+.dropzone-form {
+    border: 2px dashed #dee2e6;
+    border-radius: 0.375rem;
+    padding: 2rem;
+    text-align: center;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.dropzone-form.dragover {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+}
+
+.error-list {
+    font-family: 'Courier New', monospace;
+}
+
+#csvPreview {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.table th {
+    white-space: nowrap;
+}
+
+.btn-lg .spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 1rem;
+    }
+    
+    .dropzone-form {
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    let csvData = [];
+    
+    // File selection handling
+    $('#csvFile').change(function() {
+        const file = this.files[0];
+        if (file) {
+            $('#previewBtn').prop('disabled', false);
+            $('#importBtn').prop('disabled', false);
+            
+            // Validate file
+            if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                alert('Le fichier est trop volumineux (maximum 10 MB)');
+                $(this).val('');
+                $('#previewBtn').prop('disabled', true);
+                $('#importBtn').prop('disabled', true);
+                return;
+            }
+            
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                alert('Seuls les fichiers CSV sont acceptés');
+                $(this).val('');
+                $('#previewBtn').prop('disabled', true);
+                $('#importBtn').prop('disabled', true);
+                return;
+            }
+        } else {
+            $('#previewBtn').prop('disabled', true);
+            $('#importBtn').prop('disabled', true);
+            $('#csvPreview').hide();
+        }
+    });
+    
+    // CSV Preview
+    $('#previewBtn').click(function() {
+        const file = $('#csvFile')[0].files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const csv = e.target.result;
+                const lines = csv.split('\n');
+                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                
+                csvData = [];
+                const tbody = $('#previewTable tbody');
+                const thead = $('#previewTable thead');
+                
+                // Clear previous content
+                tbody.empty();
+                thead.empty();
+                
+                // Add headers
+                let headerRow = '<tr>';
+                headers.forEach(header => {
+                    headerRow += `<th>${header}</th>`;
+                });
+                headerRow += '</tr>';
+                thead.html(headerRow);
+                
+                // Add data rows (limit to first 10 for preview)
+                const maxRows = Math.min(lines.length - 1, 10);
+                for (let i = 1; i <= maxRows && lines[i]; i++) {
+                    const cells = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+                    if (cells.length >= headers.length && cells[0]) {
+                        let row = '<tr>';
+                        cells.forEach((cell, index) => {
+                            if (index < headers.length) {
+                                row += `<td>${cell || '<em>vide</em>'}</td>`;
+                            }
+                        });
+                        row += '</tr>';
+                        tbody.append(row);
+                        csvData.push(cells);
+                    }
+                }
+                
+                // Show preview
+                $('#csvPreview').show();
+                
+                // Update stats
+                const totalRows = lines.length - 1;
+                const validRows = csvData.length;
+                $('#previewStats').html(`
+                    <div class="row">
+                        <div class="col-md-4">
+                            <small class="text-muted">Total lignes: <strong>${totalRows}</strong></small>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Lignes valides: <strong>${validRows}</strong></small>
+                        </div>
+                        <div class="col-md-4">
+                            <small class="text-muted">Aperçu: <strong>10 premières lignes</strong></small>
+                        </div>
+                    </div>
+                `);
+                
+                // Validate headers
+                const requiredHeaders = ['Type', 'Nom'];
+                const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+                
+                if (missingHeaders.length > 0) {
+                    $('#previewStats').append(`
+                        <div class="alert alert-warning mt-2">
+                            <small><i class="fas fa-exclamation-triangle me-1"></i>
+                            Colonnes manquantes: ${missingHeaders.join(', ')}</small>
+                        </div>
+                    `);
+                    $('#importBtn').prop('disabled', true);
+                } else {
+                    $('#importBtn').prop('disabled', false);
+                }
+                
+            } catch (error) {
+                alert('Erreur lors de la lecture du fichier CSV: ' + error.message);
+                console.error('CSV parsing error:', error);
+            }
+        };
+        
+        reader.onerror = function() {
+            alert('Erreur lors de la lecture du fichier');
+        };
+        
+        reader.readAsText(file, 'UTF-8');
+    });
+    
+    // Form submission
+    $('#uploadForm').submit(function(e) {
+        const btn = $('#importBtn');
+        const btnText = $('.btn-text');
+        const spinner = $('.spinner-border');
+        
+        // Show loading state
+        btn.prop('disabled', true);
+        btnText.text('Import en cours...');
+        spinner.show();
+        
+        // The form will submit normally, but we show loading state
+        // In case of error, we'll restore the button state
+        setTimeout(() => {
+            if (btn.prop('disabled')) {
+                btn.prop('disabled', false);
+                btnText.text('Importer les clients');
+                spinner.hide();
+            }
+        }, 30000); // Reset after 30 seconds if no response
+    });
+    
+    // Download template
+    $('#downloadTemplate').click(function() {
+        const csvContent = 'Type,Nom,CIN_RC,IF_ICE\n' +
+                          'Personne physique,Dupont Jean,RX123456,123456789\n' +
+                          'Entreprise,Société ABC,12345,001234567890123\n' +
+                          'Personne physique,Martin Pierre,K98765,\n';
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'modele_clients.csv';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+    
+    // Drag and drop functionality
+    const dropzone = $('.dropzone-form');
+    
+    dropzone.on('dragover dragenter', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).addClass('dragover');
+    });
+    
+    dropzone.on('dragleave dragend', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).removeClass('dragover');
+    });
+    
+    dropzone.on('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).removeClass('dragover');
+        
+        const files = e.originalEvent.dataTransfer.files;
+        if (files.length > 0) {
+            $('#csvFile')[0].files = files;
+            $('#csvFile').trigger('change');
+        }
+    });
+    
+    // Auto-preview on file selection
+    $('#csvFile').change(function() {
+        if (this.files[0]) {
+            setTimeout(() => {
+                $('#previewBtn').click();
+            }, 100);
+        }
+    });
+});
+</script>
+{% endblock %}

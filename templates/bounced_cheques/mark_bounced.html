@@ -1,0 +1,205 @@
+<!-- bounced_cheques/mark_bounced.html - Form to mark cheque as bounced -->
+{% extends "base.html" %}
+
+{% block title %}Marquer comme Impayé - {{ cheque.client.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="form-card">
+        <div class="form-header">
+            <h1><i class="fas fa-exclamation-triangle text-danger me-2"></i>{{ title }}</h1>
+            <p>Marquer le chèque comme impayé et configurer les options de recouvrement</p>
+        </div>
+        
+        <div class="form-body">
+            <!-- Cheque Summary -->
+            <div class="alert alert-info mb-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Chèque n°:</strong> {{ cheque.cheque_number or 'N/A' }}<br>
+                        <strong>Client:</strong> {{ cheque.client.name }}<br>
+                        <strong>Montant:</strong> {{ "{:,.2f}".format(cheque.amount) }} MAD
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Banque:</strong> {{ cheque.branch.bank.name }}<br>
+                        <strong>Date échéance:</strong> {{ cheque.due_date.strftime('%d/%m/%Y') }}<br>
+                        <strong>Jours de retard:</strong> {{ (date.today() - cheque.due_date).days if cheque.due_date < date.today() else 0 }}
+                    </div>
+                </div>
+            </div>
+            
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                
+                <div class="form-grid">
+                    <!-- Rejection Details -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <i class="fas fa-times-circle text-danger"></i> Détails du Rejet
+                        </h3>
+                        
+                        <div class="form-group">
+                            {{ form.rejection_date.label }}
+                            {{ form.rejection_date(class="form-control") }}
+                            {% if form.rejection_date.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.rejection_date.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.rejection_reason.label }}
+                            {{ form.rejection_reason(class="form-select") }}
+                            {% if form.rejection_reason.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.rejection_reason.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.rejection_details.label }}
+                            {{ form.rejection_details(class="form-control", rows="3", placeholder="Détails supplémentaires sur le rejet...") }}
+                            {% if form.rejection_details.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.rejection_details.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.rejection_notice.label }}
+                            <div class="file-upload-area">
+                                {{ form.rejection_notice(class="form-control") }}
+                                <div class="mt-2">
+                                    <i class="fas fa-file-upload fa-2x"></i>
+                                    <p>Avis de rejet de la banque (optionnel)</p>
+                                    <small class="text-muted">Formats acceptés: JPG, PNG, PDF</small>
+                                </div>
+                            </div>
+                            {% if form.rejection_notice.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.rejection_notice.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Notification Options -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <i class="fas fa-bell text-warning"></i> Options de Notification
+                        </h3>
+                        
+                        <div class="form-group">
+                            <div class="form-check">
+                                {{ form.notify_client(class="form-check-input") }}
+                                {{ form.notify_client.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-help">
+                                <i class="fas fa-info-circle"></i>
+                                Informer automatiquement le client du rejet
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="form-check">
+                                {{ form.notify_accountant(class="form-check-input") }}
+                                {{ form.notify_accountant.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-help">
+                                <i class="fas fa-info-circle"></i>
+                                Notifier l'équipe comptable
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.notification_method.label }}
+                            {{ form.notification_method(class="form-select") }}
+                            {% if form.notification_method.errors %}
+                                <div class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ form.notification_method.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Impact Warning -->
+                <div class="alert alert-warning mt-4">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
+                        <div>
+                            <h5>Impact de cette action:</h5>
+                            <ul class="mb-0">
+                                <li>Le chèque sera marqué comme <strong>IMPAYÉ</strong></li>
+                                <li>Le taux de rebond du client sera mis à jour</li>
+                                <li>Un dossier de recouvrement sera automatiquement créé</li>
+                                <li>Les notifications seront envoyées selon votre configuration</li>
+                                <li>Le statut sera synchronisé avec Excel</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <a href="{{ url_for('cheques.edit', id=cheque.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Retour au chèque
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Marquer comme Impayé
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Show/hide notification method based on notification checkboxes
+    function toggleNotificationMethod() {
+        if ($('#notify_client').is(':checked') || $('#notify_accountant').is(':checked')) {
+            $('#notification_method').closest('.form-group').show();
+        } else {
+            $('#notification_method').closest('.form-group').hide();
+        }
+    }
+    
+    $('#notify_client, #notify_accountant').change(toggleNotificationMethod);
+    toggleNotificationMethod(); // Initial state
+    
+    // File upload drag and drop
+    const fileUploadArea = $('.file-upload-area');
+    const fileInput = $('.file-upload-area input[type="file"]');
+    
+    fileUploadArea.on('dragover', function(e) {
+        e.preventDefault();
+        fileUploadArea.addClass('dragover');
+    });
+    
+    fileUploadArea.on('dragleave', function() {
+        fileUploadArea.removeClass('dragover');
+    });
+    
+    fileUploadArea.on('drop', function(e) {
+        e.preventDefault();
+        fileUploadArea.removeClass('dragover');
+        fileInput[0].files = e.originalEvent.dataTransfer.files;
+    });
+    
+    // Confirmation before submit
+    $('form').submit(function(e) {
+        return confirm('Êtes-vous sûr de vouloir marquer ce chèque comme impayé? Cette action ne peut pas être annulée facilement.');
+    });
+});
+</script>
+{% endblock %}

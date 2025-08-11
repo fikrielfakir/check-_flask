@@ -39,7 +39,7 @@ class ChequeForm(FlaskForm):
     currency = SelectField('Devise', 
                           choices=[('MAD', 'MAD'), ('EUR', 'EUR'), ('USD', 'USD')],
                           validators=[DataRequired()], default='MAD')
-    issue_date = DateField('Date d\'émission', validators=[DataRequired()])
+    issue_date = DateField('Date d\'reception', validators=[DataRequired()])
     due_date = DateField('Date d\'échéance', validators=[DataRequired()])
     client_id = SelectField('Client', coerce=int, validators=[DataRequired()])
     branch_id = SelectField('Banque/Agence', coerce=int, validators=[DataRequired()])

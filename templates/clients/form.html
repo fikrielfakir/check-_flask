@@ -52,44 +52,54 @@
                         {% endif %}
                     </div>
                     
-                    <!-- Dynamic Fields -->
-                    <div id="personFields" class="client-fields">
-                        <div class="mb-3">
-                            <label for="id_number" class="form-label">CIN (Carte d'Identité Nationale)</label>
-                            {{ form.id_number(class="form-control", placeholder="Ex: AB123456") }}
-                            {% if form.id_number.errors %}
-                                <div class="text-danger small mt-1">
-                                    {% for error in form.id_number.errors %}
-                                        <div>{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                    <!-- Dynamic Fields Container -->
+                    <div class="dynamic-fields">
+                        <!-- Person Fields -->
+                        <div id="personFields" class="client-fields">
+                            <div class="mb-3">
+                                <label for="id_number_person" class="form-label">CIN (Carte d'Identité Nationale)</label>
+                                <input type="text" class="form-control" id="id_number_person" name="id_number" 
+                                       value="{{ form.id_number.data or '' }}" placeholder="Ex: AB123456">
+                                <div class="form-text">Format: 1 ou 2 lettres + 3 à 6 chiffres (Ex: RX3653, K1234)</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="vat_number_person" class="form-label">IF (Identifiant Fiscal)</label>
+                                <input type="text" class="form-control" id="vat_number_person" name="vat_number" 
+                                       value="{{ form.vat_number.data or '' }}" placeholder="Ex: 123456789">
+                                <div class="form-text">Format: 9 chiffres</div>
+                            </div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label for="vat_number" class="form-label">IF (Identifiant Fiscal)</label>
-                            {{ form.vat_number(class="form-control", placeholder="Ex: 123456789") }}
-                            {% if form.vat_number.errors %}
-                                <div class="text-danger small mt-1">
-                                    {% for error in form.vat_number.errors %}
-                                        <div>{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
+                        <!-- Company Fields -->
+                        <div id="companyFields" class="client-fields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="id_number_company" class="form-label">RC (Registre de Commerce)</label>
+                                <input type="text" class="form-control" id="id_number_company" name="id_number" 
+                                       value="{{ form.id_number.data or '' }}" placeholder="Ex: 12345">
+                                <div class="form-text">Format: Chiffres uniquement</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="vat_number_company" class="form-label">ICE (Identifiant Commun de l'Entreprise)</label>
+                                <input type="text" class="form-control" id="vat_number_company" name="vat_number" 
+                                       value="{{ form.vat_number.data or '' }}" placeholder="Ex: 000123456000001">
+                                <div class="form-text">Format: 15 chiffres</div>
+                            </div>
                         </div>
                     </div>
                     
-                    <div id="companyFields" class="client-fields" style="display: none;">
-                        <div class="mb-3">
-                            <label for="id_number" class="form-label">RC (Registre de Commerce)</label>
-                            {{ form.id_number(class="form-control", placeholder="Ex: 12345") }}
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="vat_number" class="form-label">ICE (Identifiant Commun de l'Entreprise)</label>
-                            {{ form.vat_number(class="form-control", placeholder="Ex: 000123456000001") }}
-                        </div>
+                    <!-- Form Errors Display -->
+                    {% if form.id_number.errors or form.vat_number.errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.id_number.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                        {% for error in form.vat_number.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
                     </div>
+                    {% endif %}
                     
                     <div class="d-flex justify-content-between">
                         <a href="{{ url_for('clients.index') }}" class="btn btn-secondary">
@@ -117,10 +127,19 @@ $(document).ready(function() {
             $('#nameLabel').text('Nom et prénom');
             $('#personFields').show();
             $('#companyFields').hide();
+            
+            // Copy values to visible fields
+            $('#id_number_person').val($('#id_number_company').val());
+            $('#vat_number_person').val($('#vat_number_company').val());
+            
         } else if (selectedType === 'entreprise') {
             $('#nameLabel').text('Raison sociale');
             $('#personFields').hide();
             $('#companyFields').show();
+            
+            // Copy values to visible fields
+            $('#id_number_company').val($('#id_number_person').val());
+            $('#vat_number_company').val($('#vat_number_person').val());
         }
     }
     
@@ -131,6 +150,30 @@ $(document).ready(function() {
     $('.client-type-radio').change(function() {
         updateFormFields();
     });
+    
+    // Ensure the correct input values are submitted
+    $('#clientForm').on('submit', function() {
+        const selectedType = $('input[name="type"]:checked').val();
+        
+        if (selectedType === 'personne') {
+            // Remove company fields from submission
+            $('#id_number_company, #vat_number_company').removeAttr('name');
+        } else if (selectedType === 'entreprise') {
+            // Remove person fields from submission
+            $('#id_number_person, #vat_number_person').removeAttr('name');
+        }
+    });
+    
+    // Handle existing client data for edit mode
+    {% if client %}
+    // Set the correct radio button based on existing client type
+    if ('{{ client.type }}' === 'personne') {
+        $('input[name="type"][value="personne"]').prop('checked', true);
+    } else if ('{{ client.type }}' === 'entreprise') {
+        $('input[name="type"][value="entreprise"]').prop('checked', true);
+    }
+    updateFormFields();
+    {% endif %}
 });
 </script>
 {% endblock %}

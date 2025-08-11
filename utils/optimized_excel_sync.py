@@ -20,7 +20,7 @@ class OptimizedExcelSync:
         
         # Excel headers with deposit bank field
         self.headers = [
-            "Date d'émission",
+            "Date de reception",
             "Type de Règlement", 
             "Numéro du chèque",
             "Banque/Agence",

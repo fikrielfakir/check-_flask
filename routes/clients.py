@@ -96,12 +96,9 @@ class ClientValidator:
         if client_type == 'personne':
             if id_number:
                 id_number = id_number.strip().upper()
-
                 # CIN: 1 ou 2 lettres + 3 à 6 chiffres (ex: RX3653, K1234, AB123456)
                 if not re.match(MOROCCAN_ID_PATTERNS['cin'], id_number):
                     errors.append('Le CIN doit contenir 1 ou 2 lettres suivies de 3 à 6 chiffres (ex: RX3653, K1234, AB123456)')
-   
-
             
             if vat_number:
                 vat_number = vat_number.strip()
@@ -114,12 +111,12 @@ class ClientValidator:
                 if not re.match(MOROCCAN_ID_PATTERNS['rc'], id_number):
                     errors.append('Le RC doit contenir uniquement des chiffres')
             
-            if vat_number:
-                vat_number = vat_number.strip()
-                if not re.match(MOROCCAN_ID_PATTERNS['ice'], vat_number):
-                    errors.append('L\'ICE doit contenir exactement 15 chiffres')
-                elif not ClientValidator._validate_ice_checksum(vat_number):
-                    errors.append('L\'ICE fourni n\'est pas valide (erreur de contrôle)')
+            # if vat_number:
+            #     vat_number = vat_number.strip()
+            #     if not re.match(MOROCCAN_ID_PATTERNS['ice'], vat_number):
+            #         errors.append('L\'ICE doit contenir exactement 15 chiffres')
+            #     elif not ClientValidator._validate_ice_checksum(vat_number):
+            #         errors.append('L\'ICE fourni n\'est pas valide (erreur de contrôle)')
         
         return errors
     
@@ -232,7 +229,71 @@ class ClientService:
         except Exception as e:
             logger.error(f"Unexpected error checking duplicate client: {e}")
             return "Erreur inattendue lors de la vérification"
+
+    @staticmethod
+    @monitor_performance
+    def safe_check_client_relationships(client):
+        """
+        Safely check if a client can be deleted by examining relationships
+        Returns: (can_delete: bool, reason: str, related_counts: dict)
+        """
+        try:
+            related_counts = {}
+            blocking_relationships = []
+            
+            # Check cheques relationship
+            try:
+                cheque_count = Cheque.query.filter_by(client_id=client.id).count()
+                related_counts['cheques'] = cheque_count
+                
+                if cheque_count > 0:
+                    # Check if any cheques are not finalized
+                    active_cheques = Cheque.query.filter(
+                        Cheque.client_id == client.id,
+                        Cheque.status.in_(['EN_ATTENTE', 'DEPOSE'])
+                    ).count()
+                    
+                    if active_cheques > 0:
+                        blocking_relationships.append(f"{active_cheques} chèque(s) en cours")
+                    
+                    # For finalized cheques, we might still want to keep the client for historical purposes
+                    finalized_cheques = cheque_count - active_cheques
+                    if finalized_cheques > 0:
+                        related_counts['finalized_cheques'] = finalized_cheques
+                        # Uncomment the next line if you want to prevent deletion of clients with any cheques
+                        # blocking_relationships.append(f"{finalized_cheques} chèque(s) historique(s)")
+            
+            except Exception as e:
+                logger.warning(f"Error checking cheque relationships for client {client.id}: {e}")
+                related_counts['cheques'] = 0
+            
+            # Check other relationships if they exist
+            try:
+                # Check communications if the relationship exists
+                if hasattr(client, 'communications'):
+                    comm_count = len(client.communications)
+                    related_counts['communications'] = comm_count
+                
+                # Check documents if the relationship exists  
+                if hasattr(client, 'documents'):
+                    doc_count = len(client.documents)
+                    related_counts['documents'] = doc_count
+                    
+            except Exception as e:
+                logger.warning(f"Error checking additional relationships for client {client.id}: {e}")
+            
+            # Determine if client can be deleted
+            can_delete = len(blocking_relationships) == 0
+            reason = "; ".join(blocking_relationships) if blocking_relationships else ""
+            
+            return can_delete, reason, related_counts
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Database error checking client relationships for {client.id}: {e}")
             return False, "Erreur lors de la vérification des associations", {}
+        except Exception as e:
+            logger.error(f"Unexpected error checking client relationships for {client.id}: {e}")
+            return False, "Erreur inattendue lors de la vérification", {}
 
     @staticmethod
     @monitor_performance
@@ -304,16 +365,32 @@ def index():
         # Build optimized query
         query = Client.query
         
-        # Search filter with index-friendly operations
+        # Search filter with improved handling for ID/VAT numbers
         if search:
             search_term = f'%{search}%'
-            query = query.filter(
-                or_(
-                    Client.name.ilike(search_term),
-                    Client.id_number.ilike(search_term),
+            search_conditions = []
+            
+            # Name search (case insensitive)
+            search_conditions.append(Client.name.ilike(search_term))
+            
+            # ID number search (handle both with and without null values)
+            search_conditions.append(
+                db.and_(
+                    Client.id_number.isnot(None),
+                    Client.id_number.ilike(search_term)
+                )
+            )
+            
+            # VAT number search (handle both with and without null values)
+            search_conditions.append(
+                db.and_(
+                    Client.vat_number.isnot(None),
                     Client.vat_number.ilike(search_term)
                 )
             )
+            
+            # Apply OR condition for all search criteria
+            query = query.filter(or_(*search_conditions))
         
         # Type filter
         if client_type and client_type in CLIENT_TYPES:
@@ -394,7 +471,13 @@ def new():
 def edit(id):
     try:
         client = Client.query.get_or_404(id)
-        form = ClientForm(obj=client)
+        
+        if request.method == 'GET':
+            # For GET request, populate form with client data
+            form = ClientForm(obj=client)
+        else:
+            # For POST request, use submitted data
+            form = ClientForm()
         
         if form.validate_on_submit():
             # Sanitize data
@@ -439,7 +522,8 @@ def edit(id):
             client.name = clean_data['name']
             client.id_number = clean_data['id_number']
             client.vat_number = clean_data['vat_number']
-            client.updated_at = datetime.utcnow()  # Add if you have this field
+            if hasattr(client, 'updated_at'):
+                client.updated_at = datetime.utcnow()
             
             db.session.commit()
             
@@ -458,6 +542,7 @@ def edit(id):
                          title='Modifier Client', 
                          client=client,
                          client_types=CLIENT_TYPES)
+
 @clients_bp.route('/<int:id>/view')
 @login_required
 @monitor_performance
@@ -571,19 +656,24 @@ def api_search():
         search_term = f'%{query_param}%'
         
         # Optimized query with specific columns
+        search_conditions = []
+        search_conditions.append(Client.name.ilike(search_term))
+        
+        # Handle ID/VAT number searches with null checks
+        search_conditions.append(
+            db.and_(Client.id_number.isnot(None), Client.id_number.ilike(search_term))
+        )
+        search_conditions.append(
+            db.and_(Client.vat_number.isnot(None), Client.vat_number.ilike(search_term))
+        )
+        
         clients = db.session.query(
             Client.id,
             Client.name,
             Client.type,
             Client.id_number,
             Client.vat_number
-        ).filter(
-            or_(
-                Client.name.ilike(search_term),
-                Client.id_number.ilike(search_term),
-                Client.vat_number.ilike(search_term)
-            )
-        ).order_by(Client.name).limit(limit).all()
+        ).filter(or_(*search_conditions)).order_by(Client.name).limit(limit).all()
         
         results = []
         for client in clients:
@@ -706,13 +796,15 @@ def export():
         
         if search:
             search_term = f'%{search}%'
-            query = query.filter(
-                or_(
-                    Client.name.ilike(search_term),
-                    Client.id_number.ilike(search_term),
-                    Client.vat_number.ilike(search_term)
-                )
+            search_conditions = []
+            search_conditions.append(Client.name.ilike(search_term))
+            search_conditions.append(
+                db.and_(Client.id_number.isnot(None), Client.id_number.ilike(search_term))
             )
+            search_conditions.append(
+                db.and_(Client.vat_number.isnot(None), Client.vat_number.ilike(search_term))
+            )
+            query = query.filter(or_(*search_conditions))
         
         if client_type and client_type in CLIENT_TYPES:
             query = query.filter(Client.type == client_type)
@@ -824,11 +916,12 @@ def stats():
 @require_role('admin', 'comptable')
 @monitor_performance
 def bulk_import():
-    """Bulk import clients from CSV"""
+    """Enhanced bulk import clients from CSV with better error handling"""
     if request.method == 'GET':
         return render_template('clients/bulk_import.html')
     
     try:
+        # Validate file upload
         if 'file' not in request.files:
             flash('Aucun fichier sélectionné.', 'danger')
             return redirect(request.url)
@@ -842,18 +935,74 @@ def bulk_import():
             flash('Seuls les fichiers CSV sont acceptés.', 'danger')
             return redirect(request.url)
         
-        # Read and parse CSV
-        try:
-            content = file.read().decode('utf-8')
-            csv_reader = csv.DictReader(StringIO(content))
-        except UnicodeDecodeError:
+        # Check file size (10MB limit)
+        if file.content_length and file.content_length > 10 * 1024 * 1024:
+            flash('Le fichier est trop volumineux (maximum 10 MB).', 'danger')
+            return redirect(request.url)
+        
+        # Read and parse CSV with multiple encoding attempts
+        content = None
+        encodings_to_try = ['utf-8', 'utf-8-sig', 'iso-8859-1', 'cp1252']
+        
+        for encoding in encodings_to_try:
             try:
                 file.seek(0)
-                content = file.read().decode('iso-8859-1')
-                csv_reader = csv.DictReader(StringIO(content))
-            except:
-                flash('Erreur d\'encodage du fichier. Utilisez UTF-8 ou ISO-8859-1.', 'danger')
-                return redirect(request.url)
+                content = file.read().decode(encoding)
+                logger.info(f"Successfully decoded CSV with {encoding} encoding")
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        if content is None:
+            flash('Erreur d\'encodage du fichier. Veuillez utiliser UTF-8, ISO-8859-1 ou Windows-1252.', 'danger')
+            return redirect(request.url)
+        
+        # Parse CSV with robust handling
+        try:
+            # Detect delimiter
+            import csv
+            sample = content[:1024]
+            sniffer = csv.Sniffer()
+            delimiter = sniffer.sniff(sample).delimiter
+            
+            csv_reader = csv.DictReader(StringIO(content), delimiter=delimiter)
+            
+            # Normalize headers (remove BOM, trim spaces, handle case)
+            fieldnames = []
+            if csv_reader.fieldnames:
+                for field in csv_reader.fieldnames:
+                    # Remove BOM and normalize
+                    clean_field = field.replace('\ufeff', '').strip()
+                    fieldnames.append(clean_field)
+                csv_reader.fieldnames = fieldnames
+            
+        except Exception as parse_error:
+            logger.error(f"CSV parsing error: {parse_error}")
+            flash(f'Erreur lors de l\'analyse du fichier CSV: {str(parse_error)}', 'danger')
+            return redirect(request.url)
+        
+        # Validate required columns
+        required_columns = ['Type', 'Nom']
+        missing_columns = []
+        
+        if not csv_reader.fieldnames:
+            flash('Le fichier CSV semble vide ou mal formaté.', 'danger')
+            return redirect(request.url)
+        
+        # Check for required columns (case insensitive)
+        available_columns = [col.lower() for col in csv_reader.fieldnames]
+        for req_col in required_columns:
+            if req_col.lower() not in available_columns:
+                missing_columns.append(req_col)
+        
+        if missing_columns:
+            flash(f'Colonnes manquantes dans le CSV: {", ".join(missing_columns)}', 'danger')
+            return redirect(request.url)
+        
+        # Create column mapping for case-insensitive access
+        column_mapping = {}
+        for col in csv_reader.fieldnames:
+            column_mapping[col.lower()] = col
         
         # Import statistics
         import_stats = {
@@ -861,79 +1010,363 @@ def bulk_import():
             'success': 0,
             'errors': 0,
             'skipped': 0,
-            'error_details': []
+            'error_details': [],
+            'warnings': []
         }
         
-        # Process each row
+        # Get import options
+        skip_duplicates = request.form.get('skip_duplicates', 'on') == 'on'
+        validate_ids = request.form.get('validate_ids', 'on') == 'on'
+        
+        # Process each row with enhanced error handling
+        processed_names = set()  # Track names within this import
+        
         for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 for header
             import_stats['total'] += 1
             
             try:
-                # Expected columns: Type, Nom, CIN_RC, IF_ICE
-                client_type = row.get('Type', '').lower().strip()
-                if client_type == 'personne physique':
-                    client_type = 'personne'
-                elif client_type == 'entreprise':
-                    client_type = 'entreprise'
+                # Clean and extract data using case-insensitive mapping
+                def get_value(key_lower):
+                    original_key = column_mapping.get(key_lower)
+                    if original_key and original_key in row:
+                        value = row[original_key]
+                        if isinstance(value, str):
+                            return value.strip()
+                        return str(value).strip() if value is not None else ''
+                    return ''
                 
-                name = row.get('Nom', '').strip()
-                id_number = row.get('CIN_RC', '').strip()
-                vat_number = row.get('IF_ICE', '').strip()
+                raw_type = get_value('type')
+                name = get_value('nom')
+                id_number = get_value('cin_rc')
+                vat_number = get_value('if_ice')
                 
-                # Skip empty rows
-                if not name or not client_type:
+                # Skip completely empty rows
+                if not any([raw_type, name, id_number, vat_number]):
                     import_stats['skipped'] += 1
                     continue
                 
-                # Validate
-                if client_type not in CLIENT_TYPES:
+                # Validate required fields
+                if not name:
                     import_stats['errors'] += 1
-                    import_stats['error_details'].append(f"Ligne {row_num}: Type invalide '{client_type}'")
+                    import_stats['error_details'].append(f"Ligne {row_num}: Le nom est requis")
                     continue
                 
-                # Check if client already exists
-                existing = ClientService.check_duplicate_client(name, client_type, id_number, vat_number)
-                if existing:
-                    import_stats['skipped'] += 1
-                    import_stats['error_details'].append(f"Ligne {row_num}: {existing}")
+                if not raw_type:
+                    import_stats['errors'] += 1
+                    import_stats['error_details'].append(f"Ligne {row_num}: Le type de client est requis")
                     continue
                 
-                # Create client
-                success, message, client = ClientService.create_client({
-                    'type': client_type,
-                    'name': name,
-                    'id_number': id_number if id_number else None,
-                    'vat_number': vat_number if vat_number else None
-                })
-                
-                if success:
-                    import_stats['success'] += 1
+                # Normalize client type
+                client_type = raw_type.lower().strip()
+                if 'personne' in client_type or 'physique' in client_type:
+                    client_type = 'personne'
+                elif 'entreprise' in client_type or 'société' in client_type or 'company' in client_type:
+                    client_type = 'entreprise'
                 else:
                     import_stats['errors'] += 1
-                    import_stats['error_details'].append(f"Ligne {row_num}: {message}")
+                    import_stats['error_details'].append(
+                        f"Ligne {row_num}: Type invalide '{raw_type}'. "
+                        f"Utilisez 'Personne physique' ou 'Entreprise'"
+                    )
+                    continue
+                
+                # Clean ID numbers
+                if id_number:
+                    id_number = re.sub(r'\s+', '', id_number.upper() if client_type == 'personne' else id_number)
+                    if len(id_number) == 0:
+                        id_number = None
+                else:
+                    id_number = None
+                
+                if vat_number:
+                    vat_number = re.sub(r'\s+', '', vat_number)
+                    if len(vat_number) == 0:
+                        vat_number = None
+                else:
+                    vat_number = None
+                
+                # Validate IDs if option is enabled
+                if validate_ids:
+                    validation_errors = ClientValidator.validate_moroccan_ids(
+                        client_type, id_number, vat_number
+                    )
+                    if validation_errors:
+                        import_stats['errors'] += 1
+                        import_stats['error_details'].append(
+                            f"Ligne {row_num}: {validation_errors[0]}"
+                        )
+                        continue
+                
+                # Check for duplicates within the import file
+                name_key = name.lower().strip()
+                if name_key in processed_names:
+                    if skip_duplicates:
+                        import_stats['skipped'] += 1
+                        import_stats['warnings'].append(
+                            f"Ligne {row_num}: Doublon détecté dans le fichier - '{name}' ignoré"
+                        )
+                        continue
+                    else:
+                        import_stats['errors'] += 1
+                        import_stats['error_details'].append(
+                            f"Ligne {row_num}: Doublon détecté dans le fichier - '{name}'"
+                        )
+                        continue
+                
+                # Check for existing duplicates in database
+                if skip_duplicates:
+                    duplicate_error = ClientService.check_duplicate_client(
+                        name, client_type, id_number, vat_number
+                    )
+                    if duplicate_error:
+                        import_stats['skipped'] += 1
+                        import_stats['warnings'].append(f"Ligne {row_num}: {duplicate_error}")
+                        continue
+                
+                # Create client with transaction safety
+                try:
+                    # Create the client object
+                    client = Client(
+                        type=client_type,
+                        name=name.title(),  # Capitalize name properly
+                        id_number=id_number,
+                        vat_number=vat_number,
+                        created_at=datetime.utcnow()
+                    )
+                    
+                    db.session.add(client)
+                    db.session.flush()  # Get ID without committing
+                    
+                    # Track processed names
+                    processed_names.add(name_key)
+                    
+                    import_stats['success'] += 1
+                    
+                    # Log every 100 successful imports
+                    if import_stats['success'] % 100 == 0:
+                        logger.info(f"Bulk import progress: {import_stats['success']} clients processed")
+                
+                except IntegrityError as ie:
+                    db.session.rollback()
+                    error_msg = str(ie.orig).lower() if hasattr(ie, 'orig') else str(ie).lower()
+                    
+                    if 'unique' in error_msg or 'duplicate' in error_msg:
+                        if skip_duplicates:
+                            import_stats['skipped'] += 1
+                            import_stats['warnings'].append(
+                                f"Ligne {row_num}: Client '{name}' existe déjà - ignoré"
+                            )
+                        else:
+                            import_stats['errors'] += 1
+                            import_stats['error_details'].append(
+                                f"Ligne {row_num}: Client '{name}' existe déjà"
+                            )
+                    else:
+                        import_stats['errors'] += 1
+                        import_stats['error_details'].append(
+                            f"Ligne {row_num}: Erreur d'intégrité - {str(ie)}"
+                        )
+                
+                except SQLAlchemyError as se:
+                    db.session.rollback()
+                    import_stats['errors'] += 1
+                    import_stats['error_details'].append(
+                        f"Ligne {row_num}: Erreur de base de données - {str(se)}"
+                    )
+                    logger.error(f"Database error on row {row_num}: {se}")
+                
+                except Exception as client_error:
+                    db.session.rollback()
+                    import_stats['errors'] += 1
+                    import_stats['error_details'].append(
+                        f"Ligne {row_num}: Erreur inattendue - {str(client_error)}"
+                    )
+                    logger.error(f"Unexpected error creating client on row {row_num}: {client_error}")
                 
             except Exception as row_error:
                 import_stats['errors'] += 1
-                import_stats['error_details'].append(f"Ligne {row_num}: Erreur inattendue - {str(row_error)}")
+                import_stats['error_details'].append(
+                    f"Ligne {row_num}: Erreur de traitement - {str(row_error)}"
+                )
                 logger.error(f"Error processing row {row_num}: {row_error}")
         
-        # Generate summary message
-        if import_stats['success'] > 0:
-            flash(f"Import terminé: {import_stats['success']} clients créés, "
-                  f"{import_stats['skipped']} ignorés, {import_stats['errors']} erreurs.", 'info')
-        else:
-            flash(f"Aucun client importé. {import_stats['errors']} erreurs détectées.", 'warning')
+        # Commit all successful transactions
+        try:
+            db.session.commit()
+            logger.info(f"Bulk import completed: {import_stats['success']} clients committed to database")
+        except Exception as commit_error:
+            db.session.rollback()
+            logger.error(f"Failed to commit bulk import: {commit_error}")
+            flash('Erreur lors de la sauvegarde des données. Import annulé.', 'danger')
+            return render_template('clients/bulk_import.html')
         
-        # Log import activity
-        logger.info(f"Bulk import by {current_user.username}: {import_stats}")
+        # Generate comprehensive summary
+        success_rate = (import_stats['success'] / import_stats['total'] * 100) if import_stats['total'] > 0 else 0
+        
+        if import_stats['success'] > 0:
+            if import_stats['errors'] == 0:
+                flash(f"✅ Import réussi! {import_stats['success']} clients créés sans erreur.", 'success')
+            else:
+                flash(f"Import terminé avec {import_stats['success']} clients créés, "
+                      f"{import_stats['skipped']} ignorés, {import_stats['errors']} erreurs "
+                      f"({success_rate:.1f}% de réussite).", 'info')
+        else:
+            if import_stats['total'] == 0:
+                flash('Le fichier CSV semble vide.', 'warning')
+            else:
+                flash(f"Aucun client importé. {import_stats['errors']} erreurs détectées sur "
+                      f"{import_stats['total']} lignes.", 'danger')
+        
+        # Add warnings to error details for display
+        if import_stats['warnings']:
+            import_stats['error_details'].extend([
+                f"⚠️ {warning}" for warning in import_stats['warnings']
+            ])
+        
+        # Log comprehensive import activity
+        logger.info(f"Bulk import completed by {current_user.username}: "
+                   f"Total: {import_stats['total']}, "
+                   f"Success: {import_stats['success']}, "
+                   f"Errors: {import_stats['errors']}, "
+                   f"Skipped: {import_stats['skipped']}, "
+                   f"Success Rate: {success_rate:.1f}%")
         
         return render_template('clients/bulk_import.html', import_stats=import_stats)
         
     except Exception as e:
-        logger.error(f"Error in bulk import: {e}")
-        flash('Erreur lors de l\'import des clients.', 'danger')
+        db.session.rollback()
+        logger.error(f"Critical error in bulk import: {e}")
+        flash('Erreur critique lors de l\'import des clients. Veuillez réessayer.', 'danger')
         return redirect(request.url)
 
+
+@clients_bp.route('/bulk-import/validate', methods=['POST'])
+@login_required
+@require_role('admin', 'comptable')
+def validate_csv():
+    """API endpoint to validate CSV file before import"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'valid': False, 'error': 'Aucun fichier fourni'})
+        
+        file = request.files['file']
+        if not file.filename.lower().endswith('.csv'):
+            return jsonify({'valid': False, 'error': 'Format de fichier invalide'})
+        
+        # Read and validate CSV structure
+        content = None
+        encodings_to_try = ['utf-8', 'utf-8-sig', 'iso-8859-1', 'cp1252']
+        
+        for encoding in encodings_to_try:
+            try:
+                file.seek(0)
+                content = file.read().decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        
+        if content is None:
+            return jsonify({'valid': False, 'error': 'Encodage de fichier non supporté'})
+        
+        # Parse CSV
+        csv_reader = csv.DictReader(StringIO(content))
+        
+        # Validate headers
+        if not csv_reader.fieldnames:
+            return jsonify({'valid': False, 'error': 'Fichier CSV vide'})
+        
+        fieldnames = [field.replace('\ufeff', '').strip() for field in csv_reader.fieldnames]
+        required_columns = ['Type', 'Nom']
+        available_columns = [col.lower() for col in fieldnames]
+        missing_columns = [col for col in required_columns if col.lower() not in available_columns]
+        
+        if missing_columns:
+            return jsonify({
+                'valid': False,
+                'error': f'Colonnes manquantes: {", ".join(missing_columns)}'
+            })
+        
+        # Count valid rows
+        valid_rows = 0
+        total_rows = 0
+        sample_data = []
+        
+        for i, row in enumerate(csv_reader):
+            if i >= 5:  # Only check first 5 rows for sample
+                break
+            total_rows += 1
+            
+            # Get values case-insensitively
+            row_data = {}
+            for key, value in row.items():
+                clean_key = key.replace('\ufeff', '').strip().lower()
+                row_data[clean_key] = value.strip() if isinstance(value, str) else str(value or '')
+            
+            if row_data.get('nom') and row_data.get('type'):
+                valid_rows += 1
+                sample_data.append({
+                    'type': row_data.get('type'),
+                    'nom': row_data.get('nom'),
+                    'cin_rc': row_data.get('cin_rc', ''),
+                    'if_ice': row_data.get('if_ice', '')
+                })
+        
+        # Count total rows by re-reading
+        file.seek(0)
+        content = file.read().decode(encodings_to_try[0])  # Use first successful encoding
+        total_lines = len(content.strip().split('\n')) - 1  # Subtract header
+        
+        return jsonify({
+            'valid': True,
+            'headers': fieldnames,
+            'total_rows': total_lines,
+            'valid_sample_rows': valid_rows,
+            'sample_data': sample_data
+        })
+        
+    except Exception as e:
+        logger.error(f"CSV validation error: {e}")
+        return jsonify({'valid': False, 'error': f'Erreur de validation: {str(e)}'})
+
+
+@clients_bp.route('/bulk-import/template')
+@login_required
+@require_role('admin', 'comptable')
+def download_template():
+    """Download CSV template for bulk import"""
+    try:
+        # Create CSV template with sample data
+        template_data = [
+            ['Type', 'Nom', 'CIN_RC', 'IF_ICE'],
+            ['Personne physique', 'Dupont Jean', 'RX123456', '123456789'],
+            ['Entreprise', 'Société ABC SARL', '12345', '001234567890123'],
+            ['Personne physique', 'Martin Pierre', 'K98765', ''],
+            ['Entreprise', 'Tech Solutions', '67890', '001987654321098'],
+            ['Personne physique', 'Alami Fatima', 'CD456789', '987654321']
+        ]
+        
+        output = StringIO()
+        writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+        
+        for row in template_data:
+            writer.writerow(row)
+        
+        output.seek(0)
+        
+        from flask import make_response
+        response = make_response(output.getvalue().encode('utf-8'))
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = 'attachment; filename=modele_import_clients.csv'
+        
+        logger.info(f"CSV template downloaded by {current_user.username}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error generating CSV template: {e}")
+        flash('Erreur lors de la génération du modèle.', 'danger')
+        return redirect(url_for('clients.bulk_import'))
+    
+    
 @clients_bp.route('/merge')
 @login_required
 @require_role('admin')
@@ -999,12 +1432,11 @@ def perform_merge(keep_id, remove_id):
             
             # Example: Update cheques to point to kept client
             if 'cheques' in related_counts and related_counts['cheques'] > 0:
-                # You would need to implement this based on your models
-                # db.session.execute(
-                #     text("UPDATE cheques SET client_id = :keep_id WHERE client_id = :remove_id"),
-                #     {'keep_id': keep_id, 'remove_id': remove_id}
-                # )
-                pass
+                # Update cheques to point to kept client
+                db.session.execute(
+                    text("UPDATE cheques SET client_id = :keep_id WHERE client_id = :remove_id"),
+                    {'keep_id': keep_id, 'remove_id': remove_id}
+                )
             
             # Merge additional data if needed (update kept client with missing info)
             if not keep_client.id_number and remove_client.id_number:

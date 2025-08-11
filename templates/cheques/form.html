@@ -98,8 +98,13 @@
                         </div>
                         
                         <div class="form-group">
-                            {{ form.status.label }}
-                            {{ form.status(class="form-select", id="status") }}
+                            <!-- <label for="status" class="form-label">Statut</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="EN_ATTENTE" {% if form.status.data == 'EN_ATTENTE' %}selected{% endif %}>En Attente</option>
+                                <option value="ENCAISSE" {% if form.status.data == 'ENCAISSE' %}selected{% endif %}>Encaissé</option>
+                                <option value="IMPAYE" {% if form.status.data == 'IMPAYE' %}selected{% endif %}>Impayé</option>
+                                <option value="ANNULE" {% if form.status.data == 'ANNULE' %}selected{% endif %}>Annulé</option>
+                            </select> -->
                             {% if form.status.errors %}
                                 <div class="error-message">
                                     <i class="fas fa-exclamation-circle"></i>
@@ -190,17 +195,31 @@
                         <div class="form-group">
                             {{ form.cheque_number.label }}
                             <div class="input-with-icon">
-                                {{ form.cheque_number(class="form-control duplicate-check-field", id="cheque_number") }}
-                                <span class="input-icon status-icon" id="statusIcon">
-                                    <i class="fas fa-circle text-muted"></i>
-                                </span>
+                                {% if cheque is defined %}
+                                    {{ form.cheque_number(class="form-control", id="cheque_number", readonly=true, style="background-color: #f8f9fa; cursor: not-allowed;") }}
+                                    <span class="input-icon">
+                                        <i class="fas fa-lock text-muted" title="Non modifiable lors de l'édition"></i>
+                                    </span>
+                                {% else %}
+                                    {{ form.cheque_number(class="form-control duplicate-check-field", id="cheque_number") }}
+                                    <span class="input-icon status-icon" id="statusIcon">
+                                        <i class="fas fa-circle text-muted"></i>
+                                    </span>
+                                {% endif %}
                             </div>
+                            {% if cheque is defined %}
+                            <div class="form-help">
+                                <i class="fas fa-info-circle"></i>
+                                Le numéro de chèque ne peut pas être modifié lors de l'édition
+                            </div>
+                            {% else %}
                             <div class="form-help">
                                 La vérification des doublons se fait automatiquement
                             </div>
                             <div id="duplicateMessageContainer" class="duplicate-message" style="display: none;">
                                 <span id="duplicateMessageText"></span>
                             </div>
+                            {% endif %}
                             {% if form.cheque_number.errors %}
                                 <div class="error-message">
                                     <i class="fas fa-exclamation-circle"></i>
@@ -478,11 +497,13 @@ $(document).ready(function() {
         }
     }
     
-    // Debounced duplicate checking
+    // Debounced duplicate checking - only for new cheques
+    {% if cheque is not defined %}
     $('.duplicate-check-field').on('input change', function() {
         clearTimeout(duplicateCheckTimeout);
         duplicateCheckTimeout = setTimeout(checkDuplicates, 500);
     });
+    {% endif %}
     
     // Form submission handling
     $('#chequeForm').on('submit', function(e) {
@@ -672,16 +693,16 @@ $(document).ready(function() {
         fileInput[0].files = e.originalEvent.dataTransfer.files;
     });
     
-    // Initial checks
+    // Initial checks - only for new cheques
     {% if cheque is defined %}
     $('#client_id').val({{ cheque.client_id }});
     $('#clientSearch').val('{{ cheque.client.name }}');
-    setTimeout(checkDuplicates, 100);
-    {% endif %}
-    
+    // No duplicate check for editing
+    {% else %}
     if ($('#cheque_number').val() && $('#branch_id').val() && $('#client_id').val()) {
         setTimeout(checkDuplicates, 100);
     }
+    {% endif %}
 });
 </script>
 {% endblock %}
