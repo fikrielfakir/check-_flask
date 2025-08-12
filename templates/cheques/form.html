@@ -344,47 +344,82 @@
 
 <!-- New Client Modal -->
 <div class="modal fade" id="newClientModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Nouveau Client</h5>
+                <h5 class="modal-title"><i class="fas fa-user-tie me-2"></i>Nouveau Client</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="newClientForm">
-                    <div class="form-group">
-                        <label class="form-label">Type de client</label>
-                        <div class="radio-group">
-                            <label class="radio-option">
-                                <input type="radio" name="type" value="personne" checked>
-                                Personne physique
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="type" value="entreprise">
-                                Entreprise
-                            </label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">Type de client *</label>
+                                <div class="radio-group">
+                                    <label class="radio-option">
+                                        <input type="radio" name="type" value="personne" checked>
+                                        Personne physique
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="type" value="entreprise">
+                                        Entreprise
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="clientName" class="form-label" id="clientNameLabel">Nom et prénom *</label>
+                                <input type="text" class="form-control" id="clientName" name="name" required>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="clientIdNumber" class="form-label" id="clientIdLabel">CIN</label>
+                                <input type="text" class="form-control" id="clientIdNumber" name="id_number">
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="clientVatNumber" class="form-label" id="clientVatLabel">IF</label>
+                                <input type="text" class="form-control" id="clientVatNumber" name="vat_number">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="clientPhone" class="form-label">Téléphone</label>
+                                <input type="tel" class="form-control" id="clientPhone" name="phone">
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="clientEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="clientEmail" name="email">
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="clientCity" class="form-label">Ville</label>
+                                <input type="text" class="form-control" id="clientCity" name="city">
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="clientPostalCode" class="form-label">Code postal</label>
+                                <input type="text" class="form-control" id="clientPostalCode" name="postal_code">
+                            </div>
                         </div>
                     </div>
-
-                    <div class="form-group">
-                        <label for="clientName" class="form-label" id="clientNameLabel">Nom et prénom</label>
-                        <input type="text" class="form-control" id="clientName" name="name" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="clientIdNumber" class="form-label" id="clientIdLabel">CIN</label>
-                        <input type="text" class="form-control" id="clientIdNumber" name="id_number">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="clientVatNumber" class="form-label" id="clientVatLabel">IF</label>
-                        <input type="text" class="form-control" id="clientVatNumber" name="vat_number">
+                    
+                    <div class="form-group mb-3">
+                        <label for="clientAddress" class="form-label">Adresse</label>
+                        <textarea class="form-control" id="clientAddress" name="address" rows="2"></textarea>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary" id="saveClientBtn">Créer Client</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Annuler
+                </button>
+                <button type="button" class="btn btn-primary" id="saveClientBtn">
+                    <i class="fas fa-save me-1"></i>Créer Client
+                </button>
             </div>
         </div>
     </div>
@@ -392,31 +427,89 @@
 
 <!-- New Depositor Modal -->
 <div class="modal fade" id="newDepositorModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Nouveau Déposant</h5>
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Nouveau Déposant</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="newDepositorForm">
-                    <div class="form-group">
-                        <label for="depositorName" class="form-label">Nom du déposant</label>
-                        <input type="text" class="form-control" id="depositorName" name="name" required>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="depositorName" class="form-label">Nom complet *</label>
+                                <input type="text" class="form-control" id="depositorName" name="name" required>
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="depositorType" class="form-label">Type de déposant</label>
+                                <select class="form-select" id="depositorType" name="type">
+                                    <option value="personne">Personne physique</option>
+                                    <option value="entreprise">Entreprise</option>
+                                    <option value="mandataire">Mandataire/Agent</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="depositorPhone" class="form-label">Téléphone</label>
+                                <input type="tel" class="form-control" id="depositorPhone" name="phone">
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="depositorEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="depositorEmail" name="email">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="depositorIdNumber" class="form-label">Numéro d'identification</label>
+                                <input type="text" class="form-control" id="depositorIdNumber" name="id_number">
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="depositorIdType" class="form-label">Type d'identifiant</label>
+                                <select class="form-select" id="depositorIdType" name="id_type">
+                                    <option value="">Sélectionner...</option>
+                                    <option value="cin">CIN</option>
+                                    <option value="passport">Passeport</option>
+                                    <option value="carte_sejour">Carte de séjour</option>
+                                    <option value="rc">Registre de commerce</option>
+                                    <option value="ice">ICE</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group mb-3" id="companyInfoGroup" style="display: none;">
+                                <label for="depositorCompany" class="form-label">Nom de l'entreprise</label>
+                                <input type="text" class="form-control" id="depositorCompany" name="company_name">
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="depositorCity" class="form-label">Ville</label>
+                                <input type="text" class="form-control" id="depositorCity" name="city">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="depositorPhone" class="form-label">Téléphone</label>
-                        <input type="text" class="form-control" id="depositorPhone" name="phone">
-                    </div>
-                    <div class="form-group">
+                    
+                    <div class="form-group mb-3">
                         <label for="depositorAddress" class="form-label">Adresse</label>
                         <textarea class="form-control" id="depositorAddress" name="address" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="form-group mb-3">
+                        <label for="depositorNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="depositorNotes" name="notes" rows="2"></textarea>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary" id="saveDepositorBtn">Créer Déposant</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Annuler
+                </button>
+                <button type="button" class="btn btn-primary" id="saveDepositorBtn">
+                    <i class="fas fa-save me-1"></i>Créer Déposant
+                </button>
             </div>
         </div>
     </div>
@@ -675,11 +768,28 @@
         }
     });
 
+    // Depositor type change handling
+    $('#depositorType').change(function() {
+        const type = $(this).val();
+        if (type === 'entreprise' || type === 'mandataire') {
+            $('#companyInfoGroup').show();
+        } else {
+            $('#companyInfoGroup').hide();
+        }
+    });
+
     // Save new client
     $('#saveClientBtn').click(function () {
         const formData = {
             type: $('input[name="type"]:checked').val(),
             name: $('#clientName').val(),
+            id_number: $('#clientIdNumber').val(),
+            vat_number: $('#clientVatNumber').val(),
+            phone: $('#clientPhone').val(),
+            email: $('#clientEmail').val(),
+            address: $('#clientAddress').val(),
+            city: $('#clientCity').val(),
+            postal_code: $('#clientPostalCode').val()
             id_number: $('#clientIdNumber').val(),
             vat_number: $('#clientVatNumber').val()
         };
@@ -728,52 +838,61 @@
     });
 
     // Save new depositor
-$('#saveDepositorBtn').click(function() {
-    const formData = {
-        name: $('#depositorName').val(),
-        phone: $('#depositorPhone').val(),
-        address: $('#depositorAddress').val()
-    };
-    
-    if (!formData.name) {
-        alert('Le nom du déposant est requis');
-        return;
-    }
-    
-    $.ajax({
-        url: '{{ url_for("depositors.search_depositors") }}',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': $('input[name="csrf_token"]').val()
-        },
-        data: JSON.stringify(formData)
-    })
-    .done(function(data) {
-        const option = $('<option>', {
-            value: data.id,
-            text: data.name,
-            selected: true
+    $('#saveDepositorBtn').click(function() {
+        const formData = {
+            name: $('#depositorName').val(),
+            type: $('#depositorType').val(),
+            phone: $('#depositorPhone').val(),
+            email: $('#depositorEmail').val(),
+            address: $('#depositorAddress').val(),
+            city: $('#depositorCity').val(),
+            id_number: $('#depositorIdNumber').val(),
+            id_type: $('#depositorIdType').val(),
+            company_name: $('#depositorCompany').val(),
+            notes: $('#depositorNotes').val()
+        };
+        
+        if (!formData.name) {
+            alert('Le nom du déposant est requis');
+            return;
+        }
+        
+        $.ajax({
+            url: '{{ url_for("depositors.api_create") }}',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': $('input[name="csrf_token"]').val()
+            },
+            data: JSON.stringify(formData)
+        })
+        .done(function(data) {
+            const option = $('<option>', {
+                value: data.id,
+                text: data.display_name || data.name,
+                selected: true
+            });
+            $('#depositor_id').append(option).trigger('change');
+            
+            $('#newDepositorModal').modal('hide');
+            $('#newDepositorForm')[0].reset();
+            $('#depositorType').val('personne');
+            $('#companyInfoGroup').hide();
+            
+            const successAlert = $(`
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    Déposant créé avec succès!
+                </div>
+            `);
+            $('.form-body').prepend(successAlert);
+            setTimeout(() => successAlert.fadeOut(), 3000);
+        })
+        .fail(function(xhr) {
+            const error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur lors de la création du déposant';
+            alert(error);
         });
-        $('#depositor_id').append(option).trigger('change');
-        
-        $('#newDepositorModal').modal('hide');
-        $('#newDepositorForm')[0].reset();
-        
-        const successAlert = $(`
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle"></i>
-                Déposant créé avec succès!
-            </div>
-        `);
-        $('.form-body').prepend(successAlert);
-        setTimeout(() => successAlert.fadeOut(), 3000);
-    })
-    .fail(function(xhr) {
-        const error = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur lors de la création du déposant';
-        alert(error);
     });
-});
 
 
     // Set default dates

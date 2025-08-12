@@ -354,3 +354,65 @@ def depositor_stats():
             } for risk in risk_distribution
         ]
     })
+
+@depositors_bp.route('/api/create', methods=['POST'])
+@login_required
+@role_required(['admin', 'comptable', 'agent'])
+def api_create():
+    """API endpoint for creating new depositors via AJAX"""
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('name'):
+            return jsonify({'error': 'Le nom du déposant est requis'}), 400
+        
+        # Create new depositor
+        depositor = Depositor(
+            name=data['name'].strip(),
+            type=data.get('type', 'personne'),
+            phone=data.get('phone', '').strip() or None,
+            email=data.get('email', '').strip() or None,
+            address=data.get('address', '').strip() or None,
+            city=data.get('city', '').strip() or None,
+            postal_code=data.get('postal_code', '').strip() or None,
+            id_number=data.get('id_number', '').strip() or None,
+            id_type=data.get('id_type', '').strip() or None,
+            company_name=data.get('company_name', '').strip() or None,
+            job_title=data.get('job_title', '').strip() or None,
+            bank_account_number=data.get('bank_account_number', '').strip() or None,
+            bank_name=data.get('bank_name', '').strip() or None,
+            bank_branch=data.get('bank_branch', '').strip() or None,
+            notes=data.get('notes', '').strip() or None,
+            is_active=True,
+            created_by=current_user.id
+        )
+        
+        # Check for duplicate
+        existing = Depositor.query.filter(
+            Depositor.name == depositor.name
+        ).first()
+        
+        if existing:
+            return jsonify({'error': 'Un déposant avec ce nom existe déjà'}), 400
+        
+        db.session.add(depositor)
+        db.session.commit()
+        
+        # Return created depositor data
+        display_name = depositor.name
+        if depositor.company_name:
+            display_name += f" ({depositor.company_name})"
+        
+        return jsonify({
+            'id': depositor.id,
+            'name': depositor.name,
+            'type': depositor.type,
+            'display_name': display_name,
+            'company_name': depositor.company_name,
+            'phone': depositor.phone
+        })
+        
+    except Exception as e:
+        logging.error(f"Error creating depositor via API: {e}")
+        db.session.rollback()
+        return jsonify({'error': 'Erreur lors de la création du déposant'}), 500

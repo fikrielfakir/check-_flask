@@ -33,6 +33,51 @@ class ClientForm(FlaskForm):
     name = StringField('Nom/Raison sociale', validators=[DataRequired(), Length(min=2, max=200)])
     id_number = StringField('CIN/RC', validators=[Optional(), Length(max=50)])
     vat_number = StringField('IF/ICE', validators=[Optional(), Length(max=50)])
+    phone = StringField('Téléphone', validators=[Optional(), Length(max=20)])
+    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
+    address = TextAreaField('Adresse', validators=[Optional()])
+    city = StringField('Ville', validators=[Optional(), Length(max=100)])
+    postal_code = StringField('Code postal', validators=[Optional(), Length(max=20)])
+
+class DepositorForm(FlaskForm):
+    name = StringField('Nom complet', validators=[DataRequired(), Length(min=2, max=200)])
+    type = SelectField('Type de déposant', 
+                      choices=[
+                          ('personne', 'Personne physique'),
+                          ('entreprise', 'Entreprise'),
+                          ('mandataire', 'Mandataire/Agent')
+                      ], validators=[DataRequired()])
+    
+    # Contact information
+    phone = StringField('Téléphone', validators=[Optional(), Length(max=20)])
+    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
+    address = TextAreaField('Adresse', validators=[Optional()])
+    city = StringField('Ville', validators=[Optional(), Length(max=100)])
+    postal_code = StringField('Code postal', validators=[Optional(), Length(max=20)])
+    
+    # Identification
+    id_number = StringField('Numéro d\'identification', validators=[Optional(), Length(max=50)])
+    id_type = SelectField('Type d\'identifiant', 
+                         choices=[
+                             ('cin', 'CIN'),
+                             ('passport', 'Passeport'),
+                             ('carte_sejour', 'Carte de séjour'),
+                             ('rc', 'Registre de commerce'),
+                             ('ice', 'ICE')
+                         ], validators=[Optional()])
+    
+    # Company information (for entreprise and mandataire types)
+    company_name = StringField('Nom de l\'entreprise', validators=[Optional(), Length(max=200)])
+    job_title = StringField('Poste occupé', validators=[Optional(), Length(max=100)])
+    
+    # Bank information (optional)
+    bank_account_number = StringField('Numéro de compte', validators=[Optional(), Length(max=50)])
+    bank_name = StringField('Nom de la banque', validators=[Optional(), Length(max=100)])
+    bank_branch = StringField('Agence bancaire', validators=[Optional(), Length(max=100)])
+    
+    # Notes
+    notes = TextAreaField('Notes', validators=[Optional()])
+    is_active = BooleanField('Déposant actif', default=True)
 
 class ChequeForm(FlaskForm):
     amount = DecimalField('Montant', validators=[DataRequired(), NumberRange(min=0.01)], places=2)
