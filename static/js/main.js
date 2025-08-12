@@ -66,35 +66,61 @@ $(document).ready(function() {
     }
     
     // Initialize date formatting for existing fields
-    $('.date-input, input[type="date"]').each(function() {
+    $('.date-input, input[data-date-format="dd/mm/yyyy"]').each(function() {
         const $this = $(this);
         
-        // Set placeholder
+        // Set placeholder and attributes
         $this.attr('placeholder', 'dd/mm/yyyy');
+        $this.attr('type', 'text');
+        $this.attr('pattern', '\\d{2}/\\d{2}/\\d{4}');
+        $this.attr('title', 'Format: dd/mm/yyyy');
         
-        // Handle input formatting
+        // Handle input formatting with better validation
+        $this.on('input', function() {
+            let value = $this.val();
+            // Remove any non-numeric characters except forward slash
+            value = value.replace(/[^\d\/]/g, '');
+            
+            // Auto-add slashes as user types
+            if (value.length === 2 && !value.includes('/')) {
+                value += '/';
+            } else if (value.length === 5 && value.split('/').length === 2) {
+                value += '/';
+            }
+            
+            // Limit to dd/mm/yyyy format
+            if (value.length > 10) {
+                value = value.substring(0, 10);
+            }
+            
+            $this.val(value);
+        });
+        
         $this.on('blur', function() {
             let value = $this.val();
             if (value) {
-                // Try to parse various date formats
-                let date = null;
-                
-                // Check if it's already in dd/mm/yyyy format
-                if (value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-                    const parts = value.split('/');
-                    date = new Date(parts[2], parts[1] - 1, parts[0]);
+                // Validate and format dd/mm/yyyy
+                const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (match) {
+                    const day = String(parseInt(match[1])).padStart(2, '0');
+                    const month = String(parseInt(match[2])).padStart(2, '0');
+                    const year = match[3];
+                    
+                    // Validate date
+                    const date = new Date(year, month - 1, day);
+                    if (date.getFullYear() == year && 
+                        date.getMonth() == month - 1 && 
+                        date.getDate() == day) {
+                        $this.val(day + '/' + month + '/' + year);
+                        $this.removeClass('is-invalid');
+                    } else {
+                        $this.addClass('is-invalid');
+                    }
+                } else if (value.length > 0) {
+                    $this.addClass('is-invalid');
                 }
-                // Check if it's in yyyy-mm-dd format
-                else if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                    date = new Date(value);
-                }
-                
-                if (date && !isNaN(date)) {
-                    const day = String(date.getDate()).padStart(2, '0');
-                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                    const year = date.getFullYear();
-                    $this.val(day + '/' + month + '/' + year);
-                }
+            } else {
+                $this.removeClass('is-invalid');
             }
         });
         

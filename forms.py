@@ -11,8 +11,11 @@ from datetime import date, timedelta, datetime
 # Custom Date Widget for dd/mm/yyyy format
 class CustomDateInput(DateInput):
     def __call__(self, field, **kwargs):
+        kwargs.setdefault('type', 'text')  # Use text input instead of HTML5 date
         kwargs.setdefault('data-date-format', 'dd/mm/yyyy')
         kwargs.setdefault('placeholder', 'dd/mm/yyyy')
+        kwargs.setdefault('pattern', '\\d{2}/\\d{2}/\\d{4}')
+        kwargs.setdefault('title', 'Format: dd/mm/yyyy')
         return super().__call__(field, **kwargs)
 
 # Custom Date Field with dd/mm/yyyy format
