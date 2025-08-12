@@ -51,6 +51,7 @@ This is a Flask-based web application for managing checks and financial transact
 - Enhanced form validation to accept both dd/mm/yyyy and yyyy-mm-dd formats
 - Fixed HTML5 date input compatibility by using text inputs with validation
 - Added real-time input formatting with auto-slash insertion
+- Implemented auto-select date functionality with quick date selection options
 
 ### ✓ Deposit Bank Field Enhancement (August 2025)
 - Added new "Banque de dépôts – Agence" field to cheque management system

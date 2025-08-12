@@ -51,9 +51,194 @@ $(document).ready(function() {
     
     // Date input helpers and formatting
     $('.date-today').click(function() {
-        const today = new Date().toISOString().split('T')[0];
-        $($(this).data('target')).val(today);
+        const today = new Date();
+        const day = String(today.getDate()).padStart(2, '0');
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const year = today.getFullYear();
+        const dateString = day + '/' + month + '/' + year;
+        $($(this).data('target')).val(dateString);
     });
+    
+    // Auto-select today's date for specific fields
+    function setTodayDate(selector) {
+        const today = new Date();
+        const day = String(today.getDate()).padStart(2, '0');
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const year = today.getFullYear();
+        const dateString = day + '/' + month + '/' + year;
+        $(selector).val(dateString);
+    }
+    
+    // Add date picker buttons to date fields
+    function addDatePickerButtons() {
+        $('.date-input, input[data-date-format="dd/mm/yyyy"]').each(function() {
+            const $input = $(this);
+            const $wrapper = $('<div class="date-input-wrapper position-relative"></div>');
+            
+            // Wrap the input
+            $input.wrap($wrapper);
+            
+            // Add quick date buttons
+            const $buttonGroup = $('<div class="date-quick-buttons position-absolute end-0 top-0 h-100 d-flex align-items-center pe-2"></div>');
+            const $todayBtn = $('<button type="button" class="btn btn-sm btn-outline-primary me-1" title="Aujourd\'hui">Auj.</button>');
+            const $calendarBtn = $('<button type="button" class="btn btn-sm btn-outline-secondary" title="Calendrier"><i class="fas fa-calendar"></i></button>');
+            
+            $todayBtn.click(function(e) {
+                e.preventDefault();
+                setTodayDate($input);
+                $input.trigger('blur'); // Trigger validation
+            });
+            
+            $calendarBtn.click(function(e) {
+                e.preventDefault();
+                showDatePicker($input);
+            });
+            
+            $buttonGroup.append($todayBtn, $calendarBtn);
+            $input.parent().append($buttonGroup);
+            
+            // Adjust input padding to make room for buttons
+            $input.css('padding-right', '90px');
+        });
+    }
+    
+    // Simple date picker modal
+    function showDatePicker($input) {
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        // Create modal HTML
+        const modalHTML = `
+            <div class="modal fade" id="datePickerModal" tabindex="-1">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Choisir une date</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <select class="form-select" id="monthSelect">
+                                        <option value="0" ${currentMonth === 0 ? 'selected' : ''}>Janvier</option>
+                                        <option value="1" ${currentMonth === 1 ? 'selected' : ''}>Février</option>
+                                        <option value="2" ${currentMonth === 2 ? 'selected' : ''}>Mars</option>
+                                        <option value="3" ${currentMonth === 3 ? 'selected' : ''}>Avril</option>
+                                        <option value="4" ${currentMonth === 4 ? 'selected' : ''}>Mai</option>
+                                        <option value="5" ${currentMonth === 5 ? 'selected' : ''}>Juin</option>
+                                        <option value="6" ${currentMonth === 6 ? 'selected' : ''}>Juillet</option>
+                                        <option value="7" ${currentMonth === 7 ? 'selected' : ''}>Août</option>
+                                        <option value="8" ${currentMonth === 8 ? 'selected' : ''}>Septembre</option>
+                                        <option value="9" ${currentMonth === 9 ? 'selected' : ''}>Octobre</option>
+                                        <option value="10" ${currentMonth === 10 ? 'selected' : ''}>Novembre</option>
+                                        <option value="11" ${currentMonth === 11 ? 'selected' : ''}>Décembre</option>
+                                    </select>
+                                </div>
+                                <div class="col">
+                                    <select class="form-select" id="yearSelect">
+                                        ${generateYearOptions(currentYear)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="quick-dates mb-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-2 quick-date" data-offset="0">Aujourd'hui</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-2 quick-date" data-offset="1">Demain</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-2 quick-date" data-offset="7">+7 jours</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary quick-date" data-offset="30">+30 jours</button>
+                            </div>
+                            <div id="calendarGrid" class="calendar-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        $('#datePickerModal').remove();
+        
+        // Add modal to body
+        $('body').append(modalHTML);
+        
+        // Generate calendar
+        generateCalendar(currentMonth, currentYear);
+        
+        // Event handlers
+        $('#monthSelect, #yearSelect').change(function() {
+            const month = parseInt($('#monthSelect').val());
+            const year = parseInt($('#yearSelect').val());
+            generateCalendar(month, year);
+        });
+        
+        $('.quick-date').click(function() {
+            const offset = parseInt($(this).data('offset'));
+            const date = new Date();
+            date.setDate(date.getDate() + offset);
+            setDateValue($input, date);
+            $('#datePickerModal').modal('hide');
+        });
+        
+        // Show modal
+        $('#datePickerModal').modal('show');
+    }
+    
+    function generateYearOptions(currentYear) {
+        let options = '';
+        for (let year = currentYear - 5; year <= currentYear + 10; year++) {
+            options += `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`;
+        }
+        return options;
+    }
+    
+    function generateCalendar(month, year) {
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+        
+        let calendarHTML = '<div class="calendar-grid-container"><table class="table table-sm"><thead><tr>';
+        const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+        dayNames.forEach(day => {
+            calendarHTML += `<th class="text-center">${day}</th>`;
+        });
+        calendarHTML += '</tr></thead><tbody>';
+        
+        const currentDate = startDate;
+        for (let week = 0; week < 6; week++) {
+            calendarHTML += '<tr>';
+            for (let day = 0; day < 7; day++) {
+                const isCurrentMonth = currentDate.getMonth() === month;
+                const isToday = currentDate.toDateString() === new Date().toDateString();
+                const classes = `text-center calendar-day ${isCurrentMonth ? 'current-month' : 'other-month'} ${isToday ? 'today' : ''}`;
+                
+                calendarHTML += `<td class="${classes}" data-date="${currentDate.getFullYear()}-${String(currentDate.getMonth()).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}">${currentDate.getDate()}</td>`;
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            calendarHTML += '</tr>';
+            
+            if (currentDate.getMonth() !== month && week >= 4) break;
+        }
+        
+        calendarHTML += '</tbody></table></div>';
+        $('#calendarGrid').html(calendarHTML);
+        
+        // Add click handlers for calendar days
+        $('.calendar-day.current-month').click(function() {
+            const dateStr = $(this).data('date');
+            const date = new Date(dateStr);
+            setDateValue($('.date-input:focus, input[data-date-format="dd/mm/yyyy"]:focus').last(), date);
+            $('#datePickerModal').modal('hide');
+        });
+    }
+    
+    function setDateValue($input, date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const dateString = day + '/' + month + '/' + year;
+        $input.val(dateString);
+        $input.trigger('blur');
+    }
     
     // Format date inputs to dd/mm/yyyy
     function formatDateInput(element) {
@@ -127,6 +312,20 @@ $(document).ready(function() {
         // Format existing values on page load
         formatDateInput($this);
     });
+    
+    // Initialize date picker buttons after DOM is ready
+    setTimeout(addDatePickerButtons, 100);
+    
+    // Auto-select today's date for new cheque emission_date
+    if (window.location.pathname.includes('/cheques/new') || window.location.pathname.includes('/cheques/create')) {
+        setTimeout(function() {
+            const emissionDateField = $('#emission_date');
+            if (emissionDateField.length && !emissionDateField.val()) {
+                setTodayDate(emissionDateField);
+                emissionDateField.addClass('auto-date-selected');
+            }
+        }, 200);
+    }
     
     // Status change confirmation
     $('.dropdown-item[data-status]').click(function(e) {
