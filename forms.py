@@ -2,10 +2,45 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, TextAreaField, SelectField, DecimalField, DateField, BooleanField, IntegerField, HiddenField
 from wtforms.validators import DataRequired, Email, Optional, Length, NumberRange
-from wtforms.widgets import TextArea
+from wtforms.widgets import TextArea, DateInput
+from wtforms.fields import Field
 from models import Bank, Branch, Client, STANDARD_REJECTION_REASONS
 from wtforms import RadioField
-from datetime import date, timedelta 
+from datetime import date, timedelta, datetime
+
+# Custom Date Widget for dd/mm/yyyy format
+class CustomDateInput(DateInput):
+    def __call__(self, field, **kwargs):
+        kwargs.setdefault('data-date-format', 'dd/mm/yyyy')
+        kwargs.setdefault('placeholder', 'dd/mm/yyyy')
+        return super().__call__(field, **kwargs)
+
+# Custom Date Field with dd/mm/yyyy format
+class CustomDateField(DateField):
+    widget = CustomDateInput()
+    
+    def _value(self):
+        if self.data:
+            return self.data.strftime('%d/%m/%Y')
+        else:
+            return ''
+    
+    def process_formdata(self, valuelist):
+        if valuelist:
+            date_str = valuelist[0]
+            if date_str:
+                try:
+                    # Try to parse dd/mm/yyyy format first
+                    self.data = datetime.strptime(date_str, '%d/%m/%Y').date()
+                except ValueError:
+                    try:
+                        # Fallback to default format (yyyy-mm-dd)
+                        self.data = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    except ValueError:
+                        self.data = None
+                        raise ValueError('Invalid date format. Use dd/mm/yyyy')
+            else:
+                self.data = None 
 
 class LoginForm(FlaskForm):
     username = StringField('Nom d\'utilisateur', validators=[DataRequired()])
@@ -84,8 +119,8 @@ class ChequeForm(FlaskForm):
     currency = SelectField('Devise', 
                           choices=[('MAD', 'MAD'), ('EUR', 'EUR'), ('USD', 'USD')],
                           validators=[DataRequired()], default='MAD')
-    issue_date = DateField('Date réc', validators=[DataRequired()])
-    due_date = DateField('Date d\'échéance', validators=[DataRequired()])
+    issue_date = CustomDateField('Date réc', validators=[DataRequired()])
+    due_date = CustomDateField('Date d\'échéance', validators=[DataRequired()])
     client_id = SelectField('Client', coerce=int, validators=[DataRequired()])
     depositor_id = SelectField('Déposant', coerce=int, validators=[Optional()])
     branch_id = SelectField('Bq/Agce', coerce=int, validators=[DataRequired()])
@@ -115,11 +150,11 @@ class ChequeForm(FlaskForm):
                              ],
                              validators=[DataRequired()], default='CHQ')
     
-    created_date = DateField('Date créat', validators=[Optional()])
+    created_date = CustomDateField('Date créat', validators=[Optional()])
     unpaid_reason = TextAreaField('Raison de l\'impayé', validators=[Optional()])
     
     # Enhanced Impayé Management Fields
-    presentation_date = DateField('Date de présentation', validators=[Optional()])
+    presentation_date = CustomDateField('Date de présentation', validators=[Optional()])
     rejection_reason = SelectField('Motif de rejet', choices=[], validators=[Optional()])
     rejection_notice = FileField('Avis de rejet', validators=[
         FileAllowed(['jpg', 'jpeg', 'png', 'pdf'], 'Seuls les fichiers JPG, PNG et PDF sont autorisés.')
@@ -133,9 +168,9 @@ class ChequeForm(FlaskForm):
                                      ('installments', 'Paiement échelonné'),
                                      ('other', 'Autre')
                                  ], validators=[Optional()])
-    recovery_date = DateField('Date de recouvrement', validators=[Optional()])
+    recovery_date = CustomDateField('Date de recouvrement', validators=[Optional()])
     recovery_amount = DecimalField('Mont recouvré', validators=[Optional(), NumberRange(min=0)], places=2)
-    next_retry_date = DateField('Prochaine tentative prévue', validators=[Optional()])
+    next_retry_date = CustomDateField('Prochaine tentative prévue', validators=[Optional()])
     legal_action_initiated = BooleanField('Action légale initiée')
     legal_file_reference = StringField('Référence du dossier légal', validators=[Optional(), Length(max=100)])
     court_case_reference = StringField('Référence du tribunal', validators=[Optional(), Length(max=100)])
@@ -143,7 +178,7 @@ class ChequeForm(FlaskForm):
     legal_notes = TextAreaField('Notes légales', validators=[Optional()])
     cheque_number = StringField('N° doc', validators=[Optional(), Length(max=50)])
     invoice_number = StringField('N° Facture', validators=[Optional(), Length(max=50)])
-    invoice_date = DateField('Date fact', validators=[Optional()])
+    invoice_date = CustomDateField('Date fact', validators=[Optional()])
     depositor_name = StringField('Nom dép', validators=[Optional(), Length(max=200)])
     notes = TextAreaField('Notes', validators=[Optional()])
     scan = FileField('Scan du chèque', validators=[
@@ -202,7 +237,7 @@ class ChequeForm(FlaskForm):
 class ImpayeStatusForm(FlaskForm):
     """Form for marking a cheque as Impayé (bounced)"""
     cheque_id = HiddenField()
-    rejection_date = DateField('Date de rejet', validators=[DataRequired()], default=date.today)
+    rejection_date = CustomDateField('Date de rejet', validators=[DataRequired()], default=date.today)
     rejection_reason = SelectField('Motif de rejet', validators=[DataRequired()])
     rejection_notice = FileField('Avis de rejet (optionnel)', validators=[
         FileAllowed(['jpg', 'jpeg', 'png', 'pdf'], 'Seuls les fichiers JPG, PNG et PDF sont autorisés.')
@@ -224,7 +259,7 @@ class ImpayeStatusForm(FlaskForm):
 class RetryAttemptForm(FlaskForm):
     """Form for scheduling retry attempts"""
     cheque_id = HiddenField()
-    scheduled_date = DateField('Date prévue pour la tentative', validators=[DataRequired()])
+    scheduled_date = CustomDateField('Date prévue pour la tentative', validators=[DataRequired()])
     notes = TextAreaField('Notes pour cette tentative', validators=[Optional()])
     
     def __init__(self, *args, **kwargs):
@@ -236,7 +271,7 @@ class RetryAttemptForm(FlaskForm):
 class RetryResultForm(FlaskForm):
     """Form for recording retry attempt results"""
     retry_id = HiddenField()
-    actual_date = DateField('Date réelle de la tentative', validators=[DataRequired()], default=date.today)
+    actual_date = CustomDateField('Date réelle de la tentative', validators=[DataRequired()], default=date.today)
     result = SelectField('Résultat', 
                         choices=[
                             ('success', 'Succès - Chèque encaissé'),
@@ -264,7 +299,7 @@ class AlternativePaymentForm(FlaskForm):
                                      ('discount', 'Remise accordée'),
                                      ('other', 'Autre')
                                  ], validators=[DataRequired()])
-    recovery_date = DateField('Date de recouvrement', validators=[DataRequired()], default=date.today)
+    recovery_date = CustomDateField('Date de recouvrement', validators=[DataRequired()], default=date.today)
     recovery_amount = DecimalField('Mont recouvré', validators=[DataRequired(), NumberRange(min=0.01)], places=2)
     recovery_reference = StringField('Référence du paiement', validators=[Optional(), Length(max=100)])
     notes = TextAreaField('Notes sur le recouvrement', validators=[Optional()])
@@ -279,8 +314,8 @@ class LegalActionForm(FlaskForm):
                                  ('mediation', 'Médiation'),
                                  ('execution', 'Exécution forcée')
                              ], validators=[DataRequired()])
-    initiated_date = DateField('Date d\'initiation', validators=[DataRequired()], default=date.today)
-    deadline_date = DateField('Date limite/échéance', validators=[Optional()])
+    initiated_date = CustomDateField('Date d\'initiation', validators=[DataRequired()], default=date.today)
+    deadline_date = CustomDateField('Date limite/échéance', validators=[Optional()])
     file_reference = StringField('Référence du dossier', validators=[Optional(), Length(max=100)])
     court_reference = StringField('Référence tribunal', validators=[Optional(), Length(max=100)])
     lawyer_name = StringField('Nom de l\'avocat', validators=[Optional(), Length(max=200)])
@@ -368,6 +403,6 @@ class NotificationForm(FlaskForm):
 class PresentationForm(FlaskForm):
     """Form for marking cheque as presented for collection"""
     cheque_id = HiddenField()
-    presentation_date = DateField('Date de présentation', validators=[DataRequired()], default=date.today)
+    presentation_date = CustomDateField('Date de présentation', validators=[DataRequired()], default=date.today)
     notes = TextAreaField('Notes', validators=[Optional()])
     notify_stakeholders = BooleanField('Notifier les parties prenantes', default=True)

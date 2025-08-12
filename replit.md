@@ -43,6 +43,13 @@ This is a Flask-based web application for managing checks and financial transact
 - Implemented AI-powered automation and workflow management
 - Added audit logging for compliance and security tracking
 
+### ✓ Date Format Enhancement (August 2025)
+- Implemented custom date field formatting to display dd/mm/yyyy format
+- Created CustomDateField class with proper date parsing and display
+- Added JavaScript date formatting helpers for consistent user experience
+- Updated all form date fields to use the new formatting system
+- Enhanced form validation to accept both dd/mm/yyyy and yyyy-mm-dd formats
+
 ### ✓ Deposit Bank Field Enhancement (August 2025)
 - Added new "Banque de dépôts – Agence" field to cheque management system
 - Updated database model with deposit_branch_id foreign key relationship

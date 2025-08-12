@@ -49,10 +49,57 @@ $(document).ready(function() {
         $(this).val(value);
     });
     
-    // Date input helpers
+    // Date input helpers and formatting
     $('.date-today').click(function() {
         const today = new Date().toISOString().split('T')[0];
         $($(this).data('target')).val(today);
+    });
+    
+    // Format date inputs to dd/mm/yyyy
+    function formatDateInput(element) {
+        let value = element.val();
+        if (value && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Convert yyyy-mm-dd to dd/mm/yyyy
+            const parts = value.split('-');
+            element.val(parts[2] + '/' + parts[1] + '/' + parts[0]);
+        }
+    }
+    
+    // Initialize date formatting for existing fields
+    $('.date-input, input[type="date"]').each(function() {
+        const $this = $(this);
+        
+        // Set placeholder
+        $this.attr('placeholder', 'dd/mm/yyyy');
+        
+        // Handle input formatting
+        $this.on('blur', function() {
+            let value = $this.val();
+            if (value) {
+                // Try to parse various date formats
+                let date = null;
+                
+                // Check if it's already in dd/mm/yyyy format
+                if (value.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                    const parts = value.split('/');
+                    date = new Date(parts[2], parts[1] - 1, parts[0]);
+                }
+                // Check if it's in yyyy-mm-dd format
+                else if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    date = new Date(value);
+                }
+                
+                if (date && !isNaN(date)) {
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const year = date.getFullYear();
+                    $this.val(day + '/' + month + '/' + year);
+                }
+            }
+        });
+        
+        // Format existing values on page load
+        formatDateInput($this);
     });
     
     // Status change confirmation
