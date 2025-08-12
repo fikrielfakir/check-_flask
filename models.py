@@ -142,6 +142,7 @@ class Branch(db.Model):
     bank_id = db.Column(db.Integer, db.ForeignKey('banks.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     address = db.Column(db.Text)
+    active = db.Column(db.Boolean, default=True, index=True)
     postal_code = db.Column(db.String(20))
     phone = db.Column(db.String(20))
     email = db.Column(db.String(120))
@@ -183,6 +184,9 @@ class Client(db.Model):
     address = db.Column(db.Text)
     city = db.Column(db.String(100))
     postal_code = db.Column(db.String(20))
+    
+    # ADD THIS MISSING FIELD:
+    is_active = db.Column(db.Boolean, default=True, index=True)
     
     # Risk assessment
     risk_level = db.Column(db.String(20), default='low')  # low, medium, high

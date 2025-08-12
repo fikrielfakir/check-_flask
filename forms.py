@@ -39,7 +39,7 @@ class ChequeForm(FlaskForm):
     currency = SelectField('Devise', 
                           choices=[('MAD', 'MAD'), ('EUR', 'EUR'), ('USD', 'USD')],
                           validators=[DataRequired()], default='MAD')
-    issue_date = DateField('Date d\'reception', validators=[DataRequired()])
+    issue_date = DateField('Date de reception', validators=[DataRequired()])
     due_date = DateField('Date d\'échéance', validators=[DataRequired()])
     client_id = SelectField('Client', coerce=int, validators=[DataRequired()])
     depositor_id = SelectField('Déposant', coerce=int, validators=[Optional()])
@@ -111,11 +111,19 @@ class ChequeForm(FlaskForm):
         # Import here to avoid circular imports
         from models import Depositor
         
-        # Populate client choices
+        # Populate client choices - Safe approach
+        try:
+            # Try to filter by is_active first
+            clients = Client.query.filter_by(is_active=True).order_by(Client.name).all()
+        except Exception:
+            # If is_active doesn't exist, get all clients
+            clients = Client.query.order_by(Client.name).all()
+        
         self.client_id.choices = [(0, 'Sélectionner un client...')] + [
             (c.id, f"{c.name} ({'Entreprise' if c.type == 'entreprise' else 'Personne'})")
-            for c in Client.query.filter_by(is_active=True).order_by(Client.name).all()
+            for c in clients
         ]
+    
         
         # Populate depositor choices
         self.depositor_id.choices = [(0, 'Sélectionner un déposant...')] + [
@@ -124,7 +132,10 @@ class ChequeForm(FlaskForm):
         ]
         
         # Populate branch choices (Bank - Branch format)
-        branches = Branch.query.join(Bank).filter(Branch.is_active == True, Bank.is_active == True).order_by(Bank.name, Branch.name).all()
+        branches = Branch.query.join(Bank).filter(
+            Branch.active == True,
+            Bank.is_active == True
+        ).order_by(Bank.name, Branch.name).all()
         self.branch_id.choices = [(0, 'Sélectionner une agence...')] + [
             (branch.id, f"{branch.bank.name} - {branch.name}") 
             for branch in branches
