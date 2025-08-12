@@ -80,16 +80,16 @@ class DepositorForm(FlaskForm):
     is_active = BooleanField('Déposant actif', default=True)
 
 class ChequeForm(FlaskForm):
-    amount = DecimalField('Montant', validators=[DataRequired(), NumberRange(min=0.01)], places=2)
+    amount = DecimalField('Mont', validators=[DataRequired(), NumberRange(min=0.01)], places=2)
     currency = SelectField('Devise', 
                           choices=[('MAD', 'MAD'), ('EUR', 'EUR'), ('USD', 'USD')],
                           validators=[DataRequired()], default='MAD')
-    issue_date = DateField('Date de reception', validators=[DataRequired()])
+    issue_date = DateField('Date réc', validators=[DataRequired()])
     due_date = DateField('Date d\'échéance', validators=[DataRequired()])
     client_id = SelectField('Client', coerce=int, validators=[DataRequired()])
     depositor_id = SelectField('Déposant', coerce=int, validators=[Optional()])
-    branch_id = SelectField('Banque/Agence', coerce=int, validators=[DataRequired()])
-    deposit_branch_id = SelectField('Banque de dépôts - Agence', coerce=int, validators=[Optional()])
+    branch_id = SelectField('Bq/Agce', coerce=int, validators=[DataRequired()])
+    deposit_branch_id = SelectField('Bq dép. - Agce', coerce=int, validators=[Optional()])
     status = SelectField('Statut',
                         choices=[
                             ('EN_ATTENTE', 'EN ATTENTE'),
@@ -105,7 +105,7 @@ class ChequeForm(FlaskForm):
                         ],
                         validators=[DataRequired()], default='EN_ATTENTE')
     
-    payment_type = SelectField('Type de Règlement', 
+    payment_type = SelectField('Type rég', 
                              choices=[
                                  ('LCN', 'LCN'),
                                  ('CHQ', 'CHQ'),
@@ -115,7 +115,7 @@ class ChequeForm(FlaskForm):
                              ],
                              validators=[DataRequired()], default='CHQ')
     
-    created_date = DateField('Date de Création', validators=[Optional()])
+    created_date = DateField('Date créat', validators=[Optional()])
     unpaid_reason = TextAreaField('Raison de l\'impayé', validators=[Optional()])
     
     # Enhanced Impayé Management Fields
@@ -134,17 +134,17 @@ class ChequeForm(FlaskForm):
                                      ('other', 'Autre')
                                  ], validators=[Optional()])
     recovery_date = DateField('Date de recouvrement', validators=[Optional()])
-    recovery_amount = DecimalField('Montant recouvré', validators=[Optional(), NumberRange(min=0)], places=2)
+    recovery_amount = DecimalField('Mont recouvré', validators=[Optional(), NumberRange(min=0)], places=2)
     next_retry_date = DateField('Prochaine tentative prévue', validators=[Optional()])
     legal_action_initiated = BooleanField('Action légale initiée')
     legal_file_reference = StringField('Référence du dossier légal', validators=[Optional(), Length(max=100)])
     court_case_reference = StringField('Référence du tribunal', validators=[Optional(), Length(max=100)])
     lawyer_name = StringField('Nom de l\'avocat', validators=[Optional(), Length(max=200)])
     legal_notes = TextAreaField('Notes légales', validators=[Optional()])
-    cheque_number = StringField('Numéro du chèque', validators=[Optional(), Length(max=50)])
+    cheque_number = StringField('N° doc', validators=[Optional(), Length(max=50)])
     invoice_number = StringField('N° Facture', validators=[Optional(), Length(max=50)])
-    invoice_date = DateField('Date de facture', validators=[Optional()])
-    depositor_name = StringField('Nom du déposant', validators=[Optional(), Length(max=200)])
+    invoice_date = DateField('Date fact', validators=[Optional()])
+    depositor_name = StringField('Nom dép', validators=[Optional(), Length(max=200)])
     notes = TextAreaField('Notes', validators=[Optional()])
     scan = FileField('Scan du chèque', validators=[
         FileAllowed(['jpg', 'jpeg', 'png', 'pdf'], 'Seuls les fichiers JPG, PNG et PDF sont autorisés.')
@@ -265,7 +265,7 @@ class AlternativePaymentForm(FlaskForm):
                                      ('other', 'Autre')
                                  ], validators=[DataRequired()])
     recovery_date = DateField('Date de recouvrement', validators=[DataRequired()], default=date.today)
-    recovery_amount = DecimalField('Montant recouvré', validators=[DataRequired(), NumberRange(min=0.01)], places=2)
+    recovery_amount = DecimalField('Mont recouvré', validators=[DataRequired(), NumberRange(min=0.01)], places=2)
     recovery_reference = StringField('Référence du paiement', validators=[Optional(), Length(max=100)])
     notes = TextAreaField('Notes sur le recouvrement', validators=[Optional()])
 
@@ -285,7 +285,7 @@ class LegalActionForm(FlaskForm):
     court_reference = StringField('Référence tribunal', validators=[Optional(), Length(max=100)])
     lawyer_name = StringField('Nom de l\'avocat', validators=[Optional(), Length(max=200)])
     lawyer_contact = StringField('Contact avocat', validators=[Optional(), Length(max=100)])
-    amount_claimed = DecimalField('Montant réclamé', validators=[DataRequired(), NumberRange(min=0.01)], places=2)
+    amount_claimed = DecimalField('Mont réclamé', validators=[DataRequired(), NumberRange(min=0.01)], places=2)
     court_fees = DecimalField('Frais de justice', validators=[Optional(), NumberRange(min=0)], places=2)
     lawyer_fees = DecimalField('Honoraires avocat', validators=[Optional(), NumberRange(min=0)], places=2)
     legal_documents = FileField('Documents légaux', validators=[

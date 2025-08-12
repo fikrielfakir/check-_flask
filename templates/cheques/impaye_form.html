@@ -25,12 +25,12 @@
                                 <div class="col-md-6">
                                     <p><strong>Numéro:</strong> {{ cheque.cheque_number or 'N/A' }}</p>
                                     <p><strong>Client:</strong> {{ cheque.client.name }}</p>
-                                    <p><strong>Montant:</strong> {{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</p>
+                                    <p><strong>Mont:</strong> {{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</p>
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>Banque:</strong> {{ cheque.branch.bank.name }}</p>
                                     <p><strong>Agence:</strong> {{ cheque.branch.name }}</p>
-                                    <p><strong>Date d'échéance:</strong> {{ cheque.due_date.strftime('%d/%m/%Y') }}</p>
+                                    <p><strong>Date éch:</strong> {{ cheque.due_date.strftime('%d/%m/%Y') }}</p>
                                 </div>
                             </div>
                             <div class="row">

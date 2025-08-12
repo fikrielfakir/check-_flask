@@ -675,7 +675,7 @@ class ReportGenerator:
         
         Données de la période:
         - Total chèques traités: {data['total_cheques']}
-        - Montant total: {data['total_amount']:,.2f} DH
+        - Mont total: {data['total_amount']:,.2f} DH
         - Taux d'encaissement: {data['success_rate']:.1%}
         - Taux de rejet: {data['rejection_rate']:.1%}
         

@@ -38,7 +38,7 @@ class DatabaseManager:
                     banque TEXT NOT NULL,
                     proprietaire TEXT NOT NULL,
                     deposant TEXT,
-                    montant REAL NOT NULL,
+                    Mont REAL NOT NULL,
                     date_emission DATE NOT NULL,
                     date_echeance DATE NOT NULL,
                     type TEXT DEFAULT 'CHQ',
@@ -123,7 +123,7 @@ class DatabaseManager:
                 
                 cursor.execute('''
                     INSERT INTO cheques (
-                        numero, banque, proprietaire, deposant, montant,
+                        numero, banque, proprietaire, deposant, Mont,
                         date_emission, date_echeance, type, statut, notes, recipient_name
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
@@ -131,7 +131,7 @@ class DatabaseManager:
                     cheque_data.get('banque'),
                     cheque_data.get('proprietaire'),
                     cheque_data.get('deposant'),
-                    cheque_data.get('montant'),
+                    cheque_data.get('Mont'),
                     cheque_data.get('date_emission'),
                     cheque_data.get('date_echeance'),
                     cheque_data.get('type', 'CHQ'),
@@ -166,7 +166,7 @@ class DatabaseManager:
                 cursor.execute('''
                     UPDATE cheques SET
                         numero = ?, banque = ?, proprietaire = ?, deposant = ?,
-                        montant = ?, date_emission = ?, date_echeance = ?,
+                        Mont = ?, date_emission = ?, date_echeance = ?,
                         type = ?, statut = ?, notes = ?, recipient_name = ?,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
@@ -175,7 +175,7 @@ class DatabaseManager:
                     cheque_data.get('banque'),
                     cheque_data.get('proprietaire'),
                     cheque_data.get('deposant'),
-                    cheque_data.get('montant'),
+                    cheque_data.get('Mont'),
                     cheque_data.get('date_emission'),
                     cheque_data.get('date_echeance'),
                     cheque_data.get('type'),
@@ -396,10 +396,10 @@ class DatabaseManager:
                 cursor.execute('''
                     SELECT 
                         COUNT(*) as total_count,
-                        SUM(montant) as total_amount,
-                        AVG(montant) as average_amount,
-                        MIN(montant) as min_amount,
-                        MAX(montant) as max_amount
+                        SUM(Mont) as total_amount,
+                        AVG(Mont) as average_amount,
+                        MIN(Mont) as min_amount,
+                        MAX(Mont) as max_amount
                     FROM cheques
                 ''')
                 row = cursor.fetchone()

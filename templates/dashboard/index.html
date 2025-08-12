@@ -75,7 +75,7 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-body text-center">
-                <h5 class="card-title">Montant Encaissé ce Mois</h5>
+                <h5 class="card-title">Mont Encaissé ce Mois</h5>
                 <h3 class="text-success">{{ "{:,.2f}".format(monthly_amount) }} MAD</h3>
             </div>
         </div>
@@ -133,7 +133,7 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0" data-fr="💰 Top 5 Clients par Montant" data-ar="💰 أفضل 5 عملاء حسب المبلغ">💰 Top 5 Clients par Montant</h5>
+                <h5 class="mb-0" data-fr="💰 Top 5 Clients par Mont" data-ar="💰 أفضل 5 عملاء حسب المبلغ">💰 Top 5 Clients par Mont</h5>
             </div>
             <div class="card-body">
                 <canvas id="topClientsChart" height="200"></canvas>
@@ -223,7 +223,7 @@
                         <th>N° Chèque</th>
                         <th>Client</th>
                         <th>Banque</th>
-                        <th>Montant</th>
+                        <th>Mont</th>
                         <th>Échéance</th>
                         <th>Statut</th>
                     </tr>
@@ -321,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 data: {
                     labels: {{ monthly_labels | safe }},
                     datasets: [{
-                        label: 'Montant Encaissé (MAD)',
+                        label: 'Mont Encaissé (MAD)',
                         data: {{ monthly_amounts | safe }},
                         borderColor: '#198754',
                         backgroundColor: 'rgba(25, 135, 84, 0.1)',
@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 data: {
                     labels: {{ top_clients_names | safe }},
                     datasets: [{
-                        label: 'Montant (MAD)',
+                        label: 'Mont (MAD)',
                         data: {{ top_clients_amounts | safe }},
                         backgroundColor: 'rgba(13, 110, 253, 0.8)',
                         borderColor: '#0d6efd',

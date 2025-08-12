@@ -178,14 +178,14 @@ FLASK_ENV=production
 1. Accéder au formulaire de création
 2. Rechercher/créer client et déposant via modales
 3. Sélectionner banque et agence
-4. Saisir montant et dates
+4. Saisir Mont et dates
 5. Validation automatique et sauvegarde
 
 ### Tableau de Bord
-- **Métriques en temps réel** : Statuts, montants, échéances
+- **Métriques en temps réel** : Statuts, Monts, échéances
 - **Graphiques interactifs** : Évolution mensuelle, répartition bancaire
 - **Alertes intelligentes** : Chèques en retard, clients à risque
-- **Top clients** : Classement par montant encaissé
+- **Top clients** : Classement par Mont encaissé
 
 ### Analytics Avancées
 - **Analyse de vieillissement** : Durée dans chaque statut

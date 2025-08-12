@@ -102,7 +102,7 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-body text-center">
-                <h5 class="card-title" data-fr="Montant Encaissé ce Mois" data-ar="المبلغ المحصل هذا الشهر">Montant Encaissé ce Mois</h5>
+                <h5 class="card-title" data-fr="Mont Encaissé ce Mois" data-ar="المبلغ المحصل هذا الشهر">Mont Encaissé ce Mois</h5>
                 <h3 class="text-success">{{ "{:,.2f}".format(monthly_amount) }} MAD</h3>
             </div>
         </div>
@@ -133,7 +133,7 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0" data-fr="💰 Top 5 Clients par Montant" data-ar="💰 أفضل 5 عملاء حسب المبلغ">💰 Top 5 Clients par Montant</h5>
+                <h5 class="mb-0" data-fr="💰 Top 5 Clients par Mont" data-ar="💰 أفضل 5 عملاء حسب المبلغ">💰 Top 5 Clients par Mont</h5>
             </div>
             <div class="card-body">
                 <canvas id="topClientsChart" height="200"></canvas>
@@ -244,7 +244,7 @@
                                 <th data-fr="Déposant" data-ar="المودع">Déposant</th>
                                 <th class="text-center" data-fr="Type" data-ar="النوع">Type</th>
                                 <th class="text-end" data-fr="Chèques" data-ar="شيكات">Chèques</th>
-                                <th class="text-end" data-fr="Montant" data-ar="المبلغ">Montant</th>
+                                <th class="text-end" data-fr="Mont" data-ar="المبلغ">Mont</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -312,8 +312,8 @@
                                 <th data-fr="N° Chèque" data-ar="رقم الشيك">N° Chèque</th>
                                 <th data-fr="Client" data-ar="العميل">Client</th>
                                 <th data-fr="Déposant" data-ar="المودع">Déposant</th>
-                                <th data-fr="Montant" data-ar="المبلغ">Montant</th>
-                                <th data-fr="Date d'échéance" data-ar="تاريخ الاستحقاق">Date d'échéance</th>
+                                <th data-fr="Mont" data-ar="المبلغ">Mont</th>
+                                <th data-fr="Date éch" data-ar="تاريخ الاستحقاق">Date éch</th>
                                 <th data-fr="Statut" data-ar="الحالة">Statut</th>
                                 <th data-fr="Type" data-ar="النوع">Type</th>
                                 <th data-fr="Actions" data-ar="الإجراءات">Actions</th>
@@ -445,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
         data: {
             labels: {{ monthly_labels | safe }},
             datasets: [{
-                label: 'Montant Encaissé (MAD)',
+                label: 'Mont Encaissé (MAD)',
                 data: {{ monthly_amounts | safe }},
                 borderColor: '#198754',
                 backgroundColor: 'rgba(25, 135, 84, 0.1)',
@@ -486,7 +486,7 @@ document.addEventListener('DOMContentLoaded', function() {
         data: {
             labels: {{ top_clients_names | safe }},
             datasets: [{
-                label: 'Montant (MAD)',
+                label: 'Mont (MAD)',
                 data: {{ top_clients_amounts | safe }},
                 backgroundColor: 'rgba(13, 110, 253, 0.8)',
                 borderColor: '#0d6efd',

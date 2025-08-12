@@ -356,7 +356,7 @@ def monthly_trends_chart():
         'labels': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
         'datasets': [
             {
-                'label': 'Montant Total',
+                'label': 'Mont Total',
                 'data': [100000, 120000, 95000, 110000, 130000, 85000, 140000, 125000, 115000, 135000, 90000, 105000],
                 'borderColor': '#007bff',
                 'backgroundColor': 'rgba(0, 123, 255, 0.1)'

@@ -25,7 +25,7 @@
                                 <div class="col-md-6">
                                     <p><strong>Numéro:</strong> {{ cheque.cheque_number or 'N/A' }}</p>
                                     <p><strong>Client:</strong> {{ cheque.client.name }}</p>
-                                    <p><strong>Montant original:</strong> {{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</p>
+                                    <p><strong>Mont original:</strong> {{ "{:,.2f}".format(cheque.amount) }} {{ cheque.currency }}</p>
                                     <p><strong>Date de rejet:</strong> {{ cheque.rejection_date.strftime('%d/%m/%Y') if cheque.rejection_date else 'N/A' }}</p>
                                 </div>
                                 <div class="col-md-6">
@@ -101,7 +101,7 @@
                                                     {% endfor %}
                                                 </div>
                                             {% endif %}
-                                            <div class="form-text">Montant effectivement reçu</div>
+                                            <div class="form-text">Mont effectivement reçu</div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const recoveryAmount = parseFloat(this.value);
         
         if (recoveryAmount > originalAmount * 1.1) { // Allow 10% tolerance for fees
-            if (!confirm(`Le montant recouvré (${recoveryAmount.toFixed(2)} MAD) est supérieur au montant original (${originalAmount.toFixed(2)} MAD). Continuer?`)) {
+            if (!confirm(`Le Mont recouvré (${recoveryAmount.toFixed(2)} MAD) est supérieur au Mont original (${originalAmount.toFixed(2)} MAD). Continuer?`)) {
                 this.value = originalAmount.toFixed(2);
             }
         }

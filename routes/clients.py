@@ -817,7 +817,7 @@ def export():
         
         # Write header
         writer.writerow([
-            'Type', 'Nom', 'CIN/RC', 'IF/ICE', 'Date de création'
+            'Type', 'Nom', 'CIN/RC', 'IF/ICE', 'Date créat'
         ])
         
         # Write data

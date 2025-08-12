@@ -28,8 +28,8 @@ class AutoSheetCreator:
         
         # Excel column headers for cheques
         self.headers = [
-            'Date Émission', 'Type Paiement', 'Numéro Chèque', 'Banque - Agence',
-            'Banque de dépôts - Agence', 'Client', 'Déposant', 'Montant', 'Devise',
+            'Date Émission', 'Type Paiement', 'N° chq', 'Banque - Agence',
+            'Bq dép. - Agce', 'Client', 'Déposant', 'Mont', 'Devise',
             'Date d\'Échéance', 'Date Création', 'Statut', 'Numéro Facture',
             'Date Facture', 'Observations'
         ]

@@ -364,7 +364,7 @@ def api_create():
         data = request.get_json()
         
         if not data or not data.get('name'):
-            return jsonify({'error': 'Le nom du déposant est requis'}), 400
+            return jsonify({'error': 'Le Nom dép est requis'}), 400
         
         # Create new depositor
         depositor = Depositor(

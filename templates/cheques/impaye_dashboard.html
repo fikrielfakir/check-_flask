@@ -41,7 +41,7 @@
                             <div class="d-flex justify-content-between">
                                 <div>
                                     <h3 class="mb-1">{{ "{:,.0f}".format(total_amount) }}</h3>
-                                    <p class="mb-0">Montant Total (MAD)</p>
+                                    <p class="mb-0">Mont Total (MAD)</p>
                                 </div>
                                 <div class="align-self-center">
                                     <i class="fas fa-money-bill-wave fa-2x"></i>
@@ -101,7 +101,7 @@
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-header">
-                            <h6><i class="fas fa-chart-bar me-2"></i>Montants par Statut</h6>
+                            <h6><i class="fas fa-chart-bar me-2"></i>Monts par Statut</h6>
                         </div>
                         <div class="card-body">
                             {% if status_stats %}
@@ -130,7 +130,7 @@
                                             <th>Date Prévue</th>
                                             <th>Chèque</th>
                                             <th>Client</th>
-                                            <th>Montant</th>
+                                            <th>Mont</th>
                                             <th>Tentative #</th>
                                             <th>Actions</th>
                                         </tr>
@@ -178,7 +178,7 @@
                                         <tr>
                                             <th>Chèque</th>
                                             <th>Client</th>
-                                            <th>Montant</th>
+                                            <th>Mont</th>
                                             <th>Date Rejet</th>
                                             <th>Statut</th>
                                             <th>Tentatives</th>
@@ -304,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% endfor %}
             ],
             datasets: [{
-                label: 'Montant (MAD)',
+                label: 'Mont (MAD)',
                 data: [
                     {% for stats in status_stats.values() %}
                     {{ stats['amount'] }},

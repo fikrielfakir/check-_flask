@@ -1,17 +1,15 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from models import (Cheque, Client, Branch, Bank, ChequeStatusHistory, 
+from models import (Cheque, Client, Branch, Bank, ChequeStatusHistory,Depositor,
                    ChequeRetryAttempt, ChequeLegalAction, ImpayeNotification, STANDARD_REJECTION_REASONS)
 from forms import (ChequeForm, ImpayeStatusForm, RetryAttemptForm, RetryResultForm,
                   AlternativePaymentForm, LegalActionForm, NotificationForm, PresentationForm)
 from app import db
 from datetime import datetime, date, timedelta
-
+from utils.enhanced_excel_sync import EnhancedExcelSync
 import os
-from utils.excel_manager import ExcelManager
-from utils.optimized_excel_sync import OptimizedExcelSync
-from utils.auto_sheet_creator import AutoSheetCreator
+import re
 from pathlib import Path
 
 cheques_bp = Blueprint('cheques', __name__)
@@ -25,24 +23,54 @@ def check_access():
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf', 'doc', 'docx'}
+    ALLOWED_EXTENSIONS = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg', 'pdf', 'doc', 'docx'})
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def check_duplicate_cheque(cheque_number, branch_id=None, client_id=None):
-    """Check if a cheque already exists based on number, branch, and client."""
-    query = Cheque.query.filter_by(cheque_number=cheque_number)
-
+def check_duplicate_cheque(cheque_number, branch_id=None, client_id=None, exclude_id=None):
+    """
+    Enhanced cheque duplication check with additional validation
+    
+    Args:
+        cheque_number: The cheque number to check
+        branch_id: Optional branch ID to scope the check
+        client_id: Optional client ID to scope the check
+        exclude_id: Optional cheque ID to exclude (for updates)
+    
+    Returns:
+        tuple: (is_duplicate, duplicate_cheque, error_message)
+    """
+    if not cheque_number or not isinstance(cheque_number, str):
+        return False, None, None
+    
+    cheque_number = cheque_number.strip()
+    
+    # Validate cheque number format
+    if not re.match(r'^[A-Z0-9]{6,20}$', cheque_number):
+        return False, None, "Format de numéro de chèque invalide (6-20 caractères alphanumériques)"
+    
+    # Build the query step by step
+    query = Cheque.query.filter(Cheque.cheque_number == cheque_number)
+    
+    # Add filters if provided
     if branch_id:
-        query = query.filter_by(branch_id=branch_id)
+        query = query.filter(Cheque.branch_id == branch_id)
     if client_id:
-        query = query.filter_by(client_id=client_id)
+        query = query.filter(Cheque.client_id == client_id)
+    
+    # Exclude the current cheque if editing
+    if exclude_id:
+        query = query.filter(Cheque.id != exclude_id)
 
     duplicate_cheque = query.first()
 
     if duplicate_cheque:
-        return True, duplicate_cheque, "Ce numéro de chèque existe déjà."
+        client_name = duplicate_cheque.client.name if duplicate_cheque.client else "Client inconnu"
+        branch_name = duplicate_cheque.branch.name if duplicate_cheque.branch else "Agence inconnue"
+        
+        error_message = f'Ce numéro de chèque "{cheque_number}" existe déjà pour le client "{client_name}" dans l\'agence "{branch_name}".'
+        return True, duplicate_cheque, error_message
+    
     return False, None, None
-
 
 def check_cheque_number_in_branch(cheque_number, branch_id, exclude_id=None):
     """
@@ -77,29 +105,70 @@ def check_cheque_number_in_branch(cheque_number, branch_id, exclude_id=None):
 @login_required
 def check_duplicate_ajax():
     """
-    AJAX endpoint to check for duplicates by cheque_number only
+    AJAX endpoint to check for duplicates
     """
-    data = request.get_json()
-    cheque_number = data.get('cheque_number', '').strip()
-    exclude_id = data.get('exclude_id')
-
-    if not cheque_number:
-        return jsonify({'is_duplicate': False})
-
     try:
-        if exclude_id:
-            exclude_id = int(exclude_id)
-    except (ValueError, TypeError):
-        exclude_id = None
-    
-    is_duplicate, duplicate_cheque, error_message = check_duplicate_cheque(
-        cheque_number, exclude_id
-    )
-    
-    return jsonify({
-        'is_duplicate': bool(is_duplicate),
-        'error_message': error_message if is_duplicate else ''
-    })
+        data = request.get_json()
+        if not data:
+            return jsonify({'is_duplicate': False, 'has_warning': False})
+        
+        cheque_number = data.get('cheque_number', '').strip()
+        branch_id = data.get('branch_id')
+        client_id = data.get('client_id')
+        exclude_id = data.get('exclude_id')
+
+        # Validate input
+        if not cheque_number:
+            return jsonify({'is_duplicate': False, 'has_warning': False})
+
+        # Convert IDs to integers
+        try:
+            branch_id = int(branch_id) if branch_id else None
+            client_id = int(client_id) if client_id else None
+            exclude_id = int(exclude_id) if exclude_id else None
+        except (ValueError, TypeError):
+            return jsonify({'is_duplicate': False, 'has_warning': False, 
+                           'error': 'IDs invalides'})
+        
+        # First check: Exact duplicate (same cheque number, branch, and client)
+        is_duplicate, duplicate_cheque, error_message = check_duplicate_cheque(
+            cheque_number, branch_id, client_id, exclude_id
+        )
+        
+        if is_duplicate:
+            return jsonify({
+                'is_duplicate': True,
+                'has_warning': False,
+                'error_message': error_message
+            })
+        
+        # Second check: Same cheque number in same branch but different client (warning)
+        if branch_id and client_id:
+            has_warning, warning_cheque, warning_message = check_cheque_number_in_branch(
+                cheque_number, branch_id, exclude_id
+            )
+            
+            # Only show warning if it's a different client
+            if has_warning and warning_cheque.client_id != client_id:
+                return jsonify({
+                    'is_duplicate': False,
+                    'has_warning': True,
+                    'warning_message': warning_message
+                })
+        
+        # No duplicates or warnings found
+        return jsonify({
+            'is_duplicate': False,
+            'has_warning': False
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in duplicate check: {str(e)}")
+        return jsonify({
+            'is_duplicate': False,
+            'has_warning': False,
+            'error': 'Erreur lors de la vérification'
+        }), 500
 
 @cheques_bp.route('/')
 @login_required
@@ -111,18 +180,26 @@ def index():
     branch_id = request.args.get('branch_id', '')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = current_app.config.get('CHEQUES_PER_PAGE', 20)
     
-    # Build query with explicit joins to handle multiple foreign keys
-    query = Cheque.query.join(Client).join(Branch, Cheque.branch_id == Branch.id).join(Bank)
+    # Build query with explicit joins
+    query = db.session.query(Cheque).join(
+        Client, Cheque.client_id == Client.id
+    ).join(
+        Branch, Cheque.branch_id == Branch.id
+    ).join(
+        Bank, Branch.bank_id == Bank.id
+    )
     
+    # Apply filters
     if search:
-        query = query.filter(
-            db.or_(
-                Cheque.cheque_number.contains(search),
-                Client.name.contains(search),
-                Bank.name.contains(search)
-            )
-        )
+        query = query.filter(db.or_(
+            Cheque.cheque_number.contains(search),
+            Client.name.contains(search),
+            Depositor.name.contains(search),
+            Bank.name.contains(search)
+        ))
     
     if status:
         query = query.filter(Cheque.status == status)
@@ -147,13 +224,20 @@ def index():
         except ValueError:
             pass
     
-    cheques = query.order_by(Cheque.due_date.desc()).all()
+    # Get counts for statistics - using the same filtered query
+    total_count = query.count()
+    pending_count = query.filter(Cheque.status == 'EN ATTENTE').count()
+    paid_count = query.filter(Cheque.status == 'ENCAISSE').count()
+    unpaid_count = query.filter(Cheque.status == 'IMPAYE').count()
     
-    # Get banks for filter dropdown
-    banks = Bank.query.all()
-    branches = Branch.query.all()
+    # Paginate results
+    cheques = query.order_by(Cheque.due_date.desc()).paginate(page=page, per_page=per_page, error_out=False)
     
-    return render_template('cheques/index.html', 
+    # Get banks and branches for dropdowns
+    banks = Bank.query.order_by(Bank.name).all()
+    branches = Branch.query.order_by(Branch.name).all()
+    
+    return render_template('cheques/index.html',
                          cheques=cheques,
                          banks=banks,
                          branches=branches,
@@ -163,8 +247,15 @@ def index():
                          branch_id=branch_id,
                          date_from=date_from,
                          date_to=date_to,
-                         date=date)
-
+                         date=date,
+                         counts={
+                             'total': total_count,
+                             'pending': pending_count,
+                             'paid': paid_count,
+                             'unpaid': unpaid_count
+                         })
+                         
+# Updated new and edit routes to use enhanced duplicate prevention
 @cheques_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def new():
@@ -178,7 +269,8 @@ def new():
         is_duplicate, duplicate_cheque, error_message = check_duplicate_cheque(
             form.cheque_number.data,
             form.branch_id.data,
-            form.client_id.data
+            form.client_id.data,
+            exclude_id=None  # No exclusion for new cheques
         )
         
         if is_duplicate:
@@ -223,20 +315,13 @@ def new():
             db.session.add(cheque)
             db.session.commit()
             
-            # OPTIMIZATION: Auto-create all monthly sheets for the year when adding a cheque
+            # Use ENHANCED Excel sync with COMPREHENSIVE duplicate prevention
             excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
-            auto_creator = AutoSheetCreator(excel_folder)
-            sheet_optimization_success, sheet_filepath = auto_creator.optimize_cheque_addition(cheque)
-            
-            # Automatically update Excel file with optimized sync
-            optimized_sync = OptimizedExcelSync(excel_folder)
-            excel_sync_success = optimized_sync.sync_cheque(cheque, 'create')
+            enhanced_sync = EnhancedExcelSync(excel_folder)
+            excel_sync_success = enhanced_sync.sync_cheque(cheque, 'create')
             
             if excel_sync_success:
-                if sheet_optimization_success:
-                    flash('Chèque ajouté avec succès! Tous les onglets mensuels ont été créés et le fichier Excel synchronisé.', 'success')
-                else:
-                    flash('Chèque ajouté avec succès et synchronisé avec Excel!', 'success')
+                flash('Chèque ajouté avec succès et synchronisé avec Excel (doublons automatiquement supprimés)!', 'success')
             else:
                 flash('Chèque ajouté avec succès, mais erreur de synchronisation Excel.', 'warning')
             
@@ -255,6 +340,7 @@ def new():
     
     return render_template('cheques/form.html', form=form, title='Nouveau Chèque')
 
+
 @cheques_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit(id):
@@ -265,6 +351,19 @@ def edit(id):
     form = ChequeForm(obj=cheque)
     
     if form.validate_on_submit():
+        # Only check duplicates if cheque number has changed
+        if form.cheque_number.data != cheque.cheque_number:
+            is_duplicate, duplicate_cheque, error_message = check_duplicate_cheque(
+                form.cheque_number.data,
+                form.branch_id.data,
+                form.client_id.data,
+                exclude_id=cheque.id  # Exclude current cheque
+            )
+            
+            if is_duplicate:
+                flash(error_message, 'error')
+                return render_template('cheques/form.html', form=form, title='Modifier Chèque', cheque=cheque)
+        
         # Handle file upload
         if form.scan.data:
             file = form.scan.data
@@ -283,7 +382,7 @@ def edit(id):
                 cheque.scan_path = filename
         
         try:
-            # Update cheque fields (excluding cheque_number - it stays the same)
+            # Update cheque fields
             cheque.amount = form.amount.data
             cheque.currency = form.currency.data
             cheque.issue_date = form.issue_date.data
@@ -293,7 +392,8 @@ def edit(id):
             cheque.branch_id = form.branch_id.data
             cheque.deposit_branch_id = form.deposit_branch_id.data if form.deposit_branch_id.data and form.deposit_branch_id.data != 0 else None
             cheque.status = form.status.data
-            # Note: cheque_number is not updated - it remains the original value
+            # Update cheque number if changed
+            cheque.cheque_number = form.cheque_number.data.strip() if form.cheque_number.data else None
             cheque.invoice_number = form.invoice_number.data
             cheque.invoice_date = form.invoice_date.data
             cheque.depositor_name = form.depositor_name.data
@@ -305,13 +405,13 @@ def edit(id):
             
             db.session.commit()
             
-            # Automatically update Excel file with optimized sync
+            # Use ENHANCED Excel sync with COMPREHENSIVE duplicate prevention
             excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
-            optimized_sync = OptimizedExcelSync(excel_folder)
-            excel_sync_success = optimized_sync.sync_cheque(cheque, 'update')
+            enhanced_sync = EnhancedExcelSync(excel_folder)
+            excel_sync_success = enhanced_sync.sync_cheque(cheque, 'update')
             
             if excel_sync_success:
-                flash('Chèque modifié avec succès et synchronisé avec Excel!', 'success')
+                flash('Chèque modifié avec succès et synchronisé avec Excel (doublons automatiquement supprimés)!', 'success')
             else:
                 flash('Chèque modifié avec succès, mais erreur de synchronisation Excel.', 'warning')
             
@@ -340,10 +440,10 @@ def delete(id):
             if os.path.exists(file_path):
                 os.remove(file_path)
         
-        # Remove from Excel before deleting from database with optimized sync
+        # Remove from Excel before deleting from database with enhanced sync
         excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
-        optimized_sync = OptimizedExcelSync(excel_folder)
-        optimized_sync.sync_cheque(cheque, 'delete')
+        enhanced_sync = EnhancedExcelSync(excel_folder)
+        enhanced_sync.sync_cheque(cheque, 'delete')
         
         db.session.delete(cheque)
         db.session.commit()
@@ -375,7 +475,11 @@ def update_status(id):
             'ENCAISSE': 'ENCAISSE', 
             'IMPAYE': 'IMPAYE',
             'DEPOSE': 'DÉPOSÉ',
-            'ANNULE': 'ANNULÉ'
+            'ANNULE': 'ANNULÉ',
+            'PRESENTE': 'PRÉSENTÉ',
+            'TENTATIVE': 'TENTATIVE',
+            'PROCEDURE': 'PROCÉDURE',
+            'RECOUVRE': 'RECOUVRÉ'
         }
 
         # Validate status
@@ -411,11 +515,11 @@ def update_status(id):
         db.session.commit()
         current_app.logger.info(f"Cheque {id} status updated to {new_status}")
 
-        # Excel synchronization with proper error handling
+        # Enhanced Excel synchronization with proper error handling
         try:
             excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
-            optimized_sync = OptimizedExcelSync(excel_folder)
-            sync_result = optimized_sync.sync_cheque(cheque, 'update')
+            enhanced_sync = EnhancedExcelSync(excel_folder)
+            sync_result = enhanced_sync.sync_cheque(cheque, 'update')
             
             if not sync_result:
                 current_app.logger.warning(f"Excel sync failed for cheque {id}")
@@ -436,7 +540,6 @@ def update_status(id):
         return redirect(url_for('cheques.index'))
 
 # Enhanced Impayé Management Routes
-
 @cheques_bp.route('/<int:id>/present', methods=['GET', 'POST'])
 @login_required
 def present_cheque(id):
@@ -466,6 +569,12 @@ def present_cheque(id):
             cheque.updated_at = datetime.utcnow()
             
             db.session.commit()
+            
+            # Sync with Excel
+            excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+            enhanced_sync = EnhancedExcelSync(excel_folder)
+            enhanced_sync.sync_cheque(cheque, 'update')
+            
             flash('Chèque marqué comme présenté avec succès!', 'success')
             return redirect(url_for('cheques.index'))
             
@@ -519,6 +628,12 @@ def mark_impaye(id):
             cheque.updated_at = datetime.utcnow()
             
             db.session.commit()
+            
+            # Sync with Excel
+            excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+            enhanced_sync = EnhancedExcelSync(excel_folder)
+            enhanced_sync.sync_cheque(cheque, 'update')
+            
             flash('Chèque marqué comme impayé avec succès!', 'success')
             return redirect(url_for('cheques.index'))
             
@@ -572,6 +687,12 @@ def schedule_retry(id):
             db.session.add(status_history)
             
             db.session.commit()
+            
+            # Sync with Excel
+            excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+            enhanced_sync = EnhancedExcelSync(excel_folder)
+            enhanced_sync.sync_cheque(cheque, 'update')
+            
             flash('Tentative de recouvrement programmée avec succès!', 'success')
             return redirect(url_for('cheques.index'))
             
@@ -613,6 +734,12 @@ def record_alternative_payment(id):
             db.session.add(status_history)
             
             db.session.commit()
+            
+            # Sync with Excel
+            excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+            enhanced_sync = EnhancedExcelSync(excel_folder)
+            enhanced_sync.sync_cheque(cheque, 'update')
+            
             flash('Paiement alternatif enregistré avec succès!', 'success')
             return redirect(url_for('cheques.index'))
             
@@ -693,6 +820,12 @@ def initiate_legal_action(id):
             db.session.add(status_history)
             
             db.session.commit()
+            
+            # Sync with Excel
+            excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+            enhanced_sync = EnhancedExcelSync(excel_folder)
+            enhanced_sync.sync_cheque(cheque, 'update')
+            
             flash('Action légale initiée avec succès!', 'success')
             return redirect(url_for('cheques.index'))
             
@@ -756,3 +889,127 @@ def impaye_dashboard():
                          status_stats=status_stats,
                          upcoming_retries=upcoming_retries,
                          date=date)
+
+# Excel Management Routes
+@cheques_bp.route('/excel/cleanup-duplicates')
+@login_required
+def cleanup_excel_duplicates():
+    """Clean up duplicate entries in Excel files - COMPREHENSIVE VERSION"""
+    if current_user.role != 'admin':
+        flash('Seuls les administrateurs peuvent nettoyer les doublons Excel.', 'danger')
+        return redirect(url_for('cheques.index'))
+    
+    try:
+        year = request.args.get('year', datetime.now().year, type=int)
+        excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+        enhanced_sync = EnhancedExcelSync(excel_folder)
+        
+        # Use the comprehensive duplicate removal method
+        results = enhanced_sync.remove_all_duplicates_comprehensive(year)
+        
+        if results.get('status') == 'error':
+            flash(f"Erreur lors du nettoyage: {results['message']}", 'danger')
+        elif results.get('status') == 'no_file':
+            flash(results['message'], 'info')
+        else:
+            if results['duplicates_removed'] > 0:
+                flash(f"Nettoyage terminé: {results['duplicates_removed']} doublons supprimés sur {results['duplicates_found']} trouvés dans {results['sheets_processed']} feuilles.", 'success')
+            else:
+                flash('Aucun doublon trouvé.', 'info')
+            
+            if results['errors']:
+                flash(f"Quelques erreurs rencontrées: {'; '.join(results['errors'][:3])}", 'warning')
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in cleanup duplicates: {str(e)}")
+        flash('Erreur technique lors du nettoyage.', 'danger')
+    
+    return redirect(url_for('cheques.index'))
+
+@cheques_bp.route('/excel/verify-integrity')
+@login_required
+def verify_excel_integrity():
+    """Verify integrity between database and Excel files - ENHANCED VERSION"""
+    if current_user.role not in ['admin', 'comptable']:
+        flash('Accès non autorisé.', 'danger')
+        return redirect(url_for('cheques.index'))
+    
+    try:
+        year = request.args.get('year', datetime.now().year, type=int)
+        excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+        enhanced_sync = EnhancedExcelSync(excel_folder)
+        
+        integrity_report = enhanced_sync.verify_integrity_comprehensive(year)
+        
+        if 'error' in integrity_report:
+            flash(f"Erreur lors de la vérification: {integrity_report['error']}", 'danger')
+        else:
+            if integrity_report['has_duplicates']:
+                flash(f"⚠️ DOUBLONS DÉTECTÉS pour {year}: {integrity_report['excel_duplicates_count']} doublons trouvés dans Excel!", 'warning')
+            
+            if integrity_report['in_sync'] and not integrity_report['has_duplicates']:
+                flash(f"✅ Intégrité vérifiée pour {year}: Tout est synchronisé et sans doublons!", 'success')
+            else:
+                message_parts = [f"Rapport d'intégrité pour {year}:"]
+                message_parts.append(f"- Base de données: {integrity_report['database_count']} chèques")
+                message_parts.append(f"- Mappings: {integrity_report['mapping_count']}")
+                message_parts.append(f"- Excel total: {integrity_report['excel_count']} entrées")
+                message_parts.append(f"- Excel unique: {integrity_report['excel_unique_count']} entrées")
+                
+                if integrity_report['has_duplicates']:
+                    message_parts.append(f"- ⚠️ Doublons Excel: {integrity_report['excel_duplicates_count']}")
+                
+                flash('\n'.join(message_parts), 'warning')
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in verify integrity: {str(e)}")
+        flash('Erreur technique lors de la vérification.', 'danger')
+    
+    return redirect(url_for('cheques.index'))
+
+@cheques_bp.route('/excel/force-clean-duplicates')
+@login_required
+def force_clean_all_duplicates():
+    """Force clean ALL duplicates across all years"""
+    if current_user.role != 'admin':
+        flash('Seuls les administrateurs peuvent effectuer cette opération.', 'danger')
+        return redirect(url_for('cheques.index'))
+    
+    try:
+        excel_folder = Path(current_app.config.get('EXCEL_FOLDER', 'data/excel'))
+        enhanced_sync = EnhancedExcelSync(excel_folder)
+        
+        total_removed = 0
+        total_found = 0
+        years_processed = 0
+        
+        # Process all Excel files in the folder
+        for excel_file in excel_folder.glob('cheques_*.xlsx'):
+            try:
+                # Extract year from filename
+                year_match = re.search(r'cheques_(\d{4})\.xlsx', excel_file.name)
+                if year_match:
+                    year = int(year_match.group(1))
+                    current_app.logger.info(f"Processing duplicates for year {year}")
+                    
+                    results = enhanced_sync.remove_all_duplicates_comprehensive(year)
+                    
+                    if results.get('status') not in ['error', 'no_file']:
+                        total_removed += results['duplicates_removed']
+                        total_found += results['duplicates_found']
+                        years_processed += 1
+                        
+            except Exception as e:
+                current_app.logger.error(f"Error processing file {excel_file}: {str(e)}")
+                continue
+        
+        if total_removed > 0:
+            flash(f"Nettoyage force terminé: {total_removed} doublons supprimés sur {total_found} trouvés dans {years_processed} années.", 'success')
+        else:
+            flash(f"Aucun doublon trouvé dans les {years_processed} années vérifiées.", 'info')
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in force clean duplicates: {str(e)}")
+        flash('Erreur technique lors du nettoyage forcé.', 'danger')
+    
+    return redirect(url_for('cheques.index'))

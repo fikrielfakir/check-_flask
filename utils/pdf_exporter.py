@@ -83,7 +83,7 @@ class PDFExporter:
                 # Prepare table data
                 headers = [
                     'Date', 'Type', 'Numéro', 'Banque', 'Propriétaire', 
-                    'Déposant', 'Montant', 'Échéance', 'Statut'
+                    'Déposant', 'Mont', 'Échéance', 'Statut'
                 ]
                 
                 # Calculate column widths dynamically to fit A4 page
@@ -95,7 +95,7 @@ class PDFExporter:
                     available_width * 0.15,  # Banque
                     available_width * 0.18,  # Propriétaire
                     available_width * 0.18,  # Déposant
-                    available_width * 0.10,  # Montant
+                    available_width * 0.10,  # Mont
                     available_width * 0.08,  # Échéance
                     available_width * 0.05   # Statut
                 ]
@@ -111,7 +111,7 @@ class PDFExporter:
                         self._truncate_text(cheque.get('banque', ''), 15),
                         self._truncate_text(cheque.get('proprietaire', ''), 20),
                         self._truncate_text(cheque.get('deposant', ''), 20),
-                        f"{float(cheque.get('montant', 0)):,.2f}",
+                        f"{float(cheque.get('Mont', 0)):,.2f}",
                         self._format_date(cheque.get('date_echeance', '')),
                         self._get_status_text(cheque.get('statut', ''))
                     ]
@@ -154,8 +154,8 @@ class PDFExporter:
                 
                 # Add summary
                 story.append(Spacer(1, 30))
-                total_amount = sum(float(cheque.get('montant', 0)) for cheque in cheques_data)
-                summary_text = f"Total: {len(cheques_data)} chèques | Montant total: {total_amount:,.2f} MAD"
+                total_amount = sum(float(cheque.get('Mont', 0)) for cheque in cheques_data)
+                summary_text = f"Total: {len(cheques_data)} chèques | Mont total: {total_amount:,.2f} MAD"
                 summary_para = Paragraph(summary_text, self.subtitle_style)
                 story.append(summary_para)
             
@@ -249,10 +249,10 @@ class PDFExporter:
         
         general_metrics = [
             ('Nombre total de chèques', str(stats.get('total_count', 0))),
-            ('Montant total', f"{stats.get('total_amount', 0):,.2f} MAD"),
-            ('Montant moyen', f"{stats.get('average_amount', 0):,.2f} MAD"),
-            ('Montant minimum', f"{stats.get('min_amount', 0):,.2f} MAD"),
-            ('Montant maximum', f"{stats.get('max_amount', 0):,.2f} MAD"),
+            ('Mont total', f"{stats.get('total_amount', 0):,.2f} MAD"),
+            ('Mont moyen', f"{stats.get('average_amount', 0):,.2f} MAD"),
+            ('Mont minimum', f"{stats.get('min_amount', 0):,.2f} MAD"),
+            ('Mont maximum', f"{stats.get('max_amount', 0):,.2f} MAD"),
             ('Exports en attente', str(stats.get('pending_exports', 0))),
             ('Années avec données', str(stats.get('years_with_data', 0)))
         ]
@@ -370,12 +370,12 @@ class PDFExporter:
             story.append(Spacer(1, 30))
             
             # Cheques table
-            headers = ['N°', 'Numéro de chèque', 'Montant', 'Date d\'échéance', 'Propriétaire']
+            headers = ['N°', 'Numéro de chèque', 'Mont', 'Date d\'échéance', 'Propriétaire']
             table_data = [headers]
             
             total_amount = 0
             for i, cheque in enumerate(cheques_data, 1):
-                amount = float(cheque.get('montant', 0))
+                amount = float(cheque.get('Mont', 0))
                 total_amount += amount
                 
                 row = [

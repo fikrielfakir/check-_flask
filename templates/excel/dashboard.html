@@ -267,8 +267,8 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="montant" class="form-label">Montant *</label>
-                                <input type="number" class="form-control" id="montant" name="montant" 
+                                <label for="Mont" class="form-label">Mont *</label>
+                                <input type="number" class="form-control" id="Mont" name="Mont" 
                                        step="0.01" min="0" required>
                             </div>
                         </div>
@@ -290,14 +290,14 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="date_emission" class="form-label">Date de reception</label>
+                                <label for="date_emission" class="form-label">Date réc</label>
                                 <input type="date" class="form-control" id="date_emission" name="date_emission" 
                                        value="{{ current_date.strftime('%Y-%m-%d') if current_date else '' }}">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="echeance_date" class="form-label">Date d'échéance *</label>
+                                <label for="echeance_date" class="form-label">Date éch *</label>
                                 <input type="date" class="form-control" id="echeance_date" name="echeance_date" required>
                             </div>
                         </div>

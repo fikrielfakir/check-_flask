@@ -278,6 +278,8 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                 <form id="deleteForm" method="POST" style="display: inline;">
+                    <!-- CSRF TOKEN AJOUTÉ ICI -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <button type="submit" class="btn btn-danger">Supprimer</button>
                 </form>
             </div>
@@ -405,7 +407,10 @@ document.querySelectorAll('.bank-item').forEach(card => {
 
 .btn-group-sm > .btn {
     padding: 0.125rem 0.25rem;
-    font-size: 0.75rem;
+    font-size: 15px;
+}
+.btn:hover{
+    height: 25px;
 }
 
 /* Styles vue liste */

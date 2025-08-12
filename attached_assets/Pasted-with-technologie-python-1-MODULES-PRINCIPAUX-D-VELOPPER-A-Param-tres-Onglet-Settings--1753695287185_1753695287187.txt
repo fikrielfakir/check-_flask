@@ -87,7 +87,7 @@ Si le client n’existe pas, l’ajouter automatiquement.
 
 Données requises :
 
-Montant
+Mont
 
 Devise (MAD, EUR…)
 
@@ -101,7 +101,7 @@ Banque de dépôt (lié à branches)
 
 Statut
 
-Numéro du chèque
+N° doc
 
 Scan du chèque (upload image)
 
@@ -169,7 +169,7 @@ Widgets sur le dashboard :
 
 Nombre total de chèques par statut
 
-Montant total encaissé ce mois
+Mont total encaissé ce mois
 
 Top 5 clients émetteurs de chèques rejetés
 
@@ -279,7 +279,7 @@ class ExcelFileManager:
 
         self.headers = [
 
-            "Date de reception",
+            "Date réc",
 
             "Reg",
 
@@ -289,9 +289,9 @@ class ExcelFileManager:
 
             "Nom et prénom / Raison sociale",
 
-            "Nom du Déposant", # Changed from "Nom du Bénéficiaire"
+            "Nom dép", # Changed from "Nom du Bénéficiaire"
 
-            "Le montant",
+            "Le Mont",
 
             "Echeance",
 
@@ -493,11 +493,11 @@ class ExcelFileManager:
 
             # Prepare data row - UPDATED for new columns
 
-            montant_value = cheque_data['montant']
+            Mont_value = cheque_data['Mont']
 
-            if isinstance(montant_value, str):
+            if isinstance(Mont_value, str):
 
-                montant_value = float(montant_value.replace(',', '.'))
+                Mont_value = float(Mont_value.replace(',', '.'))
 
             data_row = [
 
@@ -511,9 +511,9 @@ class ExcelFileManager:
 
                 cheque_data['nom'],
 
-                cheque_data.get('recipient_name', ''), # Maps to "Nom du Déposant"
+                cheque_data.get('recipient_name', ''), # Maps to "Nom dép"
 
-                montant_value,
+                Mont_value,
 
                 cheque_data['echeance'],
 
@@ -533,7 +533,7 @@ class ExcelFileManager:
 
                 # Format amount column
 
-                if col == self.headers.index("Le montant") + 1: # Montant column
+                if col == self.headers.index("Le Mont") + 1: # Mont column
 
                     cell.number_format = '#,##0.00'
 
@@ -795,7 +795,7 @@ class ExcelFileManager:
 
             # Setup summary headers - UPDATED
 
-            summary_headers = ["Mois", "Nombre de Chèques", "Montant Total", "CHQ", "LCN", "Encaissé", "Impayé"]
+            summary_headers = ["Mois", "Nombre de Chèques", "Mont Total", "CHQ", "LCN", "Encaissé", "Impayé"]
 
             for col, header in enumerate(summary_headers, 1):
 
@@ -853,7 +853,7 @@ class ExcelFileManager:
 
                             # Get amount
 
-                            amount_cell = sheet.cell(row=row, column=self.headers.index("Le montant") + 1)
+                            amount_cell = sheet.cell(row=row, column=self.headers.index("Le Mont") + 1)
 
                             if amount_cell.value:
 
@@ -1023,9 +1023,9 @@ class DatabaseManager:
 
                     nom TEXT NOT NULL,
 
-                    recipient_name TEXT, -- This column will store "Nom du Déposant"
+                    recipient_name TEXT, -- This column will store "Nom dép"
 
-                    montant REAL NOT NULL,
+                    Mont REAL NOT NULL,
 
                     echeance TEXT NOT NULL,
 
@@ -1129,7 +1129,7 @@ class DatabaseManager:
 
             cursor.execute('''
 
-                INSERT INTO cheques (date_reception, reg, numero, banque, nom, recipient_name, montant,
+                INSERT INTO cheques (date_reception, reg, numero, banque, nom, recipient_name, Mont,
 
                                    echeance, facture, date_fac, year, month, notes, status)
 
@@ -1149,7 +1149,7 @@ class DatabaseManager:
 
                 cheque_data.get('depositor_name', ''), # Uses 'depositor_name' from input, maps to 'recipient_name' DB column
 
-                cheque_data['montant'],
+                cheque_data['Mont'],
 
                 cheque_data['echeance'],
 
@@ -1251,7 +1251,7 @@ class DatabaseManager:
 
             cursor.execute(
 
-                "SELECT nom, montant, echeance, recipient_name FROM cheques WHERE numero = ? AND banque = ?", # Added recipient_name
+                "SELECT nom, Mont, echeance, recipient_name FROM cheques WHERE numero = ? AND banque = ?", # Added recipient_name
 
                 (numero, banque)
 
@@ -1267,7 +1267,7 @@ class DatabaseManager:
 
                     'nom': result[0],
 
-                    'montant': result[1],
+                    'Mont': result[1],
 
                     'echeance': result[2],
 
@@ -1303,7 +1303,7 @@ class DatabaseManager:
 
                 UPDATE cheques
 
-                SET date_reception=?, reg=?, numero=?, banque=?, nom=?, recipient_name=?, montant=?,
+                SET date_reception=?, reg=?, numero=?, banque=?, nom=?, recipient_name=?, Mont=?,
 
                   echeance=?, facture=?, date_fac=?, year=?, month=?, notes=?, status=?
 
@@ -1323,7 +1323,7 @@ class DatabaseManager:
 
                 cheque_data.get('depositor_name', ''), # Uses 'depositor_name' from input, maps to 'recipient_name' DB column
 
-                cheque_data['montant'],
+                cheque_data['Mont'],
 
                 cheque_data['echeance'],
 
@@ -1387,19 +1387,19 @@ class DatabaseManager:
 
             # Total amount
 
-            cursor.execute("SELECT COALESCE(SUM(montant), 0) FROM cheques")
+            cursor.execute("SELECT COALESCE(SUM(Mont), 0) FROM cheques")
 
             total_amount = cursor.fetchone()[0]
 
             # Average amount
 
-            cursor.execute("SELECT COALESCE(AVG(montant), 0) FROM cheques")
+            cursor.execute("SELECT COALESCE(AVG(Mont), 0) FROM cheques")
 
             avg_amount = cursor.fetchone()[0]
 
             # Max and min amounts
 
-            cursor.execute("SELECT COALESCE(MAX(montant), 0), COALESCE(MIN(montant), 0) FROM cheques")
+            cursor.execute("SELECT COALESCE(MAX(Mont), 0), COALESCE(MIN(Mont), 0) FROM cheques")
 
             max_amount, min_amount = cursor.fetchone()
 
@@ -1607,7 +1607,7 @@ class EditChequeDialog:
 
         # Depositor Name - New Field (was Recipient Name)
 
-        ttk.Label(main_frame, text="Nom du Déposant:").grid(row=row, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Nom dép:").grid(row=row, column=0, sticky=tk.W, pady=5)
 
         self.depositor_name_var = tk.StringVar(value=self.cheque_data.get('recipient_name', '')) # Still uses 'recipient_name' from DB
 
@@ -1615,13 +1615,13 @@ class EditChequeDialog:
 
         row += 1
 
-        # Montant
+        # Mont
 
-        ttk.Label(main_frame, text="Montant:").grid(row=row, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Mont:").grid(row=row, column=0, sticky=tk.W, pady=5)
 
-        self.montant_var = tk.StringVar(value=str(self.cheque_data['montant']).replace('.', ','))
+        self.Mont_var = tk.StringVar(value=str(self.cheque_data['Mont']).replace('.', ','))
 
-        ttk.Entry(main_frame, textvariable=self.montant_var).grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+        ttk.Entry(main_frame, textvariable=self.Mont_var).grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
 
         row += 1
 
@@ -1731,7 +1731,7 @@ class EditChequeDialog:
 
             if not all([self.numero_var.get().strip(), self.banque_var.get(),
 
-                       self.nom_var.get().strip(), self.montant_var.get().strip()]):
+                       self.nom_var.get().strip(), self.Mont_var.get().strip()]):
 
                 messagebox.showerror("Erreur", "Veuillez remplir tous les champs obligatoires")
 
@@ -1743,19 +1743,19 @@ class EditChequeDialog:
 
             # Properly handle amount with comma
 
-            montant_str = self.montant_var.get().strip()
+            Mont_str = self.Mont_var.get().strip()
 
             try:
 
-                montant_value = float(montant_str.replace(',', '.'))
+                Mont_value = float(Mont_str.replace(',', '.'))
 
-                if montant_value < 0:
+                if Mont_value < 0:
 
-                    raise ValueError("Le montant ne peut pas être négatif")
+                    raise ValueError("Le Mont ne peut pas être négatif")
 
             except ValueError:
 
-                messagebox.showerror("Erreur", "Le montant doit être un nombre valide")
+                messagebox.showerror("Erreur", "Le Mont doit être un nombre valide")
 
                 return
 
@@ -1775,7 +1775,7 @@ class EditChequeDialog:
 
                 'depositor_name': self.depositor_name_var.get().strip(), # Uses 'depositor_name'
 
-                'montant': montant_value,
+                'Mont': Mont_value,
 
                 'echeance': echeance_date.strftime('%d/%m/%Y'),
 
@@ -1861,7 +1861,7 @@ class PDFExporter:
 
             # Table data - UPDATED for new columns
 
-            data = [['Date', 'Type', 'N°', 'Banque', 'Propriétaire', 'Déposant', 'Montant', 'Échéance', 'Statut']]
+            data = [['Date', 'Type', 'N°', 'Banque', 'Propriétaire', 'Déposant', 'Mont', 'Échéance', 'Statut']]
 
             for cheque in self.cheques_data:
 
@@ -1879,7 +1879,7 @@ class PDFExporter:
 
                     cheque.get('recipient_name', '')[:20] + '...' if len(cheque.get('recipient_name', '')) > 20 else cheque.get('recipient_name', ''), # Uses 'recipient_name' DB column
 
-                    f"{cheque['montant']:,.2f} DH",
+                    f"{cheque['Mont']:,.2f} DH",
 
                     cheque['echeance'],
 
@@ -1913,7 +1913,7 @@ class PDFExporter:
 
                 0.15 * A4[0], # Déposant
 
-                0.10 * A4[0], # Montant
+                0.10 * A4[0], # Mont
 
                 0.10 * A4[0], # Échéance
 
@@ -2219,7 +2219,7 @@ class EnhancedChequeManager:
 
             ("Total Chèques", stats['total_cheques'], "📊", self.colors['primary'], "Tous types confondus"),
 
-            ("Montant Total", f"{stats['total_amount']:,.2f} DH", "💰", self.colors['success'], f"Moyenne: {stats['avg_amount']:,.2f} DH"),
+            ("Mont Total", f"{stats['total_amount']:,.2f} DH", "💰", self.colors['success'], f"Moyenne: {stats['avg_amount']:,.2f} DH"),
 
             ("CHQ vs LCN", f"{stats['chq_count']}/{stats['lcn_count']}", "🏦", self.colors['info'], "Chèques/Lettres de change"),
 
@@ -2467,7 +2467,7 @@ class EnhancedChequeManager:
 
         # Row 4: Depositor Name - UPDATED Field
 
-        ttk.Label(form_frame, text="👥 Nom du Déposant:", font=('Segoe UI', 10, 'bold')).grid(
+        ttk.Label(form_frame, text="👥 Nom dép:", font=('Segoe UI', 10, 'bold')).grid(
 
             row=row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
 
@@ -2483,29 +2483,29 @@ class EnhancedChequeManager:
 
         row += 1
 
-        # Row 5: Montant with formatting, Échéance
+        # Row 5: Mont with formatting, Échéance
 
-        ttk.Label(form_frame, text="💰 Montant (DH):", font=('Segoe UI', 10, 'bold')).grid(
+        ttk.Label(form_frame, text="💰 Mont (DH):", font=('Segoe UI', 10, 'bold')).grid(
 
             row=row, column=0, sticky=tk.W, padx=(0, 10), pady=8)
 
-        montant_frame = ttk.Frame(form_frame)
+        Mont_frame = ttk.Frame(form_frame)
 
-        montant_frame.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(0, 20), pady=8)
+        Mont_frame.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(0, 20), pady=8)
 
-        self.montant_var = tk.StringVar()
+        self.Mont_var = tk.StringVar()
 
-        montant_entry = ttk.Entry(montant_frame, textvariable=self.montant_var, font=('Segoe UI', 10))
+        Mont_entry = ttk.Entry(Mont_frame, textvariable=self.Mont_var, font=('Segoe UI', 10))
 
-        montant_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        Mont_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        montant_entry.bind('<FocusOut>', self.format_montant)
+        Mont_entry.bind('<FocusOut>', self.format_Mont)
 
-        montant_entry.bind('<KeyRelease>', self.validate_amount)
+        Mont_entry.bind('<KeyRelease>', self.validate_amount)
 
         # Amount validation indicator
 
-        self.amount_indicator = ttk.Label(montant_frame, text="", foreground=self.colors['success'])
+        self.amount_indicator = ttk.Label(Mont_frame, text="", foreground=self.colors['success'])
 
         self.amount_indicator.pack(side=tk.RIGHT, padx=(5, 0))
 
@@ -3009,7 +3009,7 @@ class EnhancedChequeManager:
 
                 f"📄 Feuille: {month_name}\n"
 
-                f"📅 Date d'échéance: {echeance_date.strftime('%d/%m/%Y')}\n\n"
+                f"📅 Date éch: {echeance_date.strftime('%d/%m/%Y')}\n\n"
 
                 f"💡 Le fichier et la feuille seront créés automatiquement si nécessaire."
 
@@ -3083,7 +3083,7 @@ class EnhancedChequeManager:
 
             if not all([self.numero_var.get().strip(), self.banque_var.get(),
 
-                       self.nom_var.get().strip(), self.montant_var.get().strip()]):
+                       self.nom_var.get().strip(), self.Mont_var.get().strip()]):
 
                 messagebox.showerror("Erreur", "Veuillez remplir tous les champs obligatoires")
 
@@ -3103,7 +3103,7 @@ class EnhancedChequeManager:
 
                     f"Déposant: {duplicate['depositor_name']}\n" # Updated
 
-                    f"Montant: {duplicate['montant']:.2f} DH\n"
+                    f"Mont: {duplicate['Mont']:.2f} DH\n"
 
                     f"Échéance: {duplicate['echeance']}\n\n"
 
@@ -3117,21 +3117,21 @@ class EnhancedChequeManager:
 
             # Properly handle amount with comma as decimal separator
 
-            montant_str = self.montant_var.get().strip()
+            Mont_str = self.Mont_var.get().strip()
 
             try:
 
                 # Replace comma with dot and convert to float
 
-                montant_value = float(montant_str.replace(',', '.'))
+                Mont_value = float(Mont_str.replace(',', '.'))
 
-                if montant_value < 0:
+                if Mont_value < 0:
 
-                    raise ValueError("Le montant ne peut pas être négatif")
+                    raise ValueError("Le Mont ne peut pas être négatif")
 
             except ValueError:
 
-                messagebox.showerror("Erreur", "Le montant doit être un nombre valide")
+                messagebox.showerror("Erreur", "Le Mont doit être un nombre valide")
 
                 return
 
@@ -3151,7 +3151,7 @@ class EnhancedChequeManager:
 
                 'depositor_name': self.depositor_name_var.get().strip(), # Uses 'depositor_name'
 
-                'montant': montant_value,
+                'Mont': Mont_value,
 
                 'echeance': echeance_date.strftime('%d/%m/%Y'),
 
@@ -3281,7 +3281,7 @@ class EnhancedChequeManager:
 
         # Enhanced treeview with checkboxes - UPDATED columns
 
-        columns = ('✓', 'ID', 'Date', 'Type', 'N°', 'Banque', 'Propriétaire', 'Déposant', 'Montant', 'Échéance', 'Excel', 'Statut')
+        columns = ('✓', 'ID', 'Date', 'Type', 'N°', 'Banque', 'Propriétaire', 'Déposant', 'Mont', 'Échéance', 'Excel', 'Statut')
 
         self.pending_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=12)
 
@@ -3303,7 +3303,7 @@ class EnhancedChequeManager:
 
         self.pending_tree.heading('Déposant', text='Déposant') # Updated
 
-        self.pending_tree.heading('Montant', text='Montant')
+        self.pending_tree.heading('Mont', text='Mont')
 
         self.pending_tree.heading('Échéance', text='Échéance')
 
@@ -3329,7 +3329,7 @@ class EnhancedChequeManager:
 
         self.pending_tree.column('Déposant', width=150) # Updated
 
-        self.pending_tree.column('Montant', width=100)
+        self.pending_tree.column('Mont', width=100)
 
         self.pending_tree.column('Échéance', width=100)
 
@@ -3531,7 +3531,7 @@ class EnhancedChequeManager:
 
         nom_filter_entry.bind('<KeyRelease>', self.on_filter_change)
 
-        ttk.Label(filters_frame, text="💰 Montant:", font=('Segoe UI', 10, 'bold')).grid(
+        ttk.Label(filters_frame, text="💰 Mont:", font=('Segoe UI', 10, 'bold')).grid(
 
             row=filter_row, column=4, sticky=tk.W, padx=(0, 10), pady=8)
 
@@ -3699,7 +3699,7 @@ class EnhancedChequeManager:
 
         # Treeview with checkboxes - UPDATED columns
 
-        columns = ('✓', 'ID', 'Date', 'Type', 'N°', 'Banque', 'Propriétaire', 'Déposant', 'Montant', 'Échéance', 'Facture', 'Statut', 'Exporté')
+        columns = ('✓', 'ID', 'Date', 'Type', 'N°', 'Banque', 'Propriétaire', 'Déposant', 'Mont', 'Échéance', 'Facture', 'Statut', 'Exporté')
 
         self.results_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=15)
 
@@ -3721,7 +3721,7 @@ class EnhancedChequeManager:
 
         self.results_tree.heading('Déposant', text='Déposant') # Updated
 
-        self.results_tree.heading('Montant', text='Montant')
+        self.results_tree.heading('Mont', text='Mont')
 
         self.results_tree.heading('Échéance', text='Échéance')
 
@@ -3749,7 +3749,7 @@ class EnhancedChequeManager:
 
         self.results_tree.column('Déposant', width=150) # Updated
 
-        self.results_tree.column('Montant', width=100)
+        self.results_tree.column('Mont', width=100)
 
         self.results_tree.column('Échéance', width=100)
 
@@ -3877,7 +3877,7 @@ class EnhancedChequeManager:
 
         except ValueError:
 
-            messagebox.showerror("Erreur", "Veuillez entrer des valeurs numériques valides pour le montant")
+            messagebox.showerror("Erreur", "Veuillez entrer des valeurs numériques valides pour le Mont")
 
             return
 
@@ -3919,7 +3919,7 @@ class EnhancedChequeManager:
 
             max_amount = self.current_filters.get('amount_max', float('inf'))
 
-            cheques = [c for c in cheques if min_amount <= c['montant'] <= max_amount]
+            cheques = [c for c in cheques if min_amount <= c['Mont'] <= max_amount]
 
         # Clear existing results
 
@@ -3967,7 +3967,7 @@ class EnhancedChequeManager:
 
                 cheque.get('recipient_name', ''), # Uses 'recipient_name' DB column
 
-                f"{cheque['montant']:,.2f} DH".replace('.', ','),
+                f"{cheque['Mont']:,.2f} DH".replace('.', ','),
 
                 cheque['echeance'],
 
@@ -3981,7 +3981,7 @@ class EnhancedChequeManager:
 
         # Update results info
 
-        total_amount = sum(c['montant'] for c in cheques)
+        total_amount = sum(c['Mont'] for c in cheques)
 
         self.results_info_var.set(f"📊 Résultats: {len(cheques)} chèques | Total: {total_amount:,.2f} DH".replace('.', ','))
 
@@ -4329,7 +4329,7 @@ class EnhancedChequeManager:
 
             f"Déposant: {cheque.get('recipient_name', '')}\n" # Uses 'recipient_name' DB column
 
-            f"Montant: {cheque['montant']:,.2f} DH\n"
+            f"Mont: {cheque['Mont']:,.2f} DH\n"
 
             f"Échéance: {cheque['echeance']}\n"
 
@@ -4751,7 +4751,7 @@ class EnhancedChequeManager:
 
                 "Date de réception", "Type", "N° Chèque", "Banque",
 
-                "Nom et prénom / Raison sociale", "Nom du Déposant", "Montant", "Échéance",
+                "Nom et prénom / Raison sociale", "Nom dép", "Mont", "Échéance",
 
                 "N° Facture", "Date Facture", "Notes", "Statut du Chèque"
 
@@ -4783,7 +4783,7 @@ class EnhancedChequeManager:
 
                 sheet.cell(row=row, column=6, value=cheque.get('recipient_name', '')) # Uses 'recipient_name' DB column
 
-                sheet.cell(row=row, column=7, value=cheque['montant'])
+                sheet.cell(row=row, column=7, value=cheque['Mont'])
 
                 sheet.cell(row=row, column=8, value=cheque['echeance'])
 
@@ -4899,7 +4899,7 @@ class EnhancedChequeManager:
 
                     "Date de réception", "Type", "N° Chèque", "Banque",
 
-                    "Nom et prénom / Raison sociale", "Nom du Déposant", "Montant", "Échéance",
+                    "Nom et prénom / Raison sociale", "Nom dép", "Mont", "Échéance",
 
                     "N° Facture", "Date Facture", "Notes", "Statut du Chèque"
 
@@ -4923,7 +4923,7 @@ class EnhancedChequeManager:
 
                         cheque.get('recipient_name', ''), # Uses 'recipient_name' DB column
 
-                        f"{cheque['montant']:.2f}".replace('.', ','),
+                        f"{cheque['Mont']:.2f}".replace('.', ','),
 
                         cheque['echeance'],
 
@@ -5635,7 +5635,7 @@ class EnhancedChequeManager:
 
         # Treeview
 
-        columns = ('Mois', 'Chèques', 'Montant', 'CHQ', 'LCN', 'Encaissé', 'Impayé', 'Moyenne', 'Évolution') # Updated status columns
+        columns = ('Mois', 'Chèques', 'Mont', 'CHQ', 'LCN', 'Encaissé', 'Impayé', 'Moyenne', 'Évolution') # Updated status columns
 
         self.trends_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=8)
 
@@ -5669,7 +5669,7 @@ class EnhancedChequeManager:
 
         # Treeview
 
-        columns = ('Banque', 'Chèques', 'Montant', 'Part %', 'Moyenne', 'Encaissé', 'Impayé') # Updated status columns
+        columns = ('Banque', 'Chèques', 'Mont', 'Part %', 'Moyenne', 'Encaissé', 'Impayé') # Updated status columns
 
         self.bank_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=8)
 
@@ -5703,7 +5703,7 @@ class EnhancedChequeManager:
 
         # Treeview
 
-        columns = ('Rang', 'Client', 'Chèques', 'Montant', 'Dernière')
+        columns = ('Rang', 'Client', 'Chèques', 'Mont', 'Dernière')
 
         self.clients_tree = ttk.Treeview(table_container, columns=columns, show='headings', height=8)
 
@@ -5759,7 +5759,7 @@ class EnhancedChequeManager:
 
                     COUNT(*) as count,
 
-                    SUM(montant) as total,
+                    SUM(Mont) as total,
 
                     SUM(CASE WHEN reg = 'CHQ' THEN 1 ELSE 0 END) as chq_count,
 
@@ -5769,7 +5769,7 @@ class EnhancedChequeManager:
 
                     SUM(CASE WHEN status = 'IMPAYE' THEN 1 ELSE 0 END) as unpaid_count, -- Updated
 
-                    AVG(montant) as average
+                    AVG(Mont) as average
 
                 FROM cheques
 
@@ -5863,9 +5863,9 @@ class EnhancedChequeManager:
 
                     COUNT(*) as count,
 
-                    SUM(montant) as total,
+                    SUM(Mont) as total,
 
-                    AVG(montant) as average,
+                    AVG(Mont) as average,
 
                     SUM(CASE WHEN status = 'ENCAISSE' THEN 1 ELSE 0 END) as paid_count,     -- Updated
 
@@ -5933,7 +5933,7 @@ class EnhancedChequeManager:
 
                     COUNT(*) as count,
 
-                    SUM(montant) as total,
+                    SUM(Mont) as total,
 
                     MAX(date_reception) as last_date
 
@@ -6047,7 +6047,7 @@ class EnhancedChequeManager:
 
         """Validate amount input - FIXED VERSION"""
 
-        value = self.montant_var.get().strip()
+        value = self.Mont_var.get().strip()
 
         if not value:
 
@@ -6061,7 +6061,7 @@ class EnhancedChequeManager:
 
         if cleaned != value:
 
-            self.montant_var.set(cleaned)
+            self.Mont_var.set(cleaned)
 
             value = cleaned
 
@@ -6087,13 +6087,13 @@ class EnhancedChequeManager:
 
             self.amount_indicator.config(text="✗", foreground=self.colors['danger'])
 
-    def format_montant(self, event=None):
+    def format_Mont(self, event=None):
 
         """Format amount with 2 decimal places - FIXED VERSION"""
 
         try:
 
-            value_str = self.montant_var.get().strip()
+            value_str = self.Mont_var.get().strip()
 
             if not value_str:
 
@@ -6109,7 +6109,7 @@ class EnhancedChequeManager:
 
             formatted = f"{value:.2f}".replace('.', ',')
 
-            self.montant_var.set(formatted)
+            self.Mont_var.set(formatted)
 
             self.amount_indicator.config(text="✓", foreground=self.colors['success'])
 
@@ -6167,21 +6167,21 @@ class EnhancedChequeManager:
 
             errors.append("• Nom du Propriétaire manquant") # Updated label
 
-        if not self.montant_var.get().strip():
+        if not self.Mont_var.get().strip():
 
-            errors.append("• Montant manquant")
+            errors.append("• Mont manquant")
 
         else:
 
             try:
 
-                montant_str = self.montant_var.get().strip()
+                Mont_str = self.Mont_var.get().strip()
 
-                float(montant_str.replace(',', '.'))
+                float(Mont_str.replace(',', '.'))
 
             except ValueError:
 
-                errors.append("• Montant invalide")
+                errors.append("• Mont invalide")
 
         if errors:
 
@@ -6205,7 +6205,7 @@ class EnhancedChequeManager:
 
             self.depositor_name_var.set("John Doe") # Updated
 
-            self.montant_var.set("1000,00")
+            self.Mont_var.set("1000,00")
 
             self.facture_var.set("FAC001")
 
@@ -6225,7 +6225,7 @@ class EnhancedChequeManager:
 
         self.depositor_name_var.set("") # Updated
 
-        self.montant_var.set("")
+        self.Mont_var.set("")
 
         self.facture_var.set("")
 
@@ -6307,7 +6307,7 @@ class EnhancedChequeManager:
 
                 cheque.get('recipient_name', ''), # Uses 'recipient_name' DB column
 
-                f"{cheque['montant']:,.2f} DH".replace('.', ','),
+                f"{cheque['Mont']:,.2f} DH".replace('.', ','),
 
                 cheque['echeance'],
 

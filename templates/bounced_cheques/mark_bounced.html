@@ -18,11 +18,11 @@
                     <div class="col-md-6">
                         <strong>Chèque n°:</strong> {{ cheque.cheque_number or 'N/A' }}<br>
                         <strong>Client:</strong> {{ cheque.client.name }}<br>
-                        <strong>Montant:</strong> {{ "{:,.2f}".format(cheque.amount) }} MAD
+                        <strong>Mont:</strong> {{ "{:,.2f}".format(cheque.amount) }} MAD
                     </div>
                     <div class="col-md-6">
                         <strong>Banque:</strong> {{ cheque.branch.bank.name }}<br>
-                        <strong>Date échéance:</strong> {{ cheque.due_date.strftime('%d/%m/%Y') }}<br>
+                        <strong>Date éch.:</strong> {{ cheque.due_date.strftime('%d/%m/%Y') }}<br>
                         <strong>Jours de retard:</strong> {{ (date.today() - cheque.due_date).days if cheque.due_date < date.today() else 0 }}
                     </div>
                 </div>

@@ -209,7 +209,7 @@ def add_cheque_to_excel():
             'banque': request.form.get('banque'),
             'proprietaire': request.form.get('proprietaire'),
             'deposant': request.form.get('deposant'),
-            'montant': float(request.form.get('montant', 0)),
+            'Mont': float(request.form.get('Mont', 0)),
             'echeance_date': datetime.strptime(request.form.get('echeance_date'), '%Y-%m-%d').date(),
             'statut': request.form.get('statut', 'EN_ATTENTE'),
             'notes': request.form.get('notes', '')

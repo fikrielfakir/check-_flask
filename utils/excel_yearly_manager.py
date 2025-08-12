@@ -27,7 +27,7 @@ class ExcelYearlyManager:
         # Define column headers for consistency
         self.headers = [
             'Date', 'Type', 'Numéro', 'Banque', 'Propriétaire', 
-            'Déposant', 'Montant', 'devise','Date échéance', 'Statut', 'Notes'
+            'Déposant', 'Mont', 'devise','Date éch.', 'Statut', 'Notes'
         ]
         
         # French month names
@@ -73,19 +73,19 @@ class ExcelYearlyManager:
         """
         # Updated headers to match the new format
         self.headers = [
-            "Date de reception",
-            "Type de Règlement", 
-            "Numéro du chèque",
-            "Banque/Agence",
+            "Date réc",
+            "Type rég", 
+            "N° doc",
+            "Bq/Agce",
             "Client",
-            "Nom du déposant",
-            "Montant",
+            "Nom dép",
+            "Mont",
             "Devise",
-            "Date d'échéance",
-            "Date de Création",
+            "Date éch",
+            "Date créat",
             "Statut",
             "N° Facture",
-            "Date de facture",
+            "Date fact",
             "Notes"
         ]
         
@@ -112,19 +112,19 @@ class ExcelYearlyManager:
         
         # Set column widths - Updated for new columns
         column_widths = {
-            'A': 12,  # Date de reception
-            'B': 12,  # Type de Règlement
-            'C': 15,  # Numéro du chèque
-            'D': 25,  # Banque/Agence
+            'A': 12,  # Date réc
+            'B': 12,  # Type rég
+            'C': 15,  # N° doc
+            'D': 25,  # Bq/Agce
             'E': 25,  # Client
-            'F': 20,  # Nom du déposant
-            'G': 12,  # Montant
+            'F': 20,  # Nom dép
+            'G': 12,  # Mont
             'H': 8,   # Devise
-            'I': 12,  # Date d'échéance
-            'J': 12,  # Date de Création
+            'I': 12,  # Date éch
+            'J': 12,  # Date créat
             'K': 12,  # Statut
             'L': 15,  # N° Facture
-            'M': 12,  # Date de facture
+            'M': 12,  # Date fact
             'N': 30   # Notes
         }
         
@@ -179,7 +179,7 @@ class ExcelYearlyManager:
                 - banque: bank name
                 - propriétaire: owner name
                 - deposant: depositor name
-                - montant: amount
+                - Mont: amount
                 - type: CHQ or LCN
                 - statut: status
                 - notes: notes
@@ -214,7 +214,7 @@ class ExcelYearlyManager:
                 cheque_data.get('banque_depot', ''),  # New deposit bank field
                 cheque_data.get('propriétaire', ''),
                 cheque_data.get('deposant', ''),
-                cheque_data.get('montant', 0),
+                cheque_data.get('Mont', 0),
                 cheque_data.get('devise', 'MAD'),
                 cheque_data.get('echeance_date', ''),
                 cheque_data.get('date_creation', ''),
@@ -303,7 +303,7 @@ class ExcelYearlyManager:
                 cell.border = thin_border
                 
                 # Format amount column (G) as currency
-                if col == 7:  # Montant column (G)
+                if col == 7:  # Mont column (G)
                     cell.number_format = '#,##0.00'
                 
                 # Center align date and status columns
@@ -461,7 +461,7 @@ class ExcelYearlyManager:
             
             # Headers for summary
             summary_headers = [
-                'Mois', 'Nombre de chèques', 'Montant total', 'CHQ', 'LCN',
+                'Mois', 'Nombre de chèques', 'Mont total', 'CHQ', 'LCN',
                 'Encaissés', 'Impayés', 'En attente', 'Rejetés', 'Déposés', 'Annulés'
             ]
             

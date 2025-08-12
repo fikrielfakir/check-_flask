@@ -78,7 +78,7 @@ class PDFGenerator:
         summary_data = [
             ['Statistiques Générales', ''],
             ['Nombre total de chèques', str(len(cheques))],
-            ['Montant total', f"{total_amount:,.2f} MAD"],
+            ['Mont total', f"{total_amount:,.2f} MAD"],
         ]
         
         # Add status breakdown
@@ -114,7 +114,7 @@ class PDFGenerator:
     def _add_cheque_table(self, story, cheques):
         """Add table with cheque details"""
         # Table headers
-        headers = ['N°', 'Client', 'Banque', 'Montant', 'Échéance', 'Statut']
+        headers = ['N°', 'Client', 'Banque', 'Mont', 'Échéance', 'Statut']
         data = [headers]
         
         # Add cheque data
@@ -168,7 +168,7 @@ class PDFGenerator:
         story.append(Spacer(1, 30))
         
         # Cheques table
-        headers = ['N°', 'Client', 'Montant', 'Échéance']
+        headers = ['N°', 'Client', 'Mont', 'Échéance']
         data = [headers]
         
         total_amount = 0

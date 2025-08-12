@@ -20,20 +20,20 @@ class OptimizedExcelSync:
         
         # Excel headers with deposit bank field
         self.headers = [
-            "Date de reception",
-            "Type de Règlement", 
-            "Numéro du chèque",
-            "Banque/Agence",
-            "Banque de dépôts - Agence",
+            "Date réc",
+            "Type rég", 
+            "N° doc",
+            "Bq/Agce",
+            "Bq dép. - Agce",
             "Client",
-            "Nom du déposant",
-            "Montant",
+            "Nom dép",
+            "Mont",
             "Devise",
-            "Date d'échéance",
-            "Date de Création",
+            "Date éch",
+            "Date créat",
             "Statut",
             "N° Facture",
-            "Date de facture",
+            "Date fact",
             "Notes"
         ]
         
@@ -259,7 +259,7 @@ class OptimizedExcelSync:
             f"{cheque.branch.bank.name} - {cheque.branch.name}" if cheque.branch else '',
             f"{cheque.deposit_branch.bank.name} - {cheque.deposit_branch.name}" if cheque.deposit_branch else '',
             cheque.client.name if cheque.client else '',
-            cheque.depositor_name or '',
+            cheque.depositor.name if cheque.depositor else '',
             float(cheque.amount),
             cheque.currency or 'MAD',
             cheque.due_date.strftime('%d/%m/%Y') if cheque.due_date else '',
