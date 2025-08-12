@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mode Hors Ligne - Gestion des Chèques</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .offline-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            max-width: 500px;
+            margin: 2rem;
+        }
+        
+        .offline-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+        
+        .offline-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        
+        .offline-message {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        
+        .retry-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .retry-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .cached-data {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border-left: 4px solid #ffd700;
+        }
+        
+        .cached-data h3 {
+            margin-top: 0;
+            color: #ffd700;
+        }
+        
+        .cached-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        
+        .cached-link {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+        
+        .cached-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            text-decoration: none;
+        }
+        
+        .connection-status {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .status-online {
+            background: rgba(76, 175, 80, 0.3);
+            border-left: 4px solid #4caf50;
+        }
+        
+        .status-offline {
+            background: rgba(244, 67, 54, 0.3);
+            border-left: 4px solid #f44336;
+        }
+        
+        @media (max-width: 600px) {
+            .offline-container {
+                margin: 1rem;
+                padding: 2rem;
+            }
+            
+            .offline-title {
+                font-size: 1.5rem;
+            }
+            
+            .offline-message {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">📱💔</div>
+        <h1 class="offline-title">Mode Hors Ligne</h1>
+        <p class="offline-message">
+            Vous êtes actuellement hors ligne. Certaines fonctionnalités peuvent être limitées, 
+            mais vous pouvez toujours accéder aux données mises en cache.
+        </p>
+        
+        <button class="retry-button" onclick="window.location.reload()">
+            🔄 Réessayer la connexion
+        </button>
+        
+        <div class="cached-data">
+            <h3>📂 Données disponibles hors ligne</h3>
+            <p>Vous pouvez accéder aux pages récemment visitées :</p>
+            <div class="cached-links">
+                <a href="/" class="cached-link">🏠 Tableau de bord</a>
+                <a href="/cheques" class="cached-link">📋 Chèques</a>
+                <a href="/clients" class="cached-link">👥 Clients</a>
+                <a href="/depositors" class="cached-link">🏪 Déposants</a>
+            </div>
+        </div>
+        
+        <div id="connectionStatus" class="connection-status status-offline">
+            <strong>🔴 État :</strong> Hors ligne - Vérifiez votre connexion internet
+        </div>
+    </div>
+
+    <script>
+        // Monitor online/offline status
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('connectionStatus');
+            
+            if (navigator.onLine) {
+                statusElement.className = 'connection-status status-online';
+                statusElement.innerHTML = '<strong>🟢 État :</strong> Connexion rétablie - <a href="/" style="color: white;">Retourner à l\'application</a>';
+            } else {
+                statusElement.className = 'connection-status status-offline';
+                statusElement.innerHTML = '<strong>🔴 État :</strong> Hors ligne - Vérifiez votre connexion internet';
+            }
+        }
+        
+        // Check connection status on load
+        updateConnectionStatus();
+        
+        // Listen for online/offline events
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+        
+        // Auto-retry connection every 30 seconds
+        setInterval(() => {
+            if (navigator.onLine) {
+                fetch('/', { method: 'HEAD', cache: 'no-cache' })
+                    .then(() => {
+                        // Connection is working, redirect to main app
+                        window.location.href = '/';
+                    })
+                    .catch(() => {
+                        // Still having connection issues
+                        console.log('Connection test failed');
+                    });
+            }
+        }, 30000);
+        
+        // Service Worker registration check
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                console.log('Service Worker ready:', registration);
+            });
+        }
+    </script>
+</body>
+</html>

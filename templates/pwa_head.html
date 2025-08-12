@@ -1,0 +1,118 @@
+<!-- PWA Configuration -->
+<meta name="theme-color" content="#0d6efd">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gestion Chèques">
+<meta name="msapplication-TileColor" content="#0d6efd">
+<meta name="msapplication-config" content="/static/browserconfig.xml">
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="/static/manifest.json">
+
+<!-- PWA Icons -->
+<link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+<link rel="mask-icon" href="/static/icons/safari-pinned-tab.svg" color="#0d6efd">
+<link rel="shortcut icon" href="/static/icons/favicon.ico">
+
+<!-- Performance optimizations -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
+<!-- Preload critical resources -->
+<link rel="preload" href="/static/css/style.css" as="style">
+<link rel="preload" href="/static/js/performance.js" as="script">
+
+<!-- Service Worker Registration -->
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js')
+            .then(registration => {
+                console.log('SW registered: ', registration);
+                
+                // Check for updates
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed') {
+                            if (navigator.serviceWorker.controller) {
+                                // New content available
+                                showUpdateNotification();
+                            }
+                        }
+                    });
+                });
+            })
+            .catch(registrationError => {
+                console.log('SW registration failed: ', registrationError);
+            });
+    });
+}
+
+function showUpdateNotification() {
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-info alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+    notification.style.zIndex = '9999';
+    notification.innerHTML = `
+        <i class="fas fa-download"></i>
+        <strong>Mise à jour disponible!</strong>
+        <button type="button" class="btn btn-sm btn-outline-info ms-2" onclick="window.location.reload()">
+            Actualiser
+        </button>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(notification);
+}
+
+// PWA install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent Chrome 67 and earlier from automatically showing the prompt
+    e.preventDefault();
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+    
+    // Show install button
+    showInstallButton();
+});
+
+function showInstallButton() {
+    const installButton = document.createElement('button');
+    installButton.className = 'btn btn-primary btn-sm position-fixed bottom-0 end-0 m-3';
+    installButton.innerHTML = '<i class="fas fa-download"></i> Installer l\'app';
+    installButton.style.zIndex = '9999';
+    
+    installButton.addEventListener('click', () => {
+        // Hide our install button
+        installButton.style.display = 'none';
+        
+        // Show the prompt
+        deferredPrompt.prompt();
+        
+        // Wait for the user to respond to the prompt
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User accepted the A2HS prompt');
+            } else {
+                console.log('User dismissed the A2HS prompt');
+            }
+            deferredPrompt = null;
+        });
+    });
+    
+    document.body.appendChild(installButton);
+}
+
+// Request notification permission
+if ('Notification' in window && 'serviceWorker' in navigator) {
+    Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+            console.log('Notification permission granted');
+        }
+    });
+}
+</script>

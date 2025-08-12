@@ -1,11 +1,18 @@
 import os
 import logging
-from flask import Flask
+from datetime import timedelta
+from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
+from flask_compress import Compress
+from flask_socketio import SocketIO
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+# Performance and security imports
+from utils.performance import init_performance_tools
+from utils.security import SecurityHeaders, SessionSecurity
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -57,6 +64,27 @@ def create_app():
     login_manager.init_app(app)
     csrf.init_app(app)
     
+    # Performance optimizations
+    Compress(app)  # Enable gzip compression
+    socketio = SocketIO(app, cors_allowed_origins="*")  # Real-time notifications
+    
+    # Security configuration
+    SessionSecurity.secure_session_config(app)
+    
+    # Cache and rate limiting
+    cache, limiter = init_performance_tools(app)
+    
+    # Security headers middleware
+    @app.after_request
+    def add_security_headers(response):
+        return SecurityHeaders.add_security_headers(response)
+    
+    # Session validation
+    @app.before_request
+    def validate_session():
+        if request.endpoint and not request.endpoint.startswith('static'):
+            SessionSecurity.validate_session_integrity()
+    
     # Login manager configuration
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Veuillez vous connecter pour accéder à cette page.'
@@ -78,6 +106,7 @@ def create_app():
     from routes.excel_manager import excel_manager_bp
     from routes.analytics import analytics_bp
     from routes.advanced_analytics import advanced_analytics_bp
+    from routes.api import api_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/')
@@ -89,6 +118,7 @@ def create_app():
     app.register_blueprint(excel_manager_bp, url_prefix='/excel')
     app.register_blueprint(analytics_bp, url_prefix='/analytics')
     app.register_blueprint(advanced_analytics_bp, url_prefix='/advanced-analytics')
+    app.register_blueprint(api_bp)  # API routes for optimizations
     
     with app.app_context():
         # Import models to ensure they're registered
