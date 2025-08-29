@@ -42,6 +42,8 @@ dependencies = [
     "qrcode[pil]>=8.2",
     "flask-socketio>=5.5.1",
     "flask-compress>=1.18",
+    "onesignalpythonsdk>=0.1",
+    "requests>=2.32.4",
 ]
 
 [[tool.uv.index]]
