@@ -2,25 +2,36 @@
 
 
 a = Analysis(
-    ['exe_main.py'],
+    ['desktop_main.py'],
     pathex=[],
     binaries=[],
     datas=[('templates', 'templates'), ('static', 'static')],
-    hiddenimports=['flask', 'flask_sqlalchemy', 'models', 'forms', 'app'],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['PyQt5', 'PyQt6', 'tkinter'],
     noarchive=False,
     optimize=0,
 )
 pyz = PYZ(a.pure)
+splash = Splash(
+    'splash.png',
+    binaries=a.binaries,
+    datas=a.datas,
+    text_pos=None,
+    text_size=12,
+    minify_script=True,
+    always_on_top=True,
+)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
     a.datas,
+    splash,
+    splash.binaries,
     [],
     name='GestionCheques',
     debug=False,
@@ -29,10 +40,11 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['icon.ico'],
 )
