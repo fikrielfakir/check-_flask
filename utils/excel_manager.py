@@ -146,20 +146,20 @@ class ExcelManager:
         """Prepare cheque data in the correct order for Excel columns"""
         return [
             cheque.issue_date.strftime('%d/%m/%Y') if cheque.issue_date else '',
-            cheque.payment_type or 'CHQ',
-            cheque.cheque_number or '',
-            f"{cheque.branch.bank.name} - {cheque.branch.name}" if cheque.branch else '',
-            f"{cheque.deposit_branch.bank.name} - {cheque.deposit_branch.name}" if cheque.deposit_branch else '',
-            cheque.client.name if cheque.client else '',
-            cheque.depositor.name if cheque.depositor else '',
+            (cheque.payment_type or 'CHQ').upper(),
+            (cheque.cheque_number or '').upper(),
+            f"{cheque.branch.bank.name.upper()} - {cheque.branch.name.upper()}" if cheque.branch else '',
+            f"{cheque.deposit_branch.bank.name.upper()} - {cheque.deposit_branch.name.upper()}" if cheque.deposit_branch else '',
+            cheque.client.name.upper() if cheque.client else '',
+            cheque.depositor.name.upper() if cheque.depositor else '',
             float(cheque.amount),
-            cheque.currency or 'MAD',
+            (cheque.currency or 'MAD').upper(),
             cheque.due_date.strftime('%d/%m/%Y') if cheque.due_date else '',
             cheque.created_date.strftime('%d/%m/%Y') if cheque.created_date else '',
-            cheque.status or 'EN ATTENTE',
-            cheque.invoice_number or '',
+            (cheque.status or 'EN ATTENTE').upper(),
+            (cheque.invoice_number or '').upper(),
             cheque.invoice_date.strftime('%d/%m/%Y') if cheque.invoice_date else '',
-            cheque.notes or '' ''
+            (cheque.notes or '').upper()
         ]
     
     def _write_cheque_row(self, sheet, row_num, data):

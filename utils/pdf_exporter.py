@@ -106,14 +106,14 @@ class PDFExporter:
                 for cheque in cheques_data:
                     row = [
                         self._format_date(cheque.get('date_emission', '')),
-                        cheque.get('type', 'CHQ'),
-                        cheque.get('numero', ''),
-                        self._truncate_text(cheque.get('banque', ''), 15),
-                        self._truncate_text(cheque.get('proprietaire', ''), 20),
-                        self._truncate_text(cheque.get('deposant', ''), 20),
+                        str(cheque.get('type', 'CHQ')).upper(),
+                        str(cheque.get('numero', '')).upper(),
+                        self._truncate_text(str(cheque.get('banque', '')).upper(), 15),
+                        self._truncate_text(str(cheque.get('proprietaire', '')).upper(), 20),
+                        self._truncate_text(str(cheque.get('deposant', '')).upper(), 20),
                         f"{float(cheque.get('Mont', 0)):,.2f}",
                         self._format_date(cheque.get('date_echeance', '')),
-                        self._get_status_text(cheque.get('statut', ''))
+                        self._get_status_text(cheque.get('statut', '')).upper()
                     ]
                     table_data.append(row)
                 

@@ -119,13 +119,15 @@ class PDFGenerator:
         
         # Add cheque data
         for cheque in cheques:
+            client_name = cheque.client.name.upper() if cheque.client else 'N/A'
+            client_display = client_name[:30] + '...' if len(client_name) > 30 else client_name
             row = [
-                cheque.cheque_number or 'N/A',
-                cheque.client.name[:30] + '...' if len(cheque.client.name) > 30 else cheque.client.name,
-                cheque.branch.bank.name,
+                (cheque.cheque_number or 'N/A').upper(),
+                client_display,
+                cheque.branch.bank.name.upper() if cheque.branch else '',
                 f"{float(cheque.amount):,.2f}",
                 cheque.due_date.strftime('%d/%m/%Y'),
-                cheque.status_text
+                cheque.status_text.upper() if cheque.status_text else ''
             ]
             data.append(row)
         
@@ -175,7 +177,7 @@ class PDFGenerator:
         for idx, cheque in enumerate(cheques, 1):
             row = [
                 str(idx),
-                cheque.client.name,
+                cheque.client.name.upper() if cheque.client else '',
                 f"{float(cheque.amount):,.2f} MAD",
                 cheque.due_date.strftime('%d/%m/%Y')
             ]
