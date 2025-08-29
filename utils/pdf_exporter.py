@@ -82,8 +82,8 @@ class PDFExporter:
             else:
                 # Prepare table data
                 headers = [
-                    'Date', 'Type', 'Numéro', 'Banque', 'Propriétaire', 
-                    'Déposant', 'Mont', 'Échéance', 'Statut'
+                    'DATE', 'TYPE', 'NUMÉRO', 'BANQUE', 'PROPRIÉTAIRE', 
+                    'DÉPOSANT', 'MONT', 'ÉCHÉANCE', 'STATUT'
                 ]
                 
                 # Calculate column widths dynamically to fit A4 page

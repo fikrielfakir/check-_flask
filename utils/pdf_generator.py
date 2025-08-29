@@ -114,7 +114,7 @@ class PDFGenerator:
     def _add_cheque_table(self, story, cheques):
         """Add table with cheque details"""
         # Table headers
-        headers = ['N°', 'Client', 'Banque', 'Mont', 'Échéance', 'Statut']
+        headers = ['N°', 'CLIENT', 'BANQUE', 'MONT', 'ÉCHÉANCE', 'STATUT']
         data = [headers]
         
         # Add cheque data
@@ -149,7 +149,7 @@ class PDFGenerator:
             ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
         ]))
         
-        story.append(Paragraph("Détail des Chèques", self.subtitle_style))
+        story.append(Paragraph("DÉTAIL DES CHÈQUES", self.subtitle_style))
         story.append(table)
     
     def generate_bordereau(self, bank, cheques):
@@ -168,7 +168,7 @@ class PDFGenerator:
         story.append(Spacer(1, 30))
         
         # Cheques table
-        headers = ['N°', 'Client', 'Mont', 'Échéance']
+        headers = ['N°', 'CLIENT', 'MONT', 'ÉCHÉANCE']
         data = [headers]
         
         total_amount = 0

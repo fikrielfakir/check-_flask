@@ -39,8 +39,8 @@
                     
                     <!-- Client Name -->
                     <div class="mb-3">
-                        <label for="name" class="form-label" id="nameLabel">
-                            Nom complet
+                        <label for="name" class="form-label" id="nameLabel" style="text-transform: uppercase;">
+                            NOM COMPLET
                         </label>
                         {{ form.name(class="form-control") }}
                         {% if form.name.errors %}
@@ -57,14 +57,14 @@
                         <!-- Person Fields -->
                         <div id="personFields" class="client-fields">
                             <div class="mb-3">
-                                <label for="id_number_person" class="form-label">CIN (Carte d'Identité Nationale)</label>
+                                <label for="id_number_person" class="form-label" style="text-transform: uppercase;">CIN (CARTE D'IDENTITÉ NATIONALE)</label>
                                 <input type="text" class="form-control" id="id_number_person" name="id_number" 
                                        value="{{ form.id_number.data or '' }}" placeholder="Ex: AB123456">
                                 <div class="form-text">Format: 1 ou 2 lettres + 3 à 6 chiffres (Ex: RX3653, K1234)</div>
                             </div>
                             
                             <div class="mb-3">
-                                <label for="vat_number_person" class="form-label">IF (Identifiant Fiscal)</label>
+                                <label for="vat_number_person" class="form-label" style="text-transform: uppercase;">IF (IDENTIFIANT FISCAL)</label>
                                 <input type="text" class="form-control" id="vat_number_person" name="vat_number" 
                                        value="{{ form.vat_number.data or '' }}" placeholder="Ex: 123456789">
                                 <div class="form-text">Format: 9 chiffres</div>
@@ -74,14 +74,14 @@
                         <!-- Company Fields -->
                         <div id="companyFields" class="client-fields" style="display: none;">
                             <div class="mb-3">
-                                <label for="id_number_company" class="form-label">RC (Registre de Commerce)</label>
+                                <label for="id_number_company" class="form-label" style="text-transform: uppercase;">RC (REGISTRE DE COMMERCE)</label>
                                 <input type="text" class="form-control" id="id_number_company" name="id_number" 
                                        value="{{ form.id_number.data or '' }}" placeholder="Ex: 12345">
                                 <div class="form-text">Format: Chiffres uniquement</div>
                             </div>
                             
                             <div class="mb-3">
-                                <label for="vat_number_company" class="form-label">ICE (Identifiant Commun de l'Entreprise)</label>
+                                <label for="vat_number_company" class="form-label" style="text-transform: uppercase;">ICE (IDENTIFIANT COMMUN DE L'ENTREPRISE)</label>
                                 <input type="text" class="form-control" id="vat_number_company" name="vat_number" 
                                        value="{{ form.vat_number.data or '' }}" placeholder="Ex: 000123456000001">
                                 <div class="form-text">Format: 15 chiffres</div>

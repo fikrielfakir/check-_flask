@@ -13,21 +13,21 @@ class ExcelManager:
         
         # Excel headers - Updated to include deposit bank field
         self.headers = [
-            "Date réc",
-            "Type rég", 
-            "N° doc",
-            "Bq/Agce",
-            "Bq dép. - Agce",
-            "Client",
-            "Nom dép",
-            "Mont",
-            "Devise",
-            "Date éch",
-            "Date créat",
-            "Statut",
-            "N° Facture",
-            "Date fact",
-            "Notes"
+            "DATE RÉC",
+            "TYPE RÉG", 
+            "N° DOC",
+            "BQ/AGCE",
+            "BQ DÉP. - AGCE",
+            "CLIENT",
+            "NOM DÉP",
+            "MONT",
+            "DEVISE",
+            "DATE ÉCH",
+            "DATE CRÉAT",
+            "STATUT",
+            "N° FACTURE",
+            "DATE FACT",
+            "NOTES"
         ]
         
         # Month names in French

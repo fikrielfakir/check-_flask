@@ -25,7 +25,7 @@
                     
                     <!-- اسم البنك -->
                     <div class="mb-3">
-                        {{ form.name.label(class="form-label fw-bold") }}
+                        {{ form.name.label(class="form-label fw-bold", style="text-transform: uppercase;") }}
                         {{ form.name(class="form-control form-control-lg", placeholder="مثال: البنك الشعبي المغربي") }}
                         {% if form.name.errors %}
                             <div class="text-danger small mt-1">
@@ -40,7 +40,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                {{ form.code.label(class="form-label fw-bold") }}
+                                {{ form.code.label(class="form-label fw-bold", style="text-transform: uppercase;") }}
                                 {{ form.code(class="form-control", placeholder="مثال: BCP", style="text-transform: uppercase;") }}
                                 {% if form.code.errors %}
                                     <div class="text-danger small mt-1">
@@ -53,7 +53,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                {{ form.swift_code.label(class="form-label fw-bold") }}
+                                {{ form.swift_code.label(class="form-label fw-bold", style="text-transform: uppercase;") }}
                                 {{ form.swift_code(class="form-control", placeholder="مثال: BCPOMAMC") }}
                                 {% if form.swift_code.errors %}
                                     <div class="text-danger small mt-1">
@@ -89,7 +89,7 @@
 
                     <!-- رابط الأيقونة البديل -->
                     <div class="mb-3">
-                        {{ form.icon_url.label(class="form-label fw-bold") }}
+                        {{ form.icon_url.label(class="form-label fw-bold", style="text-transform: uppercase;") }}
                         {{ form.icon_url(class="form-control", placeholder="https://example.com/icon.png أو اتركه فارغًا لرفع ملف") }}
                         {% if form.icon_url.errors %}
                             <div class="text-danger small mt-1">
@@ -107,7 +107,7 @@
                     <div class="mb-4">
                         <div class="form-check form-switch">
                             {{ form.is_active(class="form-check-input", id="flexSwitchCheckDefault") }}
-                            {{ form.is_active.label(class="form-check-label", for="flexSwitchCheckDefault") }}
+                            {{ form.is_active.label(class="form-check-label", for="flexSwitchCheckDefault", style="text-transform: uppercase;") }}
                         </div>
                         <div class="form-text">
                             <i class="fas fa-info-circle me-1"></i>البنوك غير النشطة لن تظهر في القوائم

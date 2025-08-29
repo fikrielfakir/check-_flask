@@ -73,20 +73,20 @@ class ExcelYearlyManager:
         """
         # Updated headers to match the new format
         self.headers = [
-            "Date réc",
-            "Type rég", 
-            "N° doc",
-            "Bq/Agce",
-            "Client",
-            "Nom dép",
-            "Mont",
-            "Devise",
-            "Date éch",
-            "Date créat",
-            "Statut",
-            "N° Facture",
-            "Date fact",
-            "Notes"
+            "DATE RÉC",
+            "TYPE RÉG", 
+            "N° DOC",
+            "BQ/AGCE",
+            "CLIENT",
+            "NOM DÉP",
+            "MONT",
+            "DEVISE",
+            "DATE ÉCH",
+            "DATE CRÉAT",
+            "STATUT",
+            "N° FACTURE",
+            "DATE FACT",
+            "NOTES"
         ]
         
         # Header styling
